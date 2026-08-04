@@ -8,6 +8,7 @@ export interface FirestoreCategory {
   nameEn: string;
   icon: string;
   imageUrl: string;
+  color?: string;
   sortOrder: number;
   active: boolean;
 }
@@ -37,7 +38,9 @@ export interface FirestoreCustomer {
   email: string;
   address: string;
   favoriteProducts: string[];
+  notes?: string;
   ordersCount: number;
+  totalSpending?: number;
   lastOrder: Timestamp | null;
   createdAt: Timestamp;
 }
@@ -68,9 +71,13 @@ export interface FirestoreBanner {
   title: string;
   subtitle: string;
   imageUrl: string;
+  mobileImageUrl?: string;
   cta?: string;
+  ctaUrl?: string;
   active: boolean;
   sortOrder: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface FirestoreUser {

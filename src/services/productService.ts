@@ -204,6 +204,22 @@ export async function deleteProduct(id: string): Promise<ServiceResult<void>> {
   }
 }
 
+export async function reorderProducts(
+  orderedIds: string[]
+): Promise<ServiceResult<void>> {
+  try {
+    const db = getDb();
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        updateDoc(doc(db, COLLECTIONS.products, id), { sortOrder: index + 1 })
+      )
+    );
+    return success(undefined);
+  } catch (error) {
+    return failure(error, "Failed to reorder products");
+  }
+}
+
 export async function readOneProductForTest(): Promise<ServiceResult<Product | null>> {
   try {
     const products = await fetchAllProducts();

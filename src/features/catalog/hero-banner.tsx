@@ -88,13 +88,32 @@ export function HeroBanner() {
                 transition={{ duration: 0.5 }}
                 className="absolute inset-0"
               >
-                <Image
-                  src={banners[current]!.image}
-                  alt={banners[current]!.title}
-                  fill
-                  className="object-cover"
-                  sizes="100vw"
-                />
+                {banners[current]!.mobileImage ? (
+                  <>
+                    <Image
+                      src={banners[current]!.mobileImage!}
+                      alt={banners[current]!.title}
+                      fill
+                      className="object-cover md:hidden"
+                      sizes="100vw"
+                    />
+                    <Image
+                      src={banners[current]!.image}
+                      alt={banners[current]!.title}
+                      fill
+                      className="hidden object-cover md:block"
+                      sizes="100vw"
+                    />
+                  </>
+                ) : (
+                  <Image
+                    src={banners[current]!.image}
+                    alt={banners[current]!.title}
+                    fill
+                    className="object-cover"
+                    sizes="100vw"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-r from-dark-brown/80 via-dark-brown/40 to-transparent" />
                 <div className="absolute inset-0 flex flex-col justify-center px-6 md:px-10">
                   <p className="text-xs font-medium tracking-widest text-gold uppercase">
@@ -106,6 +125,25 @@ export function HeroBanner() {
                   <p className="mt-1 text-sm text-warm-white/75">
                     {banners[current]!.subtitle}
                   </p>
+                  {banners[current]!.cta && (
+                    <Button
+                      variant="turquoise"
+                      size="sm"
+                      className="mt-3 w-fit"
+                      onClick={() => {
+                        const url = banners[current]!.ctaUrl;
+                        if (url?.startsWith("#")) {
+                          document.getElementById(url.slice(1))?.scrollIntoView({ behavior: "smooth" });
+                        } else if (url) {
+                          window.open(url, "_blank");
+                        } else {
+                          scrollToMenu();
+                        }
+                      }}
+                    >
+                      {banners[current]!.cta}
+                    </Button>
+                  )}
                 </div>
               </motion.div>
             </AnimatePresence>

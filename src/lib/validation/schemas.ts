@@ -13,6 +13,7 @@ export const categorySchema = z.object({
   nameEn: z.string().min(1, "English name is required"),
   icon: z.string().min(1, "Icon is required"),
   imageUrl: z.string().url("Image URL must be valid").optional(),
+  color: z.string().default("#8B6914"),
   sortOrder: z.number().int().min(0),
   active: z.boolean().default(true),
 });
@@ -40,6 +41,7 @@ export const customerSchema = z.object({
   email: z.string().email("Valid email is required").or(z.literal("")),
   address: z.string().min(1, "Address is required"),
   favoriteProducts: z.array(z.string()).default([]),
+  notes: z.string().default(""),
 });
 
 export const orderItemSchema = z.object({
@@ -66,9 +68,13 @@ export const bannerSchema = z.object({
   title: z.string().min(1),
   subtitle: z.string().min(1),
   imageUrl: z.string().url(),
+  mobileImageUrl: z.string().url().optional().or(z.literal("")),
   cta: z.string().optional(),
+  ctaUrl: z.string().optional(),
   active: z.boolean().default(true),
   sortOrder: z.number().int().min(0).default(0),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 export type CategoryInput = z.infer<typeof categorySchema>;

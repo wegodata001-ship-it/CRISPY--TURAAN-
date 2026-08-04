@@ -124,6 +124,22 @@ export async function deleteCategory(id: string): Promise<ServiceResult<void>> {
   }
 }
 
+export async function reorderCategories(
+  orderedIds: string[]
+): Promise<ServiceResult<void>> {
+  try {
+    const db = getDb();
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        updateDoc(doc(db, COLLECTIONS.categories, id), { sortOrder: index + 1 })
+      )
+    );
+    return success(undefined);
+  } catch (error) {
+    return failure(error, "Failed to reorder categories");
+  }
+}
+
 export async function readOneCategoryForTest(): Promise<ServiceResult<Category | null>> {
   try {
     const categories = await getCategories();

@@ -63,6 +63,7 @@ export function CategoryScroll({ selected, onSelect }: CategoryScrollProps) {
       name_ar: "הכל",
       icon: "all",
       image: "",
+      color: "#8B6914",
       sortOrder: 0,
       active: true,
       isAll: true,

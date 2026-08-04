@@ -6,6 +6,7 @@ export interface Category {
   name_ar: string;
   icon: string;
   image: string;
+  color: string;
   sortOrder: number;
   active: boolean;
 }
@@ -36,8 +37,10 @@ export interface Customer {
   phone: string;
   address: string;
   ordersCount: number;
+  totalSpending: number;
   lastOrder: string;
   favoriteItems: string[];
+  notes: string;
   avatar?: string;
 }
 
@@ -88,5 +91,11 @@ export interface BannerSlide {
   title: string;
   subtitle: string;
   image: string;
+  mobileImage?: string;
   cta?: string;
+  ctaUrl?: string;
+  active: boolean;
+  sortOrder: number;
+  startDate?: string;
+  endDate?: string;
 }

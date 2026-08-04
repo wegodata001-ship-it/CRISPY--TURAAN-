@@ -171,6 +171,7 @@ export async function getOrCreateGuestCustomer(): Promise<ServiceResult<Customer
       email: "guest@mishkat.local",
       address: "Walk-in",
       favoriteProducts: [],
+      notes: "",
     });
   } catch (error) {
     return failure(error, "Failed to get guest customer");

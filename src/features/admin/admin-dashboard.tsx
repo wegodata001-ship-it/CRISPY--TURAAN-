@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Package,
@@ -44,8 +44,16 @@ export function AdminDashboard() {
   const { products, loading: productsLoading } = useProducts();
   const { customers, loading: customersLoading } = useCustomers();
   const { orders, stats, loading: ordersLoading } = useOrders();
+  const [loadMs, setLoadMs] = useState<number | null>(null);
+  const mountTime = useRef(performance.now());
 
   const loading = productsLoading || customersLoading || ordersLoading;
+
+  useEffect(() => {
+    if (!loading && loadMs === null) {
+      setLoadMs(Math.round(performance.now() - mountTime.current));
+    }
+  }, [loading, loadMs]);
 
   const metrics = useMemo(() => {
     const delivered = orders.filter((o) => o.status === "delivered");
@@ -101,6 +109,11 @@ export function AdminDashboard() {
         </h1>
         <p className="mt-1 text-sm text-coffee/60">
           Real-time overview · {metrics.todayOrders} orders today
+          {loadMs !== null && (
+            <span className={loadMs > 1000 ? " text-amber-600" : " text-emerald-600"}>
+              {" "}· Loaded in {loadMs}ms
+            </span>
+          )}
         </p>
       </motion.div>
 

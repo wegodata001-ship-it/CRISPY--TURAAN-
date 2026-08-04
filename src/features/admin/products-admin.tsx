@@ -14,11 +14,12 @@ import {
   Search,
   CheckSquare,
   Square,
+  GripVertical,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useProducts, useCategories } from "@/hooks/useProducts";
-import { createProduct, updateProduct, deleteProduct } from "@/services";
+import { createProduct, updateProduct, deleteProduct, reorderProducts } from "@/services";
 import { productSchema, type ProductInput } from "@/lib/validation/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,9 +31,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ImageUpload } from "@/features/admin/image-upload";
 import { uploadProductImage, deleteImageByUrl } from "@/services/storageService";
 import { formatPrice, cn } from "@/lib/utils";
+import { SortableList } from "@/components/admin/sortable-list";
 import type { Product } from "@/types";
 
-type ViewMode = "grid" | "table";
+type ViewMode = "grid" | "table" | "reorder";
 
 export function ProductsAdmin() {
   const { products, loading } = useProducts();
@@ -45,6 +47,12 @@ export function ProductsAdmin() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inlinePrices, setInlinePrices] = useState<Record<string, string>>({});
+  const [ordered, setOrdered] = useState<Product[]>([]);
+
+  const sortedProducts = useMemo(
+    () => [...products].sort((a, b) => a.sortOrder - b.sortOrder),
+    [products]
+  );
 
   const form = useForm({
     resolver: zodResolver(productSchema),
@@ -165,6 +173,11 @@ export function ProductsAdmin() {
     await deleteProduct(product.id);
   };
 
+  const handleReorder = async (items: Product[]) => {
+    setOrdered(items);
+    await reorderProducts(items.map((p) => p.id));
+  };
+
   return (
     <div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -183,6 +196,9 @@ export function ProductsAdmin() {
             </button>
             <button onClick={() => setView("table")} className={cn("rounded-lg p-2", view === "table" && "bg-coffee text-warm-white")}>
               <List className="h-4 w-4" />
+            </button>
+            <button onClick={() => setView("reorder")} className={cn("rounded-lg p-2", view === "reorder" && "bg-coffee text-warm-white")} title="Reorder">
+              <GripVertical className="h-4 w-4" />
             </button>
           </div>
           <Button onClick={openCreate} variant="turquoise">
@@ -217,6 +233,24 @@ export function ProductsAdmin() {
         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4] rounded-2xl" />)}
         </div>
+      ) : view === "reorder" ? (
+        <SortableList
+          className="mt-6 space-y-2"
+          items={ordered.length ? ordered : sortedProducts}
+          onReorder={handleReorder}
+          renderItem={(product, dragHandle) => (
+            <div className="flex items-center gap-3 rounded-xl border border-beige-dark/20 bg-warm-white p-3 dark:border-white/10 dark:bg-white/5">
+              {dragHandle}
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg">
+                <Image src={product.image} alt="" fill className="object-cover" sizes="48px" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium dark:text-warm-white" dir="rtl">{product.name_ar}</p>
+                <p className="text-xs text-coffee/50">{formatPrice(product.price)}</p>
+              </div>
+            </div>
+          )}
+        />
       ) : view === "grid" ? (
         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {filtered.map((product, i) => (

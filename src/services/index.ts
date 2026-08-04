@@ -6,6 +6,7 @@ export {
   createProduct,
   updateProduct,
   deleteProduct,
+  reorderProducts,
   readOneProductForTest,
 } from "./productService";
 
@@ -16,6 +17,7 @@ export {
   createCategory,
   updateCategory,
   deleteCategory,
+  reorderCategories,
   readOneCategoryForTest,
 } from "./categoryService";
 
@@ -45,9 +47,11 @@ export {
 export {
   getBanners,
   subscribeToBanners,
+  subscribeToAllBanners,
   createBanner,
   updateBanner,
   deleteBanner,
+  reorderBanners,
 } from "./bannerService";
 
 export {

@@ -15,7 +15,7 @@ import {
 import { getDb } from "@/lib/firebase";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { ServiceError, type ServiceResult, success, failure } from "@/lib/errors";
-import { mapBanner } from "@/lib/mappers";
+import { mapBanner, isBannerLive } from "@/lib/mappers";
 import { bannerSchema, type BannerInput } from "@/lib/validation/schemas";
 import type { BannerSlide } from "@/types";
 import type { FirestoreBanner, FirestoreDoc } from "@/types/firestore";
@@ -33,8 +33,8 @@ export async function getBanners(): Promise<BannerSlide[]> {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs
-      .filter((d) => (d.data() as FirestoreBanner).active !== false)
-      .map((d) => mapBanner(docToBanner(d.id, d.data())));
+      .map((d) => mapBanner(docToBanner(d.id, d.data())))
+      .filter(isBannerLive);
   } catch (error) {
     throw new ServiceError(
       error instanceof Error ? error.message : "Failed to fetch banners",
@@ -57,8 +57,8 @@ export function subscribeToBanners(
       q,
       (snapshot) => {
         const banners = snapshot.docs
-          .filter((d) => (d.data() as FirestoreBanner).active !== false)
-          .map((d) => mapBanner(docToBanner(d.id, d.data())));
+          .map((d) => mapBanner(docToBanner(d.id, d.data())))
+          .filter(isBannerLive);
         onData(banners);
       },
       (error) => onError(error.message)
@@ -66,6 +66,48 @@ export function subscribeToBanners(
   } catch (error) {
     onError(error instanceof Error ? error.message : "Failed to subscribe to banners");
     return () => {};
+  }
+}
+
+export function subscribeToAllBanners(
+  onData: (banners: BannerSlide[]) => void,
+  onError: (error: string) => void
+): Unsubscribe {
+  try {
+    const db = getDb();
+    const q = query(
+      collection(db, COLLECTIONS.banners),
+      orderBy("sortOrder", "asc")
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const banners = snapshot.docs.map((d) =>
+          mapBanner(docToBanner(d.id, d.data()))
+        );
+        onData(banners);
+      },
+      (error) => onError(error.message)
+    );
+  } catch (error) {
+    onError(error instanceof Error ? error.message : "Failed to subscribe to banners");
+    return () => {};
+  }
+}
+
+export async function reorderBanners(
+  orderedIds: string[]
+): Promise<ServiceResult<void>> {
+  try {
+    const db = getDb();
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        updateDoc(doc(db, COLLECTIONS.banners, id), { sortOrder: index + 1 })
+      )
+    );
+    return success(undefined);
+  } catch (error) {
+    return failure(error, "Failed to reorder banners");
   }
 }
 

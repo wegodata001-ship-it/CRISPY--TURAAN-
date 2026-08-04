@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Loader2, Download, Printer, Search } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2, Download, Printer, Search, FileText, ChevronDown } from "lucide-react";
 import { useOrders } from "@/hooks/useOrders";
 import { updateOrder, deleteOrder } from "@/services";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatPrice, formatDate } from "@/lib/utils";
+import { exportHtmlAsPdf } from "@/lib/export-pdf";
+import { cn } from "@/lib/utils";
 import type { Order, OrderStatus } from "@/types";
 
 const statuses: OrderStatus[] = ["pending", "preparing", "ready", "delivered", "cancelled"];
@@ -28,11 +30,51 @@ const statusVariant: Record<OrderStatus, "pending" | "preparing" | "ready" | "de
   cancelled: "cancelled",
 };
 
+const statusColors: Record<OrderStatus, string> = {
+  pending: "bg-amber-500",
+  preparing: "bg-blue-500",
+  ready: "bg-emerald-500",
+  delivered: "bg-coffee",
+  cancelled: "bg-red-500",
+};
+
+function OrderTimeline({ status }: { status: OrderStatus }) {
+  const steps: OrderStatus[] = ["pending", "preparing", "ready", "delivered"];
+  const currentIndex = status === "cancelled" ? -1 : steps.indexOf(status);
+
+  return (
+    <div className="mt-4 flex items-center gap-1">
+      {steps.map((step, i) => (
+        <div key={step} className="flex flex-1 items-center">
+          <div className="flex flex-col items-center gap-1">
+            <div
+              className={cn(
+                "h-3 w-3 rounded-full border-2 transition-colors",
+                i <= currentIndex ? statusColors[step] : "border-beige-dark/40 bg-transparent"
+              )}
+            />
+            <span className={cn("text-[10px] capitalize", i <= currentIndex ? "text-dark-brown dark:text-warm-white" : "text-coffee/40")}>
+              {step}
+            </span>
+          </div>
+          {i < steps.length - 1 && (
+            <div className={cn("mx-1 h-0.5 flex-1", i < currentIndex ? "bg-coffee/40" : "bg-beige-dark/30")} />
+          )}
+        </div>
+      ))}
+      {status === "cancelled" && (
+        <Badge variant="cancelled" className="ml-2">Cancelled</Badge>
+      )}
+    </div>
+  );
+}
+
 export function OrdersAdmin() {
   const { orders, loading } = useOrders();
   const [updating, setUpdating] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const filtered = orders.filter((o) => {
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
@@ -52,6 +94,19 @@ export function OrdersAdmin() {
     a.href = url;
     a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
+  };
+
+  const exportPdf = () => {
+    const rows = filtered.map((o) =>
+      `<tr><td>${o.orderNumber}</td><td>${o.customerName}</td><td>${o.status}</td><td>${formatPrice(o.total)}</td><td>${formatDate(o.createdAt)}</td></tr>`
+    ).join("");
+    exportHtmlAsPdf(
+      "MISHKAT CAFÉ Orders",
+      `<h1>MISHKAT CAFÉ — Orders Report</h1>
+       <p>Generated ${new Date().toLocaleString()}</p>
+       <table><thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Total</th><th>Date</th></tr></thead>
+       <tbody>${rows}</tbody></table>`
+    );
   };
 
   const printOrders = () => window.print();
@@ -86,7 +141,8 @@ export function OrdersAdmin() {
               {statuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-3.5 w-3.5" /> Export</Button>
+          <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-3.5 w-3.5" /> Excel</Button>
+          <Button variant="outline" size="sm" onClick={exportPdf}><FileText className="h-3.5 w-3.5" /> PDF</Button>
           <Button variant="outline" size="sm" onClick={printOrders}><Printer className="h-3.5 w-3.5" /> Print</Button>
         </div>
       </div>
@@ -105,14 +161,27 @@ export function OrdersAdmin() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.02 }}
-              className="rounded-2xl bg-warm-white p-4 shadow-soft md:p-5"
+              className={cn(
+                "rounded-2xl bg-warm-white p-4 shadow-soft md:p-5 dark:bg-white/5",
+                "border-l-4",
+                order.status === "pending" && "border-l-amber-500",
+                order.status === "preparing" && "border-l-blue-500",
+                order.status === "ready" && "border-l-emerald-500",
+                order.status === "delivered" && "border-l-coffee",
+                order.status === "cancelled" && "border-l-red-500"
+              )}
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-dark-brown">{order.orderNumber}</p>
+                <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(expanded === order.id ? null : order.id)}
+                    className="flex w-full items-center gap-2 text-left"
+                  >
+                    <p className="font-semibold text-dark-brown dark:text-warm-white">{order.orderNumber}</p>
                     <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
-                  </div>
+                    <ChevronDown className={cn("h-4 w-4 text-coffee/40 transition-transform", expanded === order.id && "rotate-180")} />
+                  </button>
                   <p className="mt-1 text-sm text-coffee/60">{order.customerName}</p>
                   <p className="text-xs text-coffee/40">{formatDate(order.createdAt)}</p>
                   <div className="mt-2 flex flex-wrap gap-1">
@@ -122,6 +191,17 @@ export function OrdersAdmin() {
                       </span>
                     ))}
                   </div>
+                  <AnimatePresence>
+                    {expanded === order.id && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                      >
+                        <OrderTimeline status={order.status} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
                 <div className="flex items-center gap-3">
                   <p className="text-lg font-bold text-coffee">{formatPrice(order.total)}</p>
@@ -130,7 +210,7 @@ export function OrdersAdmin() {
                     onValueChange={(v) => handleStatusChange(order, v as OrderStatus)}
                     disabled={updating === order.id}
                   >
-                    <SelectTrigger className="w-[130px] h-8 text-xs">
+                    <SelectTrigger className="h-8 w-[130px] text-xs">
                       {updating === order.id ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
