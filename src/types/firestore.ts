@@ -76,6 +76,15 @@ export interface FirestoreOrder {
 export interface FirestoreBanner {
   title: string;
   subtitle: string;
+  titleHe?: string;
+  titleAr?: string;
+  titleEn?: string;
+  subtitleHe?: string;
+  subtitleAr?: string;
+  subtitleEn?: string;
+  buttonHe?: string;
+  buttonAr?: string;
+  buttonEn?: string;
   imageUrl: string;
   mobileImageUrl?: string;
   cta?: string;

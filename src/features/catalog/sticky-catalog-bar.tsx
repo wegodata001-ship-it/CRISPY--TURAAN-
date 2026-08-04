@@ -3,6 +3,7 @@
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CategoryScroll } from "@/features/catalog/category-scroll";
+import { useT, useLocale } from "@/components/providers/locale-provider";
 
 interface StickyCatalogBarProps {
   searchQuery: string;
@@ -17,6 +18,9 @@ export function StickyCatalogBar({
   selectedCategory,
   onCategorySelect,
 }: StickyCatalogBarProps) {
+  const t = useT();
+  const { dir } = useLocale();
+
   return (
     <div
       id="search"
@@ -24,13 +28,17 @@ export function StickyCatalogBar({
     >
       <div className="px-4 py-2 md:px-6">
         <div className="relative md:hidden">
-          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-coffee/40" />
+          <Search
+            className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee/40"
+            strokeWidth={1.75}
+          />
           <Input
-            placeholder="חיפוש בתפריט..."
+            placeholder={t("header.search")}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-10 border-beige-dark/30 bg-warm-white pl-9"
-            dir="rtl"
+            aria-label={t("header.search")}
+            className="h-10 border-beige-dark/30 bg-warm-white ps-10"
+            dir={dir}
           />
         </div>
       </div>

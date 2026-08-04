@@ -1,16 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useAiAssistant } from "@/features/ai-assistant/ai-assistant-context";
+import { useAssistant } from "@/features/assistant/assistant-context";
 import { useT } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
-export function AiAssistantFab() {
+export function AssistantFab() {
   const t = useT();
   const pathname = usePathname();
-  const { toggle, isOpen, enabled } = useAiAssistant();
+  const { toggle, isOpen, enabled } = useAssistant();
 
   if (pathname.startsWith("/admin") || !enabled) return null;
 
@@ -19,10 +19,10 @@ export function AiAssistantFab() {
       type="button"
       onClick={toggle}
       aria-expanded={isOpen}
-      aria-controls="ai-drawer"
-      aria-label={t("ai.openAssistant")}
+      aria-controls="assistant-drawer"
+      aria-label={t("assistant.open")}
       className={cn(
-        "ai-fab fixed z-[60] flex h-14 w-14 items-center justify-center rounded-full",
+        "fixed z-[60] flex h-14 w-14 items-center justify-center rounded-full",
         "bg-gradient-to-br from-turquoise to-turquoise-light text-warm-white",
         "shadow-premium border border-white/25",
         "bottom-24 end-4 md:bottom-6 md:end-6",
@@ -35,7 +35,7 @@ export function AiAssistantFab() {
       animate={{ opacity: 1, scale: isOpen ? 0.9 : 1 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
     >
-      <Sparkles className="h-6 w-6" strokeWidth={2.25} />
+      <MessageSquare className="h-6 w-6" strokeWidth={1.75} />
     </motion.button>
   );
 }

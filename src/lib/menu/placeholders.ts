@@ -32,3 +32,12 @@ export function getCategoryPlaceholder(categoryId: string): string {
     "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80"
   );
 }
+
+const DEFAULT_PRODUCT_PLACEHOLDER =
+  "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80";
+
+/** Returns product image or a category-themed placeholder — never empty */
+export function getProductImage(image: string | undefined | null, categoryId: string): string {
+  if (image && image.trim().length > 0 && !image.includes("placeholder")) return image;
+  return getCategoryPlaceholder(categoryId) || DEFAULT_PRODUCT_PLACEHOLDER;
+}

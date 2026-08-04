@@ -1,7 +1,10 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { BRAND, BLUR, LOGO_HEIGHT, type LogoSize } from "@/lib/brand";
+import { useT } from "@/components/providers/locale-provider";
 
 interface LogoProps {
   size?: LogoSize;
@@ -20,6 +23,7 @@ export function Logo({
   className,
   priority = false,
 }: LogoProps) {
+  const t = useT();
   const height = LOGO_HEIGHT[size];
   const width = Math.round(height * 0.85);
 
@@ -45,7 +49,7 @@ export function Logo({
           )}
           {showTagline && (
             <p className="text-[10px] tracking-wide text-turquoise md:text-xs">
-              {BRAND.tagline}
+              {t("brand.tagline")}
             </p>
           )}
         </div>

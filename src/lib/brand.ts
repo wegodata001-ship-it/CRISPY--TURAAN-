@@ -2,6 +2,9 @@
 export const BRAND = {
   logo: "/logo.png",
   store: "/store.jpg",
+  /** Remote fallback when /store.jpg is missing or fails to load */
+  storeFallback:
+    "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1920&q=85",
   name: "MISHKAT CAFÉ",
   nameShort: "Mishkat",
   tagline: "Coffee • Crêpes • Desserts",
@@ -35,3 +38,9 @@ export const LOGO_HEIGHT: Record<LogoSize, number> = {
   lg: 72,
   xl: 120,
 };
+
+/** Resolve hero/store image: Firestore settings URL → local file → Unsplash fallback */
+export function getStoreImageSrc(settingsUrl?: string | null): string {
+  if (settingsUrl?.trim()) return settingsUrl.trim();
+  return BRAND.store;
+}

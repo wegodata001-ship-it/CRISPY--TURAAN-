@@ -58,6 +58,35 @@ export function textDir(locale: Locale): "rtl" | "ltr" {
   return isRtlLocale(locale) ? "rtl" : "ltr";
 }
 
+type LocalizedBannerFields = {
+  title: string;
+  subtitle: string;
+  cta?: string;
+  title_he?: string;
+  title_ar?: string;
+  title_en?: string;
+  subtitle_he?: string;
+  subtitle_ar?: string;
+  subtitle_en?: string;
+  button_he?: string;
+  button_ar?: string;
+  button_en?: string;
+};
+
+export function getLocalizedBannerField(
+  banner: LocalizedBannerFields,
+  field: "title" | "subtitle" | "button",
+  locale: Locale
+): string {
+  const localizedKey = `${field}_${locale}` as keyof LocalizedBannerFields;
+  const localized = banner[localizedKey];
+  if (typeof localized === "string" && localized.trim()) return localized;
+
+  if (field === "button") return banner.cta ?? banner.button_he ?? banner.button_en ?? "";
+  if (field === "title") return banner.title_he ?? banner.title ?? banner.title_en ?? "";
+  return banner.subtitle_he ?? banner.subtitle ?? banner.subtitle_en ?? "";
+}
+
 /** Legacy compat — maps old name_ar (was Hebrew) to name_he when needed */
 export function normalizeProductFields(p: Product): LocalizedDescriptions {
   return {

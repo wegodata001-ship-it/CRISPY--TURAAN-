@@ -14,7 +14,7 @@
     "seed:force": "tsx scripts/seed-firestore.ts --force",
     "seed:auto": "tsx scripts/auto-seed.ts",
     "seed:translations": "tsx scripts/seed-translations.ts",
-    "seed:ai": "tsx scripts/seed-ai-assistant.ts",
+    "seed:assistant": "tsx scripts/seed-assistant.ts",
     "menu:audit": "tsx scripts/menu-audit.ts",
     "firebase:audit": "tsx scripts/firebase-audit.ts",
     "firebase:full-audit": "tsx scripts/full-audit.ts"

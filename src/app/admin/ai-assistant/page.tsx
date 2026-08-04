@@ -1,5 +1,5 @@
-import { AiAssistantAdmin } from "@/features/admin/ai-assistant-admin";
+import { redirect } from "next/navigation";
 
-export default function AiAssistantPage() {
-  return <AiAssistantAdmin />;
+export default function LegacyAiAssistantPage() {
+  redirect("/admin/assistant");
 }

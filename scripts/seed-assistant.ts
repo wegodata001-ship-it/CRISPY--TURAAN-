@@ -2,7 +2,7 @@ import { config } from "dotenv";
 import { resolve } from "path";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { DEFAULT_AI_CONFIG } from "../src/lib/ai/types";
+import { DEFAULT_ASSISTANT_CONFIG, ASSISTANT_DOC_ID } from "../src/lib/assistant/types";
 
 config({ path: resolve(".env") });
 
@@ -24,10 +24,10 @@ function getAdminDb() {
 async function main() {
   const db = getAdminDb();
   await db
-    .collection("settings")
-    .doc("ai_assistant")
-    .set({ ...DEFAULT_AI_CONFIG, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  console.log("✔ settings/ai_assistant seeded");
+    .collection("assistant")
+    .doc(ASSISTANT_DOC_ID)
+    .set({ ...DEFAULT_ASSISTANT_CONFIG, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  console.log(`✔ assistant/${ASSISTANT_DOC_ID} seeded`);
 }
 
 main().catch((e) => {

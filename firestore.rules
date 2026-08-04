@@ -55,6 +55,11 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    match /assistant/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isStaff());
       allow write: if false;

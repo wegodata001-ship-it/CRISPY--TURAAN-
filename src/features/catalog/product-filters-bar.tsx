@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SlidersHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
 import type { ProductFilters } from "@/types";
 
 interface ProductFiltersBarProps {
@@ -25,6 +26,8 @@ export function ProductFiltersBar({
   showFilters,
   onToggleFilters,
 }: ProductFiltersBarProps) {
+  const t = useT();
+
   const activeFilterCount = [
     filters.isPopular,
     filters.isNew,
@@ -54,10 +57,10 @@ export function ProductFiltersBar({
             onClick={onToggleFilters}
             className="shrink-0"
           >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filters
+            <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.75} />
+            {t("filters.title")}
             {activeFilterCount > 0 && (
-              <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-turquoise text-[10px] text-warm-white">
+              <span className="ms-1 flex h-4 w-4 items-center justify-center rounded-full bg-turquoise text-[10px] text-warm-white">
                 {activeFilterCount}
               </span>
             )}
@@ -72,24 +75,24 @@ export function ProductFiltersBar({
               })
             }
           >
-            <SelectTrigger className="h-8 w-[130px] shrink-0 rounded-lg border-beige-dark/40 bg-warm-white/80 text-xs">
-              <SelectValue placeholder="Sort by" />
+            <SelectTrigger className="h-8 w-[140px] shrink-0 rounded-lg border-beige-dark/40 bg-warm-white/80 text-xs">
+              <SelectValue placeholder={t("filters.sort")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="price-asc">Price: Low</SelectItem>
-              <SelectItem value="price-desc">Price: High</SelectItem>
-              <SelectItem value="name-asc">A-Z</SelectItem>
-              <SelectItem value="popular">Popular</SelectItem>
+              <SelectItem value="newest">{t("filters.sortNewest")}</SelectItem>
+              <SelectItem value="price-asc">{t("filters.sortPriceAsc")}</SelectItem>
+              <SelectItem value="price-desc">{t("filters.sortPriceDesc")}</SelectItem>
+              <SelectItem value="name-asc">{t("filters.sortName")}</SelectItem>
+              <SelectItem value="popular">{t("filters.sortPopular")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
       {showFilters && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-warm-white/60 p-3 border border-beige-dark/20">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-beige-dark/20 bg-warm-white/60 p-3">
           <FilterToggle
-            label="Popular"
+            label={t("filters.sortPopular")}
             active={!!filters.isPopular}
             onClick={() =>
               onFiltersChange({
@@ -99,7 +102,7 @@ export function ProductFiltersBar({
             }
           />
           <FilterToggle
-            label="New"
+            label={t("catalog.new")}
             active={!!filters.isNew}
             onClick={() =>
               onFiltersChange({
@@ -109,7 +112,7 @@ export function ProductFiltersBar({
             }
           />
           <FilterToggle
-            label="Available"
+            label={t("filters.available")}
             active={filters.available === true}
             onClick={() =>
               onFiltersChange({
@@ -119,7 +122,7 @@ export function ProductFiltersBar({
             }
           />
           <FilterToggle
-            label="Under 25₪"
+            label={t("filters.under25")}
             active={filters.maxPrice === 25}
             onClick={() =>
               onFiltersChange({
@@ -129,45 +132,34 @@ export function ProductFiltersBar({
             }
           />
           <FilterToggle
-            label="25-40₪"
+            label={t("filters.range2540")}
             active={filters.minPrice === 25 && filters.maxPrice === 40}
             onClick={() =>
               onFiltersChange({
                 ...filters,
                 minPrice:
-                  filters.minPrice === 25 && filters.maxPrice === 40
-                    ? undefined
-                    : 25,
+                  filters.minPrice === 25 && filters.maxPrice === 40 ? undefined : 25,
                 maxPrice:
-                  filters.minPrice === 25 && filters.maxPrice === 40
-                    ? undefined
-                    : 40,
+                  filters.minPrice === 25 && filters.maxPrice === 40 ? undefined : 40,
               })
             }
           />
           <FilterToggle
-            label="40₪+"
+            label={t("filters.over40")}
             active={filters.minPrice === 40 && !filters.maxPrice}
             onClick={() =>
               onFiltersChange({
                 ...filters,
                 minPrice:
-                  filters.minPrice === 40 && !filters.maxPrice
-                    ? undefined
-                    : 40,
+                  filters.minPrice === 40 && !filters.maxPrice ? undefined : 40,
                 maxPrice: undefined,
               })
             }
           />
           {activeFilterCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="text-xs text-coffee/60"
-            >
-              <X className="h-3 w-3 mr-1" />
-              Clear
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-coffee/60">
+              <X className="me-1 h-3 w-3" strokeWidth={1.75} />
+              {t("filters.clear")}
             </Button>
           )}
         </div>
@@ -187,12 +179,11 @@ function FilterToggle({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
         "rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200",
-        active
-          ? "bg-turquoise text-warm-white"
-          : "bg-beige/60 text-coffee hover:bg-beige"
+        active ? "bg-turquoise text-warm-white" : "bg-beige/60 text-coffee hover:bg-beige"
       )}
     >
       {label}

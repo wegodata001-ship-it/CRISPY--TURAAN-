@@ -1,6 +1,7 @@
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { BRAND, BLUR } from "@/lib/brand";
+import { BRAND, BLUR, getStoreImageSrc } from "@/lib/brand";
 
 interface StoreImageProps {
   className?: string;
@@ -9,6 +10,7 @@ interface StoreImageProps {
   fill?: boolean;
   sizes?: string;
   alt?: string;
+  src?: string;
 }
 
 export function StoreImage({
@@ -18,17 +20,33 @@ export function StoreImage({
   fill = true,
   sizes = "(max-width: 768px) 100vw, 1200px",
   alt = `${BRAND.name} storefront`,
+  src: srcProp,
 }: StoreImageProps) {
+  const [src, setSrc] = useState(() => getStoreImageSrc(srcProp));
+
+  useEffect(() => {
+    setSrc(getStoreImageSrc(srcProp));
+  }, [srcProp]);
+
+  const handleError = () => {
+    setSrc((current) => {
+      if (current === BRAND.storeFallback) return current;
+      if (current !== BRAND.store) return BRAND.store;
+      return BRAND.storeFallback;
+    });
+  };
+
   return (
-    <div className={cn("relative overflow-hidden", className)}>
+    <div className={cn("relative h-full w-full overflow-hidden", className)}>
       <Image
-        src={BRAND.store}
+        src={src}
         alt={alt}
         fill={fill}
         priority={priority}
         placeholder="blur"
         blurDataURL={BLUR.store}
         sizes={sizes}
+        onError={handleError}
         className={cn("object-cover object-center", imageClassName)}
       />
     </div>

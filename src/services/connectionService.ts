@@ -11,6 +11,7 @@ import { validateFirebaseEnv } from "@/lib/firebase/env";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { readOneCategoryForTest } from "@/services/categoryService";
 import { readOneProductForTest } from "@/services/productService";
+import { uploadTestImage } from "@/services/storageService";
 import { type ServiceResult, success, failure } from "@/lib/errors";
 
 export interface ConnectionTestResult {
@@ -21,6 +22,7 @@ export interface ConnectionTestResult {
   categoryRead: boolean;
   productRead: boolean;
   writeTest: boolean;
+  storageReady: boolean;
   error?: string;
 }
 
@@ -34,6 +36,7 @@ export async function testFirebaseConnection(): Promise<ConnectionTestResult> {
     categoryRead: false,
     productRead: false,
     writeTest: false,
+    storageReady: false,
   };
 
   if (!envCheck.valid) {
@@ -54,6 +57,9 @@ export async function testFirebaseConnection(): Promise<ConnectionTestResult> {
 
     const writeResult = await runFirestoreWriteTest();
     result.writeTest = writeResult.success;
+
+    const storageResult = await uploadTestImage();
+    result.storageReady = storageResult.success;
 
     if (!categoryResult.success && categoryResult.error) {
       result.error = categoryResult.error;

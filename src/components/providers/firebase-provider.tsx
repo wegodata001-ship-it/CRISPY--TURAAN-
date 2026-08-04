@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { AlertTriangle, X } from "lucide-react";
+import { useT } from "@/components/providers/locale-provider";
 import { testFirebaseConnection, isConnectionHealthy } from "@/services/connectionService";
 import type { ConnectionTestResult } from "@/services/connectionService";
 
@@ -18,10 +20,11 @@ const FirebaseContext = createContext<FirebaseContextValue>({
 });
 
 export function FirebaseProvider({ children }: { children: ReactNode }) {
+  const t = useT();
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<ConnectionTestResult | null>(null);
-  const [showBadge, setShowBadge] = useState(false);
+  const [showError, setShowError] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -33,12 +36,12 @@ export function FirebaseProvider({ children }: { children: ReactNode }) {
         setResult(testResult);
         const healthy = isConnectionHealthy(testResult);
         setConnected(healthy);
-        if (healthy) {
-          setShowBadge(true);
-          setTimeout(() => setShowBadge(false), 4000);
-        }
+        if (!healthy) setShowError(true);
       } catch {
-        if (mounted) setConnected(false);
+        if (mounted) {
+          setConnected(false);
+          setShowError(true);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -54,27 +57,31 @@ export function FirebaseProvider({ children }: { children: ReactNode }) {
     <FirebaseContext.Provider value={{ connected, loading, result }}>
       {children}
       <AnimatePresence>
-        {showBadge && connected && (
+        {!loading && showError && !connected && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 md:bottom-6"
+            exit={{ opacity: 0, y: 16 }}
+            className="fixed bottom-24 start-4 end-4 z-50 mx-auto max-w-lg md:bottom-6 md:start-auto md:end-6"
           >
-            <div className="flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-xs font-medium text-white shadow-elevated">
-              <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
-              Firebase Connected
+            <div className="flex items-start gap-3 rounded-2xl border border-beige-dark/40 bg-warm-white px-4 py-3 shadow-elevated">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gold" strokeWidth={1.75} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-dark-brown">{t("error.network")}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-coffee/70">{t("error.firebase")}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowError(false)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-coffee/50 hover:bg-beige/60 hover:text-coffee"
+                aria-label={t("error.firebaseDismiss")}
+              >
+                <X className="h-4 w-4" strokeWidth={1.75} />
+              </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-      {!loading && !connected && result && !result.envValid && (
-        <div className="fixed bottom-24 left-1/2 z-50 w-[90%] max-w-md -translate-x-1/2 md:bottom-6">
-          <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-700">
-            Missing Firebase env: {result.missingEnv.join(", ")}
-          </div>
-        </div>
-      )}
     </FirebaseContext.Provider>
   );
 }

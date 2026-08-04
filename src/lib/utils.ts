@@ -9,8 +9,16 @@ export function formatPrice(price: number): string {
   return `${price.toFixed(2)} ₪`;
 }
 
-export function formatDate(date: string): string {
-  return new Intl.DateTimeFormat("he-IL", {
+import type { Locale } from "@/lib/i18n/types";
+
+const LOCALE_TAGS: Record<Locale, string> = {
+  he: "he-IL",
+  ar: "ar-IL",
+  en: "en-IL",
+};
+
+export function formatDate(date: string, locale: Locale = "he"): string {
+  return new Intl.DateTimeFormat(LOCALE_TAGS[locale], {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -19,8 +27,8 @@ export function formatDate(date: string): string {
   }).format(new Date(date));
 }
 
-export function formatDateShort(date: string): string {
-  return new Intl.DateTimeFormat("he-IL", {
+export function formatDateShort(date: string, locale: Locale = "he"): string {
+  return new Intl.DateTimeFormat(LOCALE_TAGS[locale], {
     day: "numeric",
     month: "short",
   }).format(new Date(date));

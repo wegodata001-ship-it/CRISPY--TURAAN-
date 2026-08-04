@@ -7,6 +7,7 @@ export const COLLECTIONS = {
   banners: "banners",
   users: "users",
   uiTranslations: "ui_translations",
+  assistant: "assistant",
   connectionTest: "connection-test",
 } as const;
 

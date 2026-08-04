@@ -16,6 +16,7 @@ import {
   uploadSettingsImage,
   deleteImageByUrl,
 } from "@/services/storageService";
+import { SystemStatusCard } from "@/features/admin/system-status-card";
 
 export function SettingsAdmin() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -124,6 +125,8 @@ export function SettingsAdmin() {
             <div><Label>Google Maps URL</Label><Input value={settings.mapsUrl} onChange={(e) => setSettings({ ...settings, mapsUrl: e.target.value })} className="mt-1" /></div>
           </div>
         </div>
+
+        <SystemStatusCard />
 
         <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft lg:col-span-2 dark:bg-[#1a1412]">
           <h2 className="text-sm font-semibold text-dark-brown">Theme Colors</h2>

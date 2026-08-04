@@ -1,18 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save, Plus, Trash2, Bot } from "lucide-react";
+import { Loader2, Save, Plus, Trash2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SortableList } from "@/components/admin/sortable-list";
+import { resolveAssistantIcon } from "@/lib/icons/assistant-icons";
 import {
-  subscribeToAiAssistantConfig,
-  updateAiAssistantConfig,
-} from "@/services/aiAssistantService";
+  subscribeToAssistantConfig,
+  updateAssistantConfig,
+} from "@/services/assistantService";
 import { useAllProducts } from "@/hooks/useProducts";
-import type { AiAssistantConfig, AiFaqItem, LocalizedText } from "@/lib/ai/types";
-import { DEFAULT_AI_CONFIG } from "@/lib/ai/types";
+import type {
+  AssistantConfig,
+  AssistantFaqItem,
+  AssistantQuickAction,
+  LocalizedText,
+} from "@/lib/assistant/types";
+import { DEFAULT_ASSISTANT_CONFIG } from "@/lib/assistant/types";
 
 const LOCALES = ["he", "ar", "en"] as const;
 
@@ -54,14 +61,18 @@ function LocaleFields({
   );
 }
 
-export function AiAssistantAdmin() {
-  const [config, setConfig] = useState<AiAssistantConfig | null>(null);
+function reorderActions(actions: AssistantQuickAction[]): AssistantQuickAction[] {
+  return actions.map((a, i) => ({ ...a, sortOrder: i }));
+}
+
+export function AssistantManagerAdmin() {
+  const [config, setConfig] = useState<AssistantConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const { products } = useAllProducts();
 
   useEffect(() => {
-    return subscribeToAiAssistantConfig(setConfig, () => {});
+    return subscribeToAssistantConfig(setConfig, () => {});
   }, []);
 
   if (!config) {
@@ -74,18 +85,27 @@ export function AiAssistantAdmin() {
 
   const handleSave = async () => {
     setSaving(true);
-    await updateAiAssistantConfig(config);
+    await updateAssistantConfig(config);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const updateAction = (id: string, patch: Partial<AssistantQuickAction>) => {
+    setConfig({
+      ...config,
+      quickActions: config.quickActions.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+    });
+  };
+
   const addFaq = () => {
-    const item: AiFaqItem = {
+    const item: AssistantFaqItem = {
       id: `faq-${Date.now()}`,
       question: { he: "", ar: "", en: "" },
       answer: { he: "", ar: "", en: "" },
       keywords: [],
+      enabled: true,
+      sortOrder: config.faq.length,
     };
     setConfig({ ...config, faq: [...config.faq, item] });
   };
@@ -97,16 +117,20 @@ export function AiAssistantAdmin() {
     });
   };
 
+  const sortedActions = [...config.quickActions].sort((a, b) => a.sortOrder - b.sortOrder);
+
   return (
     <div>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-turquoise/15 text-turquoise">
-            <Bot className="h-6 w-6" />
+            <MessageSquare className="h-6 w-6" strokeWidth={1.75} />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-bold text-dark-brown">AI Assistant</h1>
-            <p className="text-sm text-coffee/60">Manage MISHKAT AI ordering assistant</p>
+            <h1 className="font-display text-2xl font-bold text-dark-brown">Assistant Manager</h1>
+            <p className="text-sm text-coffee/60">
+              Manage MISHKAT Assistant — greeting, quick actions, FAQ (no code)
+            </p>
           </div>
         </div>
         <Button onClick={handleSave} disabled={saving}>
@@ -125,21 +149,12 @@ export function AiAssistantAdmin() {
               onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
               className="h-4 w-4 rounded accent-turquoise"
             />
-            <span className="text-sm">Enable AI Assistant</span>
-          </label>
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={config.humanHandoffEnabled}
-              onChange={(e) => setConfig({ ...config, humanHandoffEnabled: e.target.checked })}
-              className="h-4 w-4 rounded accent-turquoise"
-            />
-            <span className="text-sm">Show human handoff (phone / WhatsApp)</span>
+            <span className="text-sm">Enable Assistant</span>
           </label>
           <LocaleFields
-            label="Welcome Message"
-            value={config.welcomeMessage}
-            onChange={(welcomeMessage) => setConfig({ ...config, welcomeMessage })}
+            label="Greeting Message"
+            value={config.greeting}
+            onChange={(greeting) => setConfig({ ...config, greeting })}
             multiline
           />
         </div>
@@ -180,19 +195,74 @@ export function AiAssistantAdmin() {
         </div>
 
         <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft lg:col-span-2">
+          <h2 className="text-sm font-semibold text-dark-brown">Quick Actions</h2>
+          <p className="text-xs text-coffee/50">
+            Drag to reorder. Toggle visibility per button. Labels are shown in the assistant drawer.
+          </p>
+          <SortableList
+            items={sortedActions}
+            onReorder={(items) =>
+              setConfig({ ...config, quickActions: reorderActions(items) })
+            }
+            className="space-y-2"
+            renderItem={(action, dragHandle) => {
+              const Icon = resolveAssistantIcon(action);
+              return (
+                <div className="flex items-start gap-2 rounded-xl border border-beige-dark/20 bg-beige/10 p-3">
+                  {dragHandle}
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-turquoise/10 text-turquoise">
+                    <Icon className="h-4 w-4" strokeWidth={1.75} />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={action.enabled}
+                          onChange={(e) => updateAction(action.id, { enabled: e.target.checked })}
+                          className="h-4 w-4 rounded accent-turquoise"
+                        />
+                        Visible
+                      </label>
+                      <span className="text-xs text-coffee/40">{action.action}</span>
+                    </div>
+                    <LocaleFields
+                      label="Button label"
+                      value={action.label}
+                      onChange={(label) => updateAction(action.id, { label })}
+                    />
+                  </div>
+                </div>
+              );
+            }}
+          />
+        </div>
+
+        <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft lg:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-dark-brown">Custom FAQ</h2>
             <Button variant="outline" size="sm" onClick={addFaq}>
               <Plus className="h-3.5 w-3.5" /> Add FAQ
             </Button>
           </div>
-          {config.faq.length === 0 && (
-            <p className="text-sm text-coffee/50">
-              Hours, address, phone, parking, WiFi, delivery & pickup are answered automatically from Settings.
-            </p>
-          )}
+          <p className="text-sm text-coffee/50">
+            Hours, address, phone, delivery and pickup are answered automatically from Settings.
+          </p>
           {config.faq.map((item, i) => (
-            <div key={item.id} className="rounded-xl border border-beige-dark/20 p-4 space-y-3">
+            <div key={item.id} className="space-y-3 rounded-xl border border-beige-dark/20 p-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={item.enabled}
+                  onChange={(e) => {
+                    const faq = [...config.faq];
+                    faq[i] = { ...item, enabled: e.target.checked };
+                    setConfig({ ...config, faq });
+                  }}
+                  className="h-4 w-4 rounded accent-turquoise"
+                />
+                Enabled
+              </label>
               <LocaleFields
                 label="Question"
                 value={item.question}
@@ -243,10 +313,15 @@ export function AiAssistantAdmin() {
 
         <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft lg:col-span-2">
           <h2 className="text-sm font-semibold text-dark-brown">Featured Products (Offers)</h2>
-          <p className="text-xs text-coffee/50">Select products to highlight when customers ask about offers.</p>
+          <p className="text-xs text-coffee/50">
+            Products highlighted when customers tap &quot;Offers&quot;.
+          </p>
           <div className="max-h-64 overflow-y-auto rounded-xl border border-beige-dark/20 p-2">
-            {products.slice(0, 50).map((p) => (
-              <label key={p.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-beige/30">
+            {products.slice(0, 80).map((p) => (
+              <label
+                key={p.id}
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-beige/30"
+              >
                 <input
                   type="checkbox"
                   checked={config.featuredProductIds.includes(p.id)}
@@ -267,15 +342,14 @@ export function AiAssistantAdmin() {
 
         <div className="rounded-2xl bg-beige/30 p-4 lg:col-span-2">
           <p className="text-xs text-coffee/60">
-            Quick actions & cross-sell rules use defaults from{" "}
-            <code className="rounded bg-warm-white px-1">DEFAULT_AI_CONFIG</code>. Menu data (products,
-            categories, prices, availability) is loaded live from Firestore on every chat message.
+            Menu data (products, categories, prices, availability, hours, address) is loaded live from
+            Firestore on every request — no AI, no external services.
           </p>
           <Button
             variant="outline"
             size="sm"
             className="mt-3"
-            onClick={() => setConfig({ ...DEFAULT_AI_CONFIG })}
+            onClick={() => setConfig({ ...DEFAULT_ASSISTANT_CONFIG })}
           >
             Reset to Defaults
           </Button>

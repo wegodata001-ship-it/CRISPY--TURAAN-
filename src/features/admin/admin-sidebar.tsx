@@ -14,7 +14,7 @@ import {
   Settings,
   UserCog,
   FolderOpen,
-  Bot,
+  MessageSquare,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,7 @@ const navItems = [
   { href: "/admin/orders", labelKey: "admin.orders", icon: ClipboardList },
   { href: "/admin/customers", labelKey: "admin.customers", icon: Users },
   { href: "/admin/banners", labelKey: "admin.banners", icon: ImageIcon },
-  { href: "/admin/ai-assistant", labelKey: "admin.aiAssistant", icon: Bot },
+  { href: "/admin/assistant", labelKey: "admin.assistantManager", icon: MessageSquare },
   { href: "/admin/media", labelKey: "admin.media", icon: FolderOpen },
   { href: "/admin/users", labelKey: "admin.users", icon: UserCog, adminOnly: true },
   { href: "/admin/settings", labelKey: "admin.settings", icon: Settings },

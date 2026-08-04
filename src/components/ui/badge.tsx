@@ -9,7 +9,7 @@ const badgeVariants = cva(
       variant: {
         default: "bg-coffee text-warm-white",
         new: "bg-turquoise text-warm-white",
-        popular: "bg-amber-500/90 text-warm-white",
+        popular: "bg-gold/90 text-warm-white",
         secondary: "bg-beige text-coffee",
         outline: "border border-beige-dark/50 text-coffee",
         pending: "bg-amber-100 text-amber-700",

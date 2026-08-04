@@ -5,7 +5,9 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AccessibilityProvider } from "@/components/providers/accessibility-provider";
 import { AccessibilityCenter } from "@/components/accessibility/accessibility-center";
-import { AiAssistantWidget } from "@/features/ai-assistant/ai-assistant-widget";
+import { AssistantWidget } from "@/features/assistant/assistant-widget";
+import { ClientSiteFooter } from "@/components/layout/client-site-footer";
+import { LocaleHtmlScript } from "@/components/providers/locale-html-sync";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { CartProvider } from "@/features/cart/cart-context";
 import { CartDrawer } from "@/features/cart/cart-drawer";
@@ -59,13 +61,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable} ${atkinson.variable}`}>
+    <html lang="he" dir="rtl" suppressHydrationWarning className={`${inter.variable} ${playfair.variable} ${atkinson.variable}`}>
+      <head>
+        <LocaleHtmlScript />
+      </head>
       <body className="min-h-screen pb-20 md:pb-0 flex flex-col has-[[data-admin]]:pb-0">
         <BrandSplash />
         <ThemeProvider>
           <AccessibilityProvider>
-            <FirebaseProvider>
-              <LocaleProvider>
+            <LocaleProvider>
+              <FirebaseProvider>
                 <AuthProvider>
                   <CartProvider>
                     <main id="main-content" className="flex-1" tabIndex={-1}>
@@ -73,12 +78,13 @@ export default function RootLayout({
                     </main>
                     <CartDrawer />
                     <BottomNav />
+                    <ClientSiteFooter />
                     <AccessibilityCenter />
-                    <AiAssistantWidget />
+                    <AssistantWidget />
                   </CartProvider>
                 </AuthProvider>
-              </LocaleProvider>
-            </FirebaseProvider>
+              </FirebaseProvider>
+            </LocaleProvider>
           </AccessibilityProvider>
         </ThemeProvider>
       </body>

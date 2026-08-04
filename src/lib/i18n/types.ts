@@ -6,11 +6,11 @@ export const DEFAULT_LOCALE: Locale = "he";
 
 export const LOCALE_META: Record<
   Locale,
-  { label: string; nativeLabel: string; dir: "rtl" | "ltr"; flag: string }
+  { label: string; nativeLabel: string; dir: "rtl" | "ltr" }
 > = {
-  he: { label: "Hebrew", nativeLabel: "עברית", dir: "rtl", flag: "🇮🇱" },
-  ar: { label: "Arabic", nativeLabel: "العربية", dir: "rtl", flag: "🇸🇦" },
-  en: { label: "English", nativeLabel: "English", dir: "ltr", flag: "🇬🇧" },
+  he: { label: "Hebrew", nativeLabel: "עברית", dir: "rtl" },
+  ar: { label: "Arabic", nativeLabel: "العربية", dir: "rtl" },
+  en: { label: "English", nativeLabel: "English", dir: "ltr" },
 };
 
 export type TranslationMap = Record<string, string>;

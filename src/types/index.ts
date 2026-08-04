@@ -94,6 +94,15 @@ export interface BannerSlide {
   id: string;
   title: string;
   subtitle: string;
+  title_he?: string;
+  title_ar?: string;
+  title_en?: string;
+  subtitle_he?: string;
+  subtitle_ar?: string;
+  subtitle_en?: string;
+  button_he?: string;
+  button_ar?: string;
+  button_en?: string;
   image: string;
   mobileImage?: string;
   cta?: string;

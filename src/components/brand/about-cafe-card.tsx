@@ -2,9 +2,11 @@
 
 import { motion } from "framer-motion";
 import { StoreImage } from "@/components/brand/store-image";
-import { BRAND } from "@/lib/brand";
+import { useT } from "@/components/providers/locale-provider";
 
 export function AboutCafeCard() {
+  const t = useT();
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 16 }}
@@ -12,7 +14,7 @@ export function AboutCafeCard() {
       transition={{ delay: 0.15 }}
       className="mx-4 mb-6 md:mx-6"
     >
-      <div className="overflow-hidden rounded-2xl bg-warm-white shadow-soft">
+      <div className="overflow-hidden rounded-2xl bg-warm-white shadow-soft ring-1 ring-beige-dark/10">
         <div className="flex flex-col sm:flex-row">
           <StoreImage
             className="relative h-40 sm:h-auto sm:w-48 shrink-0"
@@ -20,16 +22,9 @@ export function AboutCafeCard() {
             sizes="(max-width: 640px) 100vw, 192px"
           />
           <div className="flex flex-col justify-center p-5">
-            <h3 className="font-display text-lg font-bold text-dark-brown">
-              Our Café
-            </h3>
-            <p className="mt-1 text-sm text-coffee/70 leading-relaxed">
-              {BRAND.taglineAlt}. Experience premium coffee, handcrafted crêpes,
-              and artisan desserts in a warm, modern atmosphere.
-            </p>
-            <p className="mt-2 text-xs tracking-wide text-turquoise uppercase">
-              {BRAND.tagline}
-            </p>
+            <h3 className="font-display text-lg font-bold text-dark-brown">{t("about.title")}</h3>
+            <p className="mt-1 text-sm leading-relaxed text-coffee/70">{t("about.description")}</p>
+            <p className="mt-2 text-xs uppercase tracking-wide text-turquoise">{t("brand.tagline")}</p>
           </div>
         </div>
       </div>

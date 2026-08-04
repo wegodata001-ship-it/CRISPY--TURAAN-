@@ -14,11 +14,10 @@ import { ProductFiltersBar } from "@/features/catalog/product-filters-bar";
 import { ProductGrid } from "@/features/catalog/product-grid";
 import { ProductDetailDrawer } from "@/features/catalog/product-detail-drawer";
 import { FloatingCartButton } from "@/features/cart/floating-cart-button";
-import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { CatalogSeeder } from "@/components/catalog/catalog-seeder";
 import { AboutCafeCard } from "@/components/brand/about-cafe-card";
-import { SiteFooter } from "@/components/layout/footer";
 import { useProducts, useAllProducts } from "@/hooks/useProducts";
+import { useT } from "@/components/providers/locale-provider";
 import type { Product, ProductFilters } from "@/types";
 
 const PAGE_SIZE = 12;
@@ -28,6 +27,7 @@ const DESSERT_CATS = ["desserts", "ice-cream-yogurt"];
 const BREAKFAST_CATS = ["breakfast"];
 
 export function CatalogView() {
+  const t = useT();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -103,12 +103,12 @@ export function CatalogView() {
         <>
           <CategoryGrid selected={selectedCategory} onSelect={handleCategorySelect} />
 
-          <ProductCarousel emoji="⭐" titleKey="catalog.bestSellers" products={bestSellers} onProductClick={setSelectedProduct} />
-          <ProductCarousel emoji="🔥" titleKey="catalog.popular" products={popularProducts} onProductClick={setSelectedProduct} />
-          <ProductCarousel emoji="🆕" titleKey="catalog.new" products={newProducts} onProductClick={setSelectedProduct} />
-          <ProductCarousel emoji="☕" titleKey="catalog.coffee" products={coffeeProducts} onProductClick={setSelectedProduct} />
-          <ProductCarousel emoji="🍰" titleKey="catalog.desserts" products={dessertProducts} onProductClick={setSelectedProduct} />
-          <ProductCarousel emoji="🥐" titleKey="catalog.breakfast" products={breakfastProducts} onProductClick={setSelectedProduct} />
+          <ProductCarousel iconKey="bestSellers" titleKey="catalog.bestSellers" products={bestSellers} onProductClick={setSelectedProduct} />
+          <ProductCarousel iconKey="popular" titleKey="catalog.popular" products={popularProducts} onProductClick={setSelectedProduct} />
+          <ProductCarousel iconKey="new" titleKey="catalog.new" products={newProducts} onProductClick={setSelectedProduct} />
+          <ProductCarousel iconKey="coffee" titleKey="catalog.coffee" products={coffeeProducts} onProductClick={setSelectedProduct} />
+          <ProductCarousel iconKey="desserts" titleKey="catalog.desserts" products={dessertProducts} onProductClick={setSelectedProduct} />
+          <ProductCarousel iconKey="breakfast" titleKey="catalog.breakfast" products={breakfastProducts} onProductClick={setSelectedProduct} />
         </>
       )}
 
@@ -125,11 +125,11 @@ export function CatalogView() {
 
       <div id="menu" className="mb-24 mt-6 md:mb-8">
         <div className="mb-4 flex items-center justify-between px-4 md:px-6">
-          <h2 className="font-display text-2xl font-bold text-dark-brown md:text-3xl" dir="rtl">
-            {selectedCategory === "all" ? "כל התפריט" : "תפריט"}
+          <h2 className="heading-section">
+            {selectedCategory === "all" ? t("catalog.fullMenu") : t("catalog.menuSection")}
           </h2>
           <p className="rounded-full bg-beige/60 px-3 py-1 text-sm font-medium text-coffee">
-            {loading ? "..." : `${products.length} פריטים`}
+            {loading ? "..." : `${products.length} ${t("catalog.productsCount")}`}
           </p>
         </div>
 
@@ -144,24 +144,22 @@ export function CatalogView() {
             <button
               type="button"
               onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-              className="rounded-full border-2 border-coffee/20 bg-warm-white px-10 py-3.5 text-sm font-semibold text-coffee shadow-soft transition-all hover:border-turquoise hover:text-turquoise"
+              className="rounded-full border-2 border-coffee/15 bg-warm-white px-10 py-3.5 text-sm font-semibold text-coffee shadow-soft transition-all hover:border-turquoise hover:text-turquoise hover:shadow-elevated"
             >
-              טען עוד ({products.length - visibleCount} נותרו)
+              {t("catalog.loadMore")} ({products.length - visibleCount} {t("catalog.itemsRemaining")})
             </button>
           </div>
         )}
       </div>
 
-      <SiteFooter />
-
       <ProductDetailDrawer
         product={selectedProduct}
         open={!!selectedProduct}
         onOpenChange={(open) => !open && setSelectedProduct(null)}
+        onSelectProduct={setSelectedProduct}
       />
 
       <FloatingCartButton />
-      <MobileBottomNav />
     </>
   );
 }
