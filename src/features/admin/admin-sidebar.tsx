@@ -14,26 +14,31 @@ import {
   Settings,
   UserCog,
   FolderOpen,
+  Bot,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { BRAND } from "@/lib/brand";
+import { useT } from "@/components/providers/locale-provider";
 import { useAuth } from "@/components/providers/auth-provider";
 
 const navItems = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/products", label: "Products", icon: Package },
-  { href: "/admin/categories", label: "Categories", icon: Tags },
-  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
-  { href: "/admin/customers", label: "Customers", icon: Users },
-  { href: "/admin/banners", label: "Banners", icon: ImageIcon },
-  { href: "/admin/media", label: "Media", icon: FolderOpen },
-  { href: "/admin/users", label: "Users", icon: UserCog, adminOnly: true },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin", labelKey: "admin.dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/admin/products", labelKey: "admin.products", icon: Package },
+  { href: "/admin/categories", labelKey: "admin.categories", icon: Tags },
+  { href: "/admin/orders", labelKey: "admin.orders", icon: ClipboardList },
+  { href: "/admin/customers", labelKey: "admin.customers", icon: Users },
+  { href: "/admin/banners", labelKey: "admin.banners", icon: ImageIcon },
+  { href: "/admin/ai-assistant", labelKey: "admin.aiAssistant", icon: Bot },
+  { href: "/admin/media", labelKey: "admin.media", icon: FolderOpen },
+  { href: "/admin/users", labelKey: "admin.users", icon: UserCog, adminOnly: true },
+  { href: "/admin/settings", labelKey: "admin.settings", icon: Settings },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const t = useT();
   const pathname = usePathname();
   const { user } = useAuth();
 
@@ -61,7 +66,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             )}
           >
             <Icon className={cn("h-4 w-4 shrink-0", isActive && "scale-110")} />
-            {item.label}
+            {t(item.labelKey)}
           </Link>
         );
       })}
@@ -70,11 +75,16 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function AdminSidebar() {
+  const t = useT();
+
   return (
     <aside className="fixed inset-y-0 hidden w-64 flex-col border-r border-beige-dark/20 bg-warm-white/95 backdrop-blur-xl lg:flex dark:border-white/10 dark:bg-[#1a1412]/95">
       <div className="flex h-full flex-col p-5">
         <Logo size="md" href="/admin" showText showTagline />
-        <div className="mt-8 flex-1 overflow-y-auto">
+        <div className="mt-4">
+          <LanguageSwitcher />
+        </div>
+        <div className="mt-6 flex-1 overflow-y-auto">
           <NavLinks />
         </div>
         <div className="border-t border-beige-dark/20 pt-4 dark:border-white/10">
@@ -83,7 +93,7 @@ export function AdminSidebar() {
             className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-coffee/60 transition-colors hover:bg-beige/40 dark:text-warm-white/60 dark:hover:bg-white/10"
           >
             <Store className="h-4 w-4" />
-            View Store
+            {t("nav.home")}
           </Link>
           <p className="mt-2 px-3 text-[10px] text-coffee/40">{BRAND.name}</p>
         </div>
@@ -122,6 +132,9 @@ export function AdminMobileDrawer({
               <button onClick={onClose} className="rounded-lg p-2 hover:bg-beige/40">
                 <X className="h-5 w-5" />
               </button>
+            </div>
+            <div className="mt-4">
+              <LanguageSwitcher />
             </div>
             <div className="mt-6 flex-1 overflow-y-auto">
               <NavLinks onNavigate={onClose} />

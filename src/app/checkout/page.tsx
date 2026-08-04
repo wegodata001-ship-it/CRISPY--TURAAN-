@@ -9,11 +9,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useT } from "@/components/providers/locale-provider";
+import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
 import { createOrderFromCart, getOrCreateGuestCustomer } from "@/services";
 import { formatPrice } from "@/lib/utils";
+import type { Product } from "@/types";
+
+function OrderLineItem({ product, quantity }: { product: Product; quantity: number }) {
+  const localized = useLocalizedProduct(product);
+  return (
+    <div className="flex justify-between text-sm">
+      <span className="text-coffee/70">{quantity}× {localized.name}</span>
+      <span>{formatPrice(product.price * quantity)}</span>
+    </div>
+  );
+}
 
 export default function CheckoutPage() {
+  const t = useT();
   const router = useRouter();
   const {
     items, subtotal, discount, deliveryFee, total,
@@ -31,8 +45,8 @@ export default function CheckoutPage() {
       <>
         <Header searchQuery="" onSearchChange={() => {}} />
         <div className="flex flex-col items-center py-20">
-          <p className="text-coffee/60">Your cart is empty</p>
-          <Button className="mt-4" onClick={() => router.push("/")}>Browse Menu</Button>
+          <p className="text-coffee/60">{t("cart.empty")}</p>
+          <Button className="mt-4" onClick={() => router.push("/")}>{t("cart.continueShopping")}</Button>
         </div>
       </>
     );
@@ -40,8 +54,8 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !phone) { setError("Name and phone are required"); return; }
-    if (orderType === "delivery" && !address) { setError("Address required for delivery"); return; }
+    if (!name || !phone) { setError(t("validation.required")); return; }
+    if (orderType === "delivery" && !address) { setError(t("validation.required")); return; }
 
     setLoading(true);
     setError(null);
@@ -55,7 +69,7 @@ export default function CheckoutPage() {
       clearCart();
       router.push("/orders");
     } catch {
-      setError("Failed to place order");
+      setError(t("error.generic"));
     } finally {
       setLoading(false);
     }
@@ -67,13 +81,13 @@ export default function CheckoutPage() {
       <div className="mx-auto max-w-4xl px-4 py-8 md:px-6">
         <motion.h1 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
           className="font-display text-3xl font-bold text-dark-brown dark:text-warm-white">
-          Checkout
+          {t("checkout.title")}
         </motion.h1>
 
         <form onSubmit={handleSubmit} className="mt-8 grid gap-8 lg:grid-cols-5">
           <div className="space-y-6 lg:col-span-3">
             <div className="rounded-2xl bg-warm-white p-5 shadow-soft dark:bg-[#1a1412]">
-              <h2 className="text-sm font-semibold">Order Type</h2>
+              <h2 className="text-sm font-semibold">{t("checkout.orderType", "Order Type")}</h2>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 {(["pickup", "delivery"] as const).map((type) => (
                   <button
@@ -85,32 +99,32 @@ export default function CheckoutPage() {
                     }`}
                   >
                     {type === "pickup" ? <Store className="h-5 w-5" /> : <Truck className="h-5 w-5" />}
-                    <span className="font-medium capitalize">{type}</span>
+                    <span className="font-medium">{type === "pickup" ? t("checkout.pickup", "Pickup") : t("checkout.delivery", "Delivery")}</span>
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="rounded-2xl bg-warm-white p-5 shadow-soft dark:bg-[#1a1412]">
-              <h2 className="text-sm font-semibold">Your Details</h2>
+              <h2 className="text-sm font-semibold">{t("checkout.details", "Your Details")}</h2>
               <div className="mt-4 space-y-4">
                 <div>
-                  <Label className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> Name</Label>
+                  <Label className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> {t("checkout.name")}</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" required />
                 </div>
                 <div>
-                  <Label className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> Phone</Label>
+                  <Label className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {t("checkout.phone")}</Label>
                   <Input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" className="mt-1" required />
                 </div>
                 {orderType === "delivery" && (
                   <div>
-                    <Label className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Address</Label>
+                    <Label className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {t("checkout.address")}</Label>
                     <Input value={address} onChange={(e) => setAddress(e.target.value)} className="mt-1" />
                   </div>
                 )}
                 <div>
-                  <Label className="flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> Notes</Label>
-                  <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" placeholder="Special requests..." />
+                  <Label className="flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" /> {t("checkout.notes")}</Label>
+                  <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" placeholder={t("checkout.notes")} />
                 </div>
               </div>
             </div>
@@ -118,24 +132,21 @@ export default function CheckoutPage() {
 
           <div className="lg:col-span-2">
             <div className="sticky top-24 rounded-2xl bg-warm-white p-5 shadow-soft dark:bg-[#1a1412]">
-              <h2 className="text-sm font-semibold">Order Summary</h2>
+              <h2 className="text-sm font-semibold">{t("checkout.orderSummary")}</h2>
               <div className="mt-4 space-y-2">
                 {items.map((item) => (
-                  <div key={item.product.id} className="flex justify-between text-sm">
-                    <span className="text-coffee/70">{item.quantity}× {item.product.name_ar}</span>
-                    <span>{formatPrice(item.product.price * item.quantity)}</span>
-                  </div>
+                  <OrderLineItem key={item.product.id} product={item.product} quantity={item.quantity} />
                 ))}
               </div>
               <div className="mt-4 space-y-1.5 border-t border-beige-dark/20 pt-4 text-sm dark:border-white/10">
-                <div className="flex justify-between"><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
-                {discount > 0 && <div className="flex justify-between text-emerald-600"><span>Discount ({couponCode})</span><span>-{formatPrice(discount)}</span></div>}
-                {deliveryFee > 0 && <div className="flex justify-between"><span>Delivery</span><span>{formatPrice(deliveryFee)}</span></div>}
-                <div className="flex justify-between text-lg font-bold pt-2"><span>Total</span><span className="text-turquoise">{formatPrice(total)}</span></div>
+                <div className="flex justify-between"><span>{t("cart.subtotal")}</span><span>{formatPrice(subtotal)}</span></div>
+                {discount > 0 && <div className="flex justify-between text-emerald-600"><span>{t("cart.discount", "Discount")} ({couponCode})</span><span>-{formatPrice(discount)}</span></div>}
+                {deliveryFee > 0 && <div className="flex justify-between"><span>{t("cart.delivery", "Delivery")}</span><span>{formatPrice(deliveryFee)}</span></div>}
+                <div className="flex justify-between text-lg font-bold pt-2"><span>{t("cart.total")}</span><span className="text-turquoise">{formatPrice(total)}</span></div>
               </div>
               {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
               <Button type="submit" variant="turquoise" size="lg" className="mt-4 w-full" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Place Order"}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("checkout.placeOrder")}
               </Button>
             </div>
           </div>

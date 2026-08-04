@@ -11,8 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StoreImage } from "@/components/brand/store-image";
+import { useT } from "@/components/providers/locale-provider";
 
 export function AdminLoginForm() {
+  const t = useT();
   const { login, resetPassword, user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -36,7 +38,7 @@ export function AdminLoginForm() {
       await login(email, password, remember);
       router.replace("/admin");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : t("error.generic"));
     } finally {
       setLoading(false);
     }
@@ -44,7 +46,7 @@ export function AdminLoginForm() {
 
   const handleForgot = async () => {
     if (!email) {
-      setError("Enter your email first");
+      setError(t("validation.email"));
       return;
     }
     try {
@@ -52,7 +54,7 @@ export function AdminLoginForm() {
       setResetSent(true);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset email");
+      setError(err instanceof Error ? err.message : t("error.generic"));
     }
   };
 
@@ -69,7 +71,7 @@ export function AdminLoginForm() {
           >
             {BRAND.name}
           </motion.h1>
-          <p className="mt-2 text-warm-white/80">Admin Management System</p>
+          <p className="mt-2 text-warm-white/80">{t("admin.signInHint")}</p>
         </div>
       </div>
 
@@ -82,14 +84,14 @@ export function AdminLoginForm() {
           <div className="mb-8 flex flex-col items-center lg:items-start">
             <Logo size="lg" href={null} />
             <h2 className="mt-4 font-display text-2xl font-bold text-dark-brown">
-              Welcome back
+              {t("admin.welcome")}
             </h2>
-            <p className="text-sm text-coffee/60">Sign in to manage your café</p>
+            <p className="text-sm text-coffee/60">{t("admin.signInHint")}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl bg-warm-white p-6 shadow-elevated">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("admin.email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -102,7 +104,7 @@ export function AdminLoginForm() {
             </div>
 
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("admin.password")}</Label>
               <div className="relative mt-1.5">
                 <Input
                   id="password"
@@ -130,20 +132,20 @@ export function AdminLoginForm() {
                   onChange={(e) => setRemember(e.target.checked)}
                   className="rounded"
                 />
-                Remember me
+                {t("admin.rememberMe")}
               </label>
               <button
                 type="button"
                 onClick={handleForgot}
                 className="text-sm font-medium text-turquoise hover:underline"
               >
-                Forgot password?
+                {t("admin.forgotPassword")}
               </button>
             </div>
 
             {resetSent && (
               <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                Password reset email sent.
+                {t("common.success")}
               </p>
             )}
             {error && (
@@ -151,7 +153,7 @@ export function AdminLoginForm() {
             )}
 
             <Button type="submit" variant="turquoise" size="lg" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign In"}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.signIn")}
             </Button>
           </form>
         </motion.div>

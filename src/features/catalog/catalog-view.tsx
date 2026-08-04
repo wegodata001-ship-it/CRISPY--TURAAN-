@@ -4,18 +4,28 @@ import { useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/header";
 import { HeroBanner } from "@/features/catalog/hero-banner";
-import { CategoryScroll } from "@/features/catalog/category-scroll";
-import { CategoryGrid, ProductCarousel } from "@/features/catalog/catalog-sections";
+import {
+  CategoryGrid,
+  ProductCarousel,
+  filterProductsByCategories,
+} from "@/features/catalog/catalog-sections";
+import { StickyCatalogBar } from "@/features/catalog/sticky-catalog-bar";
 import { ProductFiltersBar } from "@/features/catalog/product-filters-bar";
 import { ProductGrid } from "@/features/catalog/product-grid";
 import { ProductDetailDrawer } from "@/features/catalog/product-detail-drawer";
 import { FloatingCartButton } from "@/features/cart/floating-cart-button";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { CatalogSeeder } from "@/components/catalog/catalog-seeder";
 import { AboutCafeCard } from "@/components/brand/about-cafe-card";
 import { SiteFooter } from "@/components/layout/footer";
-import { useProducts } from "@/hooks/useProducts";
+import { useProducts, useAllProducts } from "@/hooks/useProducts";
 import type { Product, ProductFilters } from "@/types";
 
 const PAGE_SIZE = 12;
+
+const COFFEE_CATS = ["hot-drinks", "ice-drinks"];
+const DESSERT_CATS = ["desserts", "ice-cream-yogurt"];
+const BREAKFAST_CATS = ["breakfast"];
 
 export function CatalogView() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -32,42 +42,43 @@ export function CatalogView() {
     () => ({
       ...filters,
       search: searchQuery || undefined,
-      categoryId: selectedCategory,
+      categoryId: selectedCategory === "all" ? undefined : selectedCategory,
       active: true,
-      available: undefined,
     }),
     [filters, searchQuery, selectedCategory]
   );
 
   const { products, loading } = useProducts(combinedFilters);
+  const { products: allProducts } = useAllProducts();
 
+  const bestSellers = useMemo(
+    () => allProducts.filter((p) => p.isPopular).slice(0, 10),
+    [allProducts]
+  );
   const popularProducts = useMemo(
-    () => products.filter((p) => p.isPopular).slice(0, 10),
-    [products]
+    () => allProducts.filter((p) => p.isPopular).slice(0, 12),
+    [allProducts]
   );
-
   const newProducts = useMemo(
-    () =>
-      products
-        .filter((p) => p.isNew)
-        .slice()
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 8),
-    [products]
+    () => allProducts.filter((p) => p.isNew).slice(0, 10),
+    [allProducts]
   );
-
-  const recommendedProducts = useMemo(
-    () =>
-      products
-        .filter((p) => !p.isPopular)
-        .slice()
-        .sort((a, b) => b.price - a.price)
-        .slice(0, 8),
-    [products]
+  const coffeeProducts = useMemo(
+    () => filterProductsByCategories(allProducts, COFFEE_CATS).slice(0, 10),
+    [allProducts]
+  );
+  const dessertProducts = useMemo(
+    () => filterProductsByCategories(allProducts, DESSERT_CATS).slice(0, 10),
+    [allProducts]
+  );
+  const breakfastProducts = useMemo(
+    () => filterProductsByCategories(allProducts, BREAKFAST_CATS).slice(0, 8),
+    [allProducts]
   );
 
   const visibleProducts = products.slice(0, visibleCount);
   const hasMore = visibleCount < products.length;
+  const showSections = selectedCategory === "all" && !searchQuery;
 
   const handleCategorySelect = useCallback((categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -75,73 +86,50 @@ export function CatalogView() {
     document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  const showSections = selectedCategory === "all" && !searchQuery;
-
   return (
     <>
+      <CatalogSeeder />
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       <HeroBanner />
 
+      <StickyCatalogBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        selectedCategory={selectedCategory}
+        onCategorySelect={handleCategorySelect}
+      />
+
       {showSections && (
         <>
-          <CategoryGrid
-            selected={selectedCategory}
-            onSelect={handleCategorySelect}
-          />
+          <CategoryGrid selected={selectedCategory} onSelect={handleCategorySelect} />
 
-          <ProductCarousel
-            title="מוצרים פופולריים"
-            subtitle="Most loved at MISHKAT CAFÉ"
-            products={popularProducts}
-            onProductClick={setSelectedProduct}
-          />
-
-          {newProducts.length > 0 && (
-            <ProductCarousel
-              title="חדשים"
-              subtitle="Fresh additions to our menu"
-              products={newProducts}
-              onProductClick={setSelectedProduct}
-            />
-          )}
-
-          <ProductCarousel
-            title="מומלצים"
-            subtitle="Chef's recommendations"
-            products={recommendedProducts}
-            onProductClick={setSelectedProduct}
-          />
+          <ProductCarousel emoji="⭐" titleKey="catalog.bestSellers" products={bestSellers} onProductClick={setSelectedProduct} />
+          <ProductCarousel emoji="🔥" titleKey="catalog.popular" products={popularProducts} onProductClick={setSelectedProduct} />
+          <ProductCarousel emoji="🆕" titleKey="catalog.new" products={newProducts} onProductClick={setSelectedProduct} />
+          <ProductCarousel emoji="☕" titleKey="catalog.coffee" products={coffeeProducts} onProductClick={setSelectedProduct} />
+          <ProductCarousel emoji="🍰" titleKey="catalog.desserts" products={dessertProducts} onProductClick={setSelectedProduct} />
+          <ProductCarousel emoji="🥐" titleKey="catalog.breakfast" products={breakfastProducts} onProductClick={setSelectedProduct} />
         </>
       )}
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.15 }}
-        className="mt-2"
-      >
-        <CategoryScroll
-          selected={selectedCategory}
-          onSelect={handleCategorySelect}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+        <ProductFiltersBar
+          filters={combinedFilters}
+          onFiltersChange={setFilters}
+          showFilters={showFilters}
+          onToggleFilters={() => setShowFilters(!showFilters)}
         />
       </motion.div>
 
-      <ProductFiltersBar
-        filters={combinedFilters}
-        onFiltersChange={setFilters}
-        showFilters={showFilters}
-        onToggleFilters={() => setShowFilters(!showFilters)}
-      />
-
       {!showSections && <AboutCafeCard />}
 
-      <div id="menu" className="mt-4 mb-4">
-        <div className="mb-3 flex items-center justify-between px-4 md:px-6">
-          <h2 className="font-display text-lg font-bold text-dark-brown md:text-xl" dir="rtl">
+      <div id="menu" className="mb-24 mt-6 md:mb-8">
+        <div className="mb-4 flex items-center justify-between px-4 md:px-6">
+          <h2 className="font-display text-2xl font-bold text-dark-brown md:text-3xl" dir="rtl">
             {selectedCategory === "all" ? "כל התפריט" : "תפריט"}
           </h2>
-          <p className="text-sm text-coffee/60">
-            {loading ? "Loading..." : `${products.length} items`}
+          <p className="rounded-full bg-beige/60 px-3 py-1 text-sm font-medium text-coffee">
+            {loading ? "..." : `${products.length} פריטים`}
           </p>
         </div>
 
@@ -152,12 +140,13 @@ export function CatalogView() {
         />
 
         {hasMore && !loading && (
-          <div className="mt-6 flex justify-center px-4">
+          <div className="mt-8 flex justify-center px-4">
             <button
+              type="button"
               onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-              className="rounded-full border border-beige-dark/40 bg-warm-white px-8 py-3 text-sm font-medium text-coffee transition-colors hover:bg-beige/60"
+              className="rounded-full border-2 border-coffee/20 bg-warm-white px-10 py-3.5 text-sm font-semibold text-coffee shadow-soft transition-all hover:border-turquoise hover:text-turquoise"
             >
-              Load more ({products.length - visibleCount} remaining)
+              טען עוד ({products.length - visibleCount} נותרו)
             </button>
           </div>
         )}
@@ -172,6 +161,7 @@ export function CatalogView() {
       />
 
       <FloatingCartButton />
+      <MobileBottomNav />
     </>
   );
 }

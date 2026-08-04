@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./accessibility.css";
 
 @theme {
   --color-cream: #F8F3ED;
@@ -82,5 +83,9 @@
 
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  .shadow-premium {
+    box-shadow: var(--shadow-premium);
   }
 }

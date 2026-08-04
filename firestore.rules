@@ -50,6 +50,11 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    match /ui_translations/{locale} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isStaff());
       allow write: if false;

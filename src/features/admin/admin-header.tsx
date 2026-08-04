@@ -20,6 +20,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 
 const quickActions = [
   { href: "/admin/products", label: "New Product", icon: Plus },
@@ -86,6 +87,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
           <Sun className="h-4 w-4 dark:hidden" />
           <Moon className="hidden h-4 w-4 dark:block" />
         </button>
+
+        <LanguageSwitcher compact />
 
         <div className="relative">
           <button

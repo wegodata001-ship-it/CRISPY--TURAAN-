@@ -6,6 +6,7 @@ export const COLLECTIONS = {
   settings: "settings",
   banners: "banners",
   users: "users",
+  uiTranslations: "ui_translations",
   connectionTest: "connection-test",
 } as const;
 

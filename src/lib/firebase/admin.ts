@@ -24,6 +24,12 @@ function getServiceAccount() {
     );
   }
 
+  if (!privateKey.includes("BEGIN PRIVATE KEY")) {
+    throw new Error(
+      "FIREBASE_ADMIN_PRIVATE_KEY must be the PEM private key from Firebase Console → Project Settings → Service Accounts → Generate new private key. It is NOT your login password. The key starts with -----BEGIN PRIVATE KEY-----"
+    );
+  }
+
   return { project_id: projectId, client_email: clientEmail, private_key: privateKey };
 }
 

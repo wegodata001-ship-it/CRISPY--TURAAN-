@@ -19,11 +19,13 @@ import { ImageUpload } from "@/features/admin/image-upload";
 import { SortableList } from "@/components/admin/sortable-list";
 import { uploadCategoryImage, deleteImageByUrl } from "@/services/storageService";
 import { cn } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
 import type { Category } from "@/types";
 
 const ICONS = ["coffee", "cup-soda", "cake", "salad", "sandwich", "ice-cream", "milk", "star"];
 
 export function CategoriesAdmin() {
+  const t = useT();
   const { categories, loading } = useCategories();
   const { products } = useProducts();
   const [editing, setEditing] = useState<Category | null>(null);
@@ -45,6 +47,7 @@ export function CategoriesAdmin() {
   const form = useForm({
     resolver: zodResolver(categorySchema),
     defaultValues: {
+      nameHe: "",
       nameAr: "",
       nameEn: "",
       icon: "coffee",
@@ -58,6 +61,7 @@ export function CategoriesAdmin() {
   const openCreate = () => {
     setEditing(null);
     form.reset({
+      nameHe: "",
       nameAr: "",
       nameEn: "",
       icon: "coffee",
@@ -73,6 +77,7 @@ export function CategoriesAdmin() {
   const openEdit = (cat: Category) => {
     setEditing(cat);
     form.reset({
+      nameHe: cat.name_he,
       nameAr: cat.name_ar,
       nameEn: cat.name_en,
       icon: cat.icon,
@@ -191,14 +196,18 @@ export function CategoriesAdmin() {
             <DialogTitle>{editing ? "Edit Category" : "New Category"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={onSubmit} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <Label htmlFor="nameEn">English Name</Label>
-                <Input id="nameEn" {...form.register("nameEn")} className="mt-1" />
+                <Label htmlFor="nameHe">{t("admin.categoryNameHe")}</Label>
+                <Input id="nameHe" dir="rtl" {...form.register("nameHe")} className="mt-1" />
               </div>
               <div>
-                <Label htmlFor="nameAr">Arabic Name</Label>
+                <Label htmlFor="nameAr">{t("admin.categoryNameAr")}</Label>
                 <Input id="nameAr" dir="rtl" {...form.register("nameAr")} className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="nameEn">{t("admin.categoryNameEn")}</Label>
+                <Input id="nameEn" {...form.register("nameEn")} className="mt-1" />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">

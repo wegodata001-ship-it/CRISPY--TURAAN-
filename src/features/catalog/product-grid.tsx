@@ -4,6 +4,7 @@ import { ProductCard } from "./product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyStateBackground } from "@/components/brand/store-image";
 import { Logo } from "@/components/brand/logo";
+import { useT } from "@/components/providers/locale-provider";
 import type { Product } from "@/types";
 
 interface ProductGridProps {
@@ -17,6 +18,8 @@ export function ProductGrid({
   loading,
   onProductClick,
 }: ProductGridProps) {
+  const t = useT();
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-3 md:gap-5 md:px-6 lg:grid-cols-4">
@@ -35,13 +38,13 @@ export function ProductGrid({
   if (products.length === 0) {
     return (
       <EmptyStateBackground className="mx-4 md:mx-6">
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+        <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
           <Logo size="md" href={undefined} />
           <h3 className="mt-4 text-lg font-semibold text-dark-brown">
-            No products found
+            {t("catalog.noProducts")}
           </h3>
           <p className="mt-1 text-sm text-coffee/60">
-            Try adjusting your search or filters
+            {t("catalog.noProductsHint")}
           </p>
         </div>
       </EmptyStateBackground>
@@ -49,7 +52,7 @@ export function ProductGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-3 md:gap-5 md:px-6 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 px-4 md:grid-cols-3 md:gap-6 md:px-6 lg:grid-cols-4 xl:grid-cols-5">
       {products.map((product, index) => (
         <ProductCard
           key={product.id}

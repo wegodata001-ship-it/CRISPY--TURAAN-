@@ -2,8 +2,9 @@ export type BusinessType = "beverage" | "food" | "bakery" | "dessert" | "dairy";
 
 export interface Category {
   id: string;
-  name_en: string;
+  name_he: string;
   name_ar: string;
+  name_en: string;
   icon: string;
   image: string;
   color: string;
@@ -13,9 +14,12 @@ export interface Category {
 
 export interface Product {
   id: string;
+  name_he: string;
   name_ar: string;
   name_en: string;
-  description: string;
+  description_he: string;
+  description_ar: string;
+  description_en: string;
   categoryId: string;
   price: number;
   cost: number;

@@ -3,10 +3,10 @@ export type BusinessType = "beverage" | "food" | "bakery" | "dessert" | "dairy";
 export interface CategoryMeta {
   id: string;
   nameHe: string;
+  nameAr: string;
   nameEn: string;
   icon: string;
   businessType: BusinessType;
-  /** Base price in ILS for items in this category */
   basePrice: number;
 }
 
@@ -14,6 +14,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "soft-drinks",
     nameHe: "שתייה קלה ומוגזים",
+    nameAr: "مشروبات غازية",
     nameEn: "Soft Drinks",
     icon: "glass-water",
     businessType: "beverage",
@@ -22,6 +23,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "fresh-juices",
     nameHe: "מיצים סחוטים ורעננים",
+    nameAr: "عصائر طازجة",
     nameEn: "Fresh Juices",
     icon: "citrus",
     businessType: "beverage",
@@ -30,6 +32,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "shakes",
     nameHe: "שייקים",
+    nameAr: "شيكات",
     nameEn: "Shakes",
     icon: "milk",
     businessType: "beverage",
@@ -38,6 +41,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "hot-drinks",
     nameHe: "שתייה חמה",
+    nameAr: "مشروبات ساخنة",
     nameEn: "Hot Drinks",
     icon: "coffee",
     businessType: "beverage",
@@ -46,6 +50,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "ice-drinks",
     nameHe: "משקאות אייס",
+    nameAr: "مشروبات مثلجة",
     nameEn: "Iced Drinks",
     icon: "snowflake",
     businessType: "beverage",
@@ -54,6 +59,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "breakfast",
     nameHe: "ארוחות בוקר",
+    nameAr: "فطور",
     nameEn: "Breakfast",
     icon: "egg-fried",
     businessType: "food",
@@ -62,6 +68,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "sandwiches",
     nameHe: "כריכים / קוראסונים",
+    nameAr: "ساندوiches / كرواسون",
     nameEn: "Sandwiches & Croissants",
     icon: "sandwich",
     businessType: "food",
@@ -70,6 +77,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "salads",
     nameHe: "סלטים",
+    nameAr: "سلطات",
     nameEn: "Salads",
     icon: "salad",
     businessType: "food",
@@ -78,6 +86,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "mains-pasta",
     nameHe: "מנות עיקריות / פסטות",
+    nameAr: "أطباق رئيسية ومعكرونة",
     nameEn: "Mains & Pasta",
     icon: "utensils",
     businessType: "food",
@@ -86,6 +95,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "bakery",
     nameHe: "מאפים ובורקסים",
+    nameAr: "مخبوزات وبوريكas",
     nameEn: "Bakery & Borekas",
     icon: "croissant",
     businessType: "bakery",
@@ -94,6 +104,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "desserts",
     nameHe: "קינוחים",
+    nameAr: "حلويات",
     nameEn: "Desserts",
     icon: "cake",
     businessType: "dessert",
@@ -102,6 +113,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   {
     id: "ice-cream-yogurt",
     nameHe: "גלידות ויוגורט",
+    nameAr: "آيس كريم ويوغurt",
     nameEn: "Ice Cream & Yogurt",
     icon: "ice-cream",
     businessType: "dairy",

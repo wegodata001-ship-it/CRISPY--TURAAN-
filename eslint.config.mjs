@@ -7,8 +7,13 @@ const __dirname = dirname(__filename);
 
 const compat = new FlatCompat({
   baseDirectory: __dirname,
+  recommendedConfig: {},
 });
 
-const eslintConfig = [...compat.extends("next/core-web-vitals")];
+/** Flat config for Next.js — avoids circular JSON from next lint wrapper */
+const eslintConfig = [
+  { ignores: [".next/**", "node_modules/**", "out/**"] },
+  ...compat.extends("next/core-web-vitals"),
+];
 
 export default eslintConfig;

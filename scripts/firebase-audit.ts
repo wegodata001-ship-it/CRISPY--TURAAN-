@@ -207,6 +207,7 @@ async function testCategoriesCrud() {
     nameAr: "اختبار",
     nameEn: "Audit Test",
     icon: "coffee",
+    color: "#8B6914",
     sortOrder: 999,
     active: true,
   });
@@ -264,6 +265,7 @@ async function testCustomersCrud() {
     email: "audit@mishkat.local",
     address: "Test Address",
     favoriteProducts: [],
+    notes: "",
   });
   if (!created.success) {
     record("Customers CRUD", false, created.error);
@@ -280,7 +282,13 @@ async function testCustomersCrud() {
 }
 
 async function testOrdersCrud() {
-  const customers = await getCustomers();
+  let customers: Awaited<ReturnType<typeof getCustomers>> = [];
+  try {
+    customers = await getCustomers();
+  } catch {
+    record("Orders CRUD", false, "Customers read requires staff auth — test in admin UI after login");
+    return;
+  }
   const products = await getProducts();
   if (customers.length === 0 || products.length === 0) {
     record("Orders CRUD", false, "Missing customers or products");

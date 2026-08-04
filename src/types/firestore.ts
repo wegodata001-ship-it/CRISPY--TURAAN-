@@ -4,6 +4,7 @@ import type { OrderStatus } from "@/types";
 import type { BusinessType } from "@/types";
 
 export interface FirestoreCategory {
+  nameHe: string;
   nameAr: string;
   nameEn: string;
   icon: string;
@@ -14,9 +15,14 @@ export interface FirestoreCategory {
 }
 
 export interface FirestoreProduct {
+  nameHe: string;
   nameAr: string;
   nameEn: string;
-  description: string;
+  descriptionHe?: string;
+  descriptionAr?: string;
+  descriptionEn?: string;
+  /** @deprecated legacy single description */
+  description?: string;
   categoryId: string;
   price: number;
   cost: number;
@@ -107,6 +113,13 @@ export interface FirestoreSettings {
   mapsUrl?: string;
   faviconUrl?: string;
   updatedAt: Timestamp;
+}
+
+export interface FirestoreUiTranslations {
+  locale: string;
+  strings: Record<string, string>;
+  version: number;
+  updatedAt?: Timestamp;
 }
 
 export type FirestoreDoc<T> = T & { id: string };

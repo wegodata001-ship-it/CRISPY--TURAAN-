@@ -15,7 +15,6 @@ export function markStart(label: string): () => void {
     const entry: PerfMetric = { label, durationMs, slow: durationMs > THRESHOLD_MS };
     metrics.push(entry);
     if (process.env.NODE_ENV === "development" && entry.slow) {
-      // eslint-disable-next-line no-console
       console.warn(`[perf] ${label} took ${durationMs}ms (> ${THRESHOLD_MS}ms)`);
     }
   };

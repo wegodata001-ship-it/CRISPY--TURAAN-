@@ -16,11 +16,37 @@ import type {
   BusinessType,
 } from "@/types";
 
+/** Legacy docs stored Hebrew in `nameAr` before trilingual migration */
+function readNameHe(doc: { nameHe?: string; nameAr?: string }): string {
+  return doc.nameHe ?? doc.nameAr ?? "";
+}
+
+function readNameAr(doc: { nameHe?: string; nameAr?: string }): string {
+  if (doc.nameHe && doc.nameAr && doc.nameHe !== doc.nameAr) return doc.nameAr;
+  return doc.nameAr ?? "";
+}
+
+function readDescription(
+  doc: { descriptionHe?: string; descriptionAr?: string; descriptionEn?: string; description?: string },
+  lang: "he" | "ar" | "en"
+): string {
+  const legacy = doc.description ?? "";
+  switch (lang) {
+    case "he":
+      return doc.descriptionHe ?? legacy;
+    case "ar":
+      return doc.descriptionAr ?? legacy;
+    case "en":
+      return doc.descriptionEn ?? legacy;
+  }
+}
+
 export function mapCategory(doc: FirestoreDoc<FirestoreCategory>): Category {
   return {
     id: doc.id,
-    name_ar: doc.nameAr,
-    name_en: doc.nameEn,
+    name_he: readNameHe(doc),
+    name_ar: readNameAr(doc),
+    name_en: doc.nameEn ?? "",
     icon: doc.icon,
     image: doc.imageUrl ?? "",
     color: doc.color ?? "#8B6914",
@@ -32,9 +58,12 @@ export function mapCategory(doc: FirestoreDoc<FirestoreCategory>): Category {
 export function mapProduct(doc: FirestoreDoc<FirestoreProduct>): Product {
   return {
     id: doc.id,
-    name_ar: doc.nameAr,
-    name_en: doc.nameEn,
-    description: doc.description,
+    name_he: readNameHe(doc),
+    name_ar: readNameAr(doc),
+    name_en: doc.nameEn ?? "",
+    description_he: readDescription(doc, "he"),
+    description_ar: readDescription(doc, "ar"),
+    description_en: readDescription(doc, "en"),
     categoryId: doc.categoryId,
     price: doc.price,
     cost: doc.cost ?? 0,
@@ -110,3 +139,66 @@ export function isBannerLive(banner: BannerSlide): boolean {
 }
 
 export { isBannerScheduled };
+
+/** Firestore write shape from app product */
+export function productToFirestore(input: {
+  name_he: string;
+  name_ar: string;
+  name_en: string;
+  description_he: string;
+  description_ar: string;
+  description_en: string;
+  categoryId: string;
+  price: number;
+  cost: number;
+  profit: number;
+  businessType: BusinessType;
+  imageUrl: string;
+  available: boolean;
+  popular: boolean;
+  newProduct: boolean;
+  active: boolean;
+  sortOrder: number;
+}) {
+  return {
+    nameHe: input.name_he,
+    nameAr: input.name_ar,
+    nameEn: input.name_en,
+    descriptionHe: input.description_he,
+    descriptionAr: input.description_ar,
+    descriptionEn: input.description_en,
+    categoryId: input.categoryId,
+    price: input.price,
+    cost: input.cost,
+    profit: input.profit,
+    businessType: input.businessType,
+    imageUrl: input.imageUrl,
+    available: input.available,
+    popular: input.popular,
+    newProduct: input.newProduct,
+    active: input.active,
+    sortOrder: input.sortOrder,
+  };
+}
+
+export function categoryToFirestore(input: {
+  name_he: string;
+  name_ar: string;
+  name_en: string;
+  icon: string;
+  imageUrl?: string;
+  color?: string;
+  sortOrder: number;
+  active: boolean;
+}) {
+  return {
+    nameHe: input.name_he,
+    nameAr: input.name_ar,
+    nameEn: input.name_en,
+    icon: input.icon,
+    imageUrl: input.imageUrl ?? "",
+    color: input.color ?? "#8B6914",
+    sortOrder: input.sortOrder,
+    active: input.active,
+  };
+}

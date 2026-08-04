@@ -36,9 +36,12 @@ function applyFilters(items: Product[], filters?: ProductFilters): Product[] {
     const q = filters.search.toLowerCase();
     result = result.filter(
       (p) =>
+        p.name_he.includes(filters.search!) ||
+        p.name_ar.includes(filters.search!) ||
         p.name_en.toLowerCase().includes(q) ||
-        p.name_ar.includes(q) ||
-        p.description.toLowerCase().includes(q)
+        p.description_he.includes(filters.search!) ||
+        p.description_ar.includes(filters.search!) ||
+        p.description_en.toLowerCase().includes(q)
     );
   }
 

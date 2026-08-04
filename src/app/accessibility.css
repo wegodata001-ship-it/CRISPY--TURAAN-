@@ -1,0 +1,207 @@
+/* MISHKAT CAFÉ — Accessibility Center (CSS Variables + html classes) */
+
+:root {
+  --a11y-focus-color: #007a80;
+  --a11y-focus-ring: rgba(0, 122, 128, 0.45);
+}
+
+/* ── Text scale (rem-based on html) ── */
+html.a11y-text-80 {
+  font-size: 80%;
+}
+
+html.a11y-text-90 {
+  font-size: 90%;
+}
+
+html.a11y-text-110 {
+  font-size: 110%;
+}
+
+html.a11y-text-120 {
+  font-size: 120%;
+}
+
+/* ── Line height ── */
+html.a11y-line-height-md body {
+  line-height: 1.75 !important;
+}
+
+html.a11y-line-height-lg body {
+  line-height: 2 !important;
+}
+
+/* ── Letter spacing ── */
+html.a11y-letter-spacing-md body {
+  letter-spacing: 0.06em !important;
+}
+
+html.a11y-letter-spacing-lg body {
+  letter-spacing: 0.12em !important;
+}
+
+/* ── Accessible font stack ── */
+html.a11y-accessible-font body,
+html.a11y-accessible-font button,
+html.a11y-accessible-font input,
+html.a11y-accessible-font select,
+html.a11y-accessible-font textarea {
+  font-family: var(--font-atkinson), "Segoe UI", Verdana, Arial, sans-serif !important;
+}
+
+/* ── High contrast ── */
+html.a11y-high-contrast {
+  --color-cream: #ffffff;
+  --color-warm-white: #ffffff;
+  --color-dark-brown: #000000;
+  --color-coffee: #000000;
+  --color-coffee-light: #1a1a1a;
+  --color-beige: #f0f0f0;
+  --color-beige-dark: #cccccc;
+  --color-turquoise: #005f63;
+  --color-gold: #8b6914;
+}
+
+html.a11y-high-contrast.dark {
+  --color-cream: #000000;
+  --color-warm-white: #0a0a0a;
+  --color-dark-brown: #ffffff;
+  --color-coffee: #ffffff;
+  --color-beige: #1a1a1a;
+  --color-beige-dark: #333333;
+  --color-turquoise: #4dd0d7;
+}
+
+html.a11y-high-contrast body {
+  filter: contrast(1.12);
+}
+
+/* ── Grayscale ── */
+html.a11y-grayscale body {
+  filter: grayscale(100%);
+}
+
+html.a11y-grayscale.a11y-high-contrast body {
+  filter: grayscale(100%) contrast(1.12);
+}
+
+/* ── Highlight links ── */
+html.a11y-highlight-links a {
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  background-color: rgba(212, 167, 106, 0.35) !important;
+  outline: 1px dashed currentColor;
+  border-radius: 2px;
+}
+
+/* ── Enhanced focus ── */
+html.a11y-enhanced-focus :focus-visible {
+  outline: 3px solid var(--a11y-focus-color) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px var(--a11y-focus-ring) !important;
+}
+
+/* ── Keyboard navigation mode ── */
+html.a11y-keyboard-nav :focus {
+  outline: 2px solid var(--a11y-focus-color) !important;
+  outline-offset: 2px !important;
+}
+
+html.a11y-keyboard-nav a:focus,
+html.a11y-keyboard-nav button:focus,
+html.a11y-keyboard-nav input:focus,
+html.a11y-keyboard-nav select:focus,
+html.a11y-keyboard-nav textarea:focus {
+  box-shadow: 0 0 0 4px var(--a11y-focus-ring) !important;
+}
+
+/* ── Reduce motion ── */
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ── Pause animations ── */
+html.a11y-pause-animations *,
+html.a11y-pause-animations *::before,
+html.a11y-pause-animations *::after {
+  animation-play-state: paused !important;
+}
+
+/* ── Large cursor ── */
+html.a11y-large-cursor,
+html.a11y-large-cursor * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24'%3E%3Cpath fill='%23007A80' stroke='%23fff' stroke-width='1' d='M5 3l14 9-6 1-3 7z'/%3E%3C/svg%3E")
+      4 4,
+    auto !important;
+}
+
+/* ── Skip link ── */
+.skip-link {
+  position: fixed;
+  top: -100%;
+  left: 50%;
+  z-index: 9999;
+  transform: translateX(-50%);
+  padding: 0.75rem 1.25rem;
+  border-radius: 9999px;
+  background: var(--color-turquoise);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  box-shadow: 0 8px 32px rgba(0, 122, 128, 0.35);
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 1rem;
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+.ai-fab {
+  box-shadow:
+    0 8px 32px rgba(0, 122, 128, 0.35),
+    0 2px 8px rgba(61, 43, 36, 0.12);
+}
+
+.ai-drawer {
+  box-shadow: var(--shadow-premium);
+}
+
+/* ── A11y FAB & panel polish ── */
+.a11y-fab {
+  box-shadow:
+    0 8px 32px rgba(0, 122, 128, 0.28),
+    0 2px 8px rgba(61, 43, 36, 0.12);
+}
+
+.a11y-fab:hover {
+  box-shadow:
+    0 12px 40px rgba(0, 122, 128, 0.35),
+    0 4px 12px rgba(61, 43, 36, 0.15);
+}
+
+.a11y-panel {
+  box-shadow:
+    var(--shadow-premium),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* ── A11y panel scroll ── */
+.a11y-panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(61, 43, 36, 0.25) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .a11y-fab,
+  .a11y-panel {
+    animation: none !important;
+    transition: none !important;
+  }
+}

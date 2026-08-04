@@ -6,18 +6,20 @@ import { Home, LayoutGrid, ShoppingBag, ClipboardList, User } from "lucide-react
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/features/cart/cart-context";
-
-const navItems = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/catalog", label: "Catalog", icon: LayoutGrid },
-  { href: "/cart", label: "Cart", icon: ShoppingBag, isCart: true },
-  { href: "/orders", label: "Orders", icon: ClipboardList },
-  { href: "/account", label: "Account", icon: User },
-];
+import { useT } from "@/components/providers/locale-provider";
 
 export function BottomNav() {
   const pathname = usePathname();
   const { itemCount, openCart } = useCart();
+  const t = useT();
+
+  const navItems = [
+    { href: "/", labelKey: "nav.home", icon: Home },
+    { href: "/catalog", labelKey: "nav.catalog", icon: LayoutGrid },
+    { href: "/cart", labelKey: "nav.cart", icon: ShoppingBag, isCart: true },
+    { href: "/orders", labelKey: "nav.orders", icon: ClipboardList },
+    { href: "/account", labelKey: "nav.account", icon: User },
+  ];
 
   if (pathname.startsWith("/admin")) return null;
 
@@ -31,6 +33,7 @@ export function BottomNav() {
                 ? pathname === "/"
                 : pathname.startsWith(item.href);
             const Icon = item.icon;
+            const label = t(item.labelKey);
 
             if (item.isCart) {
               return (
@@ -46,7 +49,7 @@ export function BottomNav() {
                     )}
                   />
                   {itemCount > 0 && (
-                    <span className="absolute -top-0.5 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-turquoise text-[9px] font-bold text-warm-white">
+                    <span className="absolute -top-0.5 end-1 flex h-4 w-4 items-center justify-center rounded-full bg-turquoise text-[9px] font-bold text-warm-white">
                       {itemCount}
                     </span>
                   )}
@@ -56,7 +59,7 @@ export function BottomNav() {
                       isActive ? "text-turquoise" : "text-coffee/50"
                     )}
                   >
-                    {item.label}
+                    {label}
                   </span>
                 </button>
               );
@@ -87,7 +90,7 @@ export function BottomNav() {
                     isActive ? "text-turquoise" : "text-coffee/50"
                   )}
                 >
-                  {item.label}
+                  {label}
                 </span>
               </Link>
             );

@@ -214,7 +214,7 @@ export async function createOrderFromCart(
 ): Promise<ServiceResult<Order>> {
   const items: OrderItem[] = cartItems.map((item) => ({
     productId: item.product.id,
-    productName: item.product.name_en,
+    productName: item.product.name_he || item.product.name_en,
     quantity: item.quantity,
     price: item.product.price,
   }));

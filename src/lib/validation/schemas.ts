@@ -8,9 +8,20 @@ export const businessTypeSchema = z.enum([
   "dairy",
 ]);
 
+const trilingualName = {
+  nameHe: z.string().min(1),
+  nameAr: z.string().min(1),
+  nameEn: z.string().min(1),
+};
+
+const trilingualDescription = {
+  descriptionHe: z.string().min(1),
+  descriptionAr: z.string().min(1),
+  descriptionEn: z.string().min(1),
+};
+
 export const categorySchema = z.object({
-  nameAr: z.string().min(1, "Hebrew name is required"),
-  nameEn: z.string().min(1, "English name is required"),
+  ...trilingualName,
   icon: z.string().min(1, "Icon is required"),
   imageUrl: z.string().url("Image URL must be valid").optional(),
   color: z.string().default("#8B6914"),
@@ -19,9 +30,8 @@ export const categorySchema = z.object({
 });
 
 export const productSchema = z.object({
-  nameAr: z.string().min(1, "Hebrew name is required"),
-  nameEn: z.string().min(1, "English name is required"),
-  description: z.string().min(1, "Description is required"),
+  ...trilingualName,
+  ...trilingualDescription,
   categoryId: z.string().min(1, "Category is required"),
   price: z.number().positive("Price must be greater than 0"),
   cost: z.number().min(0).default(0),

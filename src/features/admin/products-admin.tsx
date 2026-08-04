@@ -31,12 +31,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ImageUpload } from "@/features/admin/image-upload";
 import { uploadProductImage, deleteImageByUrl } from "@/services/storageService";
 import { formatPrice, cn } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
 import { SortableList } from "@/components/admin/sortable-list";
 import type { Product } from "@/types";
 
 type ViewMode = "grid" | "table" | "reorder";
 
 export function ProductsAdmin() {
+  const t = useT();
   const { products, loading } = useProducts();
   const { categories } = useCategories();
   const [view, setView] = useState<ViewMode>("grid");
@@ -57,7 +59,9 @@ export function ProductsAdmin() {
   const form = useForm({
     resolver: zodResolver(productSchema),
     defaultValues: {
-      nameAr: "", nameEn: "", description: "", categoryId: "", price: 0,
+      nameHe: "", nameAr: "", nameEn: "",
+      descriptionHe: "", descriptionAr: "", descriptionEn: "",
+      categoryId: "", price: 0,
       cost: 0, profit: 0, businessType: "food" as const, imageUrl: "",
       available: true, popular: false, newProduct: false, active: true, sortOrder: 0,
     },
@@ -67,7 +71,10 @@ export function ProductsAdmin() {
     if (!search) return products;
     const q = search.toLowerCase();
     return products.filter(
-      (p) => p.name_en.toLowerCase().includes(q) || p.name_ar.includes(q)
+      (p) =>
+        p.name_en.toLowerCase().includes(q) ||
+        p.name_he.includes(search) ||
+        p.name_ar.includes(search)
     );
   }, [products, search]);
 
@@ -107,9 +114,12 @@ export function ProductsAdmin() {
 
   const duplicateProduct = async (product: Product) => {
     const data: ProductInput = {
+      nameHe: `${product.name_he} (Copy)`,
       nameAr: `${product.name_ar} (Copy)`,
       nameEn: `${product.name_en} (Copy)`,
-      description: product.description,
+      descriptionHe: product.description_he,
+      descriptionAr: product.description_ar,
+      descriptionEn: product.description_en,
       categoryId: product.categoryId,
       price: product.price,
       cost: product.cost,
@@ -136,7 +146,8 @@ export function ProductsAdmin() {
   const openCreate = () => {
     setEditing(null);
     form.reset({
-      nameAr: "", nameEn: "", description: "",
+      nameHe: "", nameAr: "", nameEn: "",
+      descriptionHe: "", descriptionAr: "", descriptionEn: "",
       categoryId: categories[0]?.id ?? "", price: 0, cost: 0, profit: 0,
       businessType: "food", imageUrl: "", available: true, popular: false,
       newProduct: false, active: true, sortOrder: products.length + 1,
@@ -148,7 +159,12 @@ export function ProductsAdmin() {
   const openEdit = (product: Product) => {
     setEditing(product);
     form.reset({
-      nameAr: product.name_ar, nameEn: product.name_en, description: product.description,
+      nameHe: product.name_he,
+      nameAr: product.name_ar,
+      nameEn: product.name_en,
+      descriptionHe: product.description_he,
+      descriptionAr: product.description_ar,
+      descriptionEn: product.description_en,
       categoryId: product.categoryId, price: product.price, cost: product.cost,
       profit: product.profit, businessType: product.businessType, imageUrl: product.image,
       available: product.available, popular: product.isPopular, newProduct: product.isNew,
@@ -359,11 +375,16 @@ export function ProductsAdmin() {
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader><DialogTitle>{editing ? "Edit Product" : "New Product"}</DialogTitle></DialogHeader>
           <form onSubmit={onSubmit} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div><Label>English Name</Label><Input {...form.register("nameEn")} className="mt-1" /></div>
-              <div><Label>Hebrew Name</Label><Input dir="rtl" {...form.register("nameAr")} className="mt-1" /></div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div><Label>{t("admin.productNameHe")}</Label><Input dir="rtl" {...form.register("nameHe")} className="mt-1" /></div>
+              <div><Label>{t("admin.productNameAr")}</Label><Input dir="rtl" {...form.register("nameAr")} className="mt-1" /></div>
+              <div><Label>{t("admin.productNameEn")}</Label><Input {...form.register("nameEn")} className="mt-1" /></div>
             </div>
-            <div><Label>Description</Label><Textarea {...form.register("description")} className="mt-1" /></div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div><Label>{t("admin.descHe")}</Label><Textarea dir="rtl" {...form.register("descriptionHe")} className="mt-1" /></div>
+              <div><Label>{t("admin.descAr")}</Label><Textarea dir="rtl" {...form.register("descriptionAr")} className="mt-1" /></div>
+              <div><Label>{t("admin.descEn")}</Label><Textarea {...form.register("descriptionEn")} className="mt-1" /></div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>Category</Label>

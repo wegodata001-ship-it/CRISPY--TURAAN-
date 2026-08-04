@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Plus, Pencil, Trash2, Loader2, Shield } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -46,7 +46,7 @@ export function UsersAdmin() {
     role: "Employee" as UserRole,
   });
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     const res = await authFetch("/api/admin/users");
     if (res.ok) {
@@ -54,11 +54,11 @@ export function UsersAdmin() {
       setUsers(data.users ?? []);
     }
     setLoading(false);
-  };
+  }, [authFetch]);
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   if (currentUser?.role !== "Admin") {
     return (
