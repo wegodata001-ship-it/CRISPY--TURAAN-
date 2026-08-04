@@ -18,6 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ImageUpload } from "@/features/admin/image-upload";
+import { uploadCategoryImage, deleteImageByUrl } from "@/services/storageService";
 import type { Category } from "@/types";
 
 export function CategoriesAdmin() {
@@ -29,12 +31,12 @@ export function CategoriesAdmin() {
 
   const form = useForm({
     resolver: zodResolver(categorySchema),
-    defaultValues: { nameAr: "", nameEn: "", icon: "coffee", sortOrder: 0, active: true },
+    defaultValues: { nameAr: "", nameEn: "", icon: "coffee", imageUrl: "", sortOrder: 0, active: true },
   });
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({ nameAr: "", nameEn: "", icon: "coffee", sortOrder: categories.length + 1, active: true });
+    form.reset({ nameAr: "", nameEn: "", icon: "coffee", imageUrl: "", sortOrder: categories.length + 1, active: true });
     setError(null);
     setOpen(true);
   };
@@ -45,8 +47,9 @@ export function CategoriesAdmin() {
       nameAr: cat.name_ar,
       nameEn: cat.name_en,
       icon: cat.icon,
+      imageUrl: cat.image || undefined,
       sortOrder: cat.sortOrder,
-      active: true,
+      active: cat.active,
     });
     setError(null);
     setOpen(true);
@@ -144,6 +147,15 @@ export function CategoriesAdmin() {
                 <Input id="sortOrder" type="number" {...form.register("sortOrder", { valueAsNumber: true })} className="mt-1" />
               </div>
             </div>
+            <ImageUpload
+              label="Category Image"
+              value={form.watch("imageUrl") ?? ""}
+              onChange={(url) => form.setValue("imageUrl", url)}
+              onUpload={(file, onProgress) =>
+                uploadCategoryImage(file, editing?.id ?? `new-${Date.now()}`, onProgress)
+              }
+              onDelete={deleteImageByUrl}
+            />
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" {...form.register("active")} className="rounded" />
               Active

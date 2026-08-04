@@ -1,10 +1,13 @@
 import { Timestamp } from "firebase/firestore";
 import type { OrderStatus } from "@/types";
 
+import type { BusinessType } from "@/types";
+
 export interface FirestoreCategory {
   nameAr: string;
   nameEn: string;
   icon: string;
+  imageUrl: string;
   sortOrder: number;
   active: boolean;
 }
@@ -15,10 +18,14 @@ export interface FirestoreProduct {
   description: string;
   categoryId: string;
   price: number;
+  cost: number;
+  profit: number;
+  businessType: BusinessType;
   imageUrl: string;
   available: boolean;
   popular: boolean;
   newProduct: boolean;
+  active: boolean;
   sortOrder: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -64,6 +71,35 @@ export interface FirestoreBanner {
   cta?: string;
   active: boolean;
   sortOrder: number;
+}
+
+export interface FirestoreUser {
+  email: string;
+  displayName: string;
+  role: "Admin" | "Manager" | "Employee";
+  active: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface FirestoreSettings {
+  storeName: string;
+  logoUrl: string;
+  storeImageUrl: string;
+  phone: string;
+  address: string;
+  hours: string;
+  currency: string;
+  theme: {
+    primary: string;
+    accent: string;
+    background: string;
+  };
+  seo?: { title: string; description: string };
+  social?: { instagram: string; facebook: string; whatsapp: string };
+  mapsUrl?: string;
+  faviconUrl?: string;
+  updatedAt: Timestamp;
 }
 
 export type FirestoreDoc<T> = T & { id: string };

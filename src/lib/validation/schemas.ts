@@ -1,23 +1,36 @@
 import { z } from "zod";
 
+export const businessTypeSchema = z.enum([
+  "beverage",
+  "food",
+  "bakery",
+  "dessert",
+  "dairy",
+]);
+
 export const categorySchema = z.object({
-  nameAr: z.string().min(1, "Arabic name is required"),
+  nameAr: z.string().min(1, "Hebrew name is required"),
   nameEn: z.string().min(1, "English name is required"),
   icon: z.string().min(1, "Icon is required"),
+  imageUrl: z.string().url("Image URL must be valid").optional(),
   sortOrder: z.number().int().min(0),
   active: z.boolean().default(true),
 });
 
 export const productSchema = z.object({
-  nameAr: z.string().min(1, "Arabic name is required"),
+  nameAr: z.string().min(1, "Hebrew name is required"),
   nameEn: z.string().min(1, "English name is required"),
   description: z.string().min(1, "Description is required"),
   categoryId: z.string().min(1, "Category is required"),
   price: z.number().positive("Price must be greater than 0"),
+  cost: z.number().min(0).default(0),
+  profit: z.number().default(0),
+  businessType: businessTypeSchema.default("food"),
   imageUrl: z.string().url("Image URL must be valid"),
   available: z.boolean().default(true),
   popular: z.boolean().default(false),
   newProduct: z.boolean().default(false),
+  active: z.boolean().default(true),
   sortOrder: z.number().int().min(0).default(0),
 });
 

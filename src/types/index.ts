@@ -1,9 +1,13 @@
+export type BusinessType = "beverage" | "food" | "bakery" | "dessert" | "dairy";
+
 export interface Category {
   id: string;
   name_en: string;
   name_ar: string;
   icon: string;
+  image: string;
   sortOrder: number;
+  active: boolean;
 }
 
 export interface Product {
@@ -13,12 +17,17 @@ export interface Product {
   description: string;
   categoryId: string;
   price: number;
+  cost: number;
+  profit: number;
+  businessType: BusinessType;
   image: string;
   isPopular: boolean;
   isNew: boolean;
   available: boolean;
+  active: boolean;
   sortOrder: number;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Customer {
@@ -70,6 +79,7 @@ export interface ProductFilters {
   isPopular?: boolean;
   isNew?: boolean;
   available?: boolean;
+  active?: boolean;
   sortBy?: "newest" | "price-asc" | "price-desc" | "name-asc" | "popular";
 }
 

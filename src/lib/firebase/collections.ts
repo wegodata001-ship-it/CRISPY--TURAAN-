@@ -12,5 +12,7 @@ export const COLLECTIONS = {
 export const STORAGE_PATHS = {
   products: "products",
   banners: "banners",
+  categories: "categories",
+  settings: "settings",
   test: "test",
 } as const;

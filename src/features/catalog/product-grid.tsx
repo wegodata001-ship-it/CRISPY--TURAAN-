@@ -9,18 +9,23 @@ import type { Product } from "@/types";
 interface ProductGridProps {
   products: Product[];
   loading: boolean;
+  onProductClick?: (product: Product) => void;
 }
 
-export function ProductGrid({ products, loading }: ProductGridProps) {
+export function ProductGrid({
+  products,
+  loading,
+  onProductClick,
+}: ProductGridProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-3 md:gap-4 md:px-6 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-3 md:gap-5 md:px-6 lg:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="space-y-3">
             <Skeleton className="aspect-[4/3] rounded-2xl" />
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
-            <Skeleton className="h-8 w-full rounded-xl" />
+            <Skeleton className="h-10 w-full rounded-xl" />
           </div>
         ))}
       </div>
@@ -44,9 +49,14 @@ export function ProductGrid({ products, loading }: ProductGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-3 md:gap-4 md:px-6 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-3 md:gap-5 md:px-6 lg:grid-cols-4">
       {products.map((product, index) => (
-        <ProductCard key={product.id} product={product} index={index} />
+        <ProductCard
+          key={product.id}
+          product={product}
+          index={index}
+          onClick={onProductClick ? () => onProductClick(product) : undefined}
+        />
       ))}
     </div>
   );

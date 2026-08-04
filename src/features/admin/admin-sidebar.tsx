@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   Package,
@@ -10,11 +11,15 @@ import {
   Users,
   ImageIcon,
   Store,
-  ChevronLeft,
+  Settings,
+  UserCog,
+  FolderOpen,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
 import { BRAND } from "@/lib/brand";
+import { useAuth } from "@/components/providers/auth-provider";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -23,88 +28,107 @@ const navItems = [
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/banners", label: "Banners", icon: ImageIcon },
+  { href: "/admin/media", label: "Media", icon: FolderOpen },
+  { href: "/admin/users", label: "Users", icon: UserCog, adminOnly: true },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
-export function AdminSidebar() {
+function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  const visibleItems = navItems.filter(
+    (item) => !item.adminOnly || user?.role === "Admin"
+  );
 
   return (
-    <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:border-r lg:border-beige-dark/20 lg:bg-warm-white/80 lg:backdrop-blur-md">
-      <div className="flex flex-col h-full p-5">
+    <nav className="space-y-1">
+      {visibleItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = item.exact
+          ? pathname === item.href
+          : pathname.startsWith(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            className={cn(
+              "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+              isActive
+                ? "bg-coffee text-warm-white shadow-soft dark:bg-turquoise dark:text-warm-white"
+                : "text-coffee/70 hover:bg-beige/60 hover:text-dark-brown dark:text-warm-white/70 dark:hover:bg-white/10 dark:hover:text-warm-white"
+            )}
+          >
+            <Icon className={cn("h-4 w-4 shrink-0", isActive && "scale-110")} />
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function AdminSidebar() {
+  return (
+    <aside className="fixed inset-y-0 hidden w-64 flex-col border-r border-beige-dark/20 bg-warm-white/95 backdrop-blur-xl lg:flex dark:border-white/10 dark:bg-[#1a1412]/95">
+      <div className="flex h-full flex-col p-5">
         <Logo size="md" href="/admin" showText showTagline />
-
-        <nav className="mt-8 flex-1 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = item.exact
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
-                  isActive
-                    ? "bg-coffee text-warm-white shadow-soft"
-                    : "text-coffee/70 hover:bg-beige/60 hover:text-dark-brown"
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="space-y-2 border-t border-beige-dark/20 pt-4">
+        <div className="mt-8 flex-1 overflow-y-auto">
+          <NavLinks />
+        </div>
+        <div className="border-t border-beige-dark/20 pt-4 dark:border-white/10">
           <Link
             href="/"
-            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-coffee/60 hover:bg-beige/40 hover:text-dark-brown transition-colors"
+            className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-coffee/60 transition-colors hover:bg-beige/40 dark:text-warm-white/60 dark:hover:bg-white/10"
           >
             <Store className="h-4 w-4" />
             View Store
           </Link>
-          <p className="px-3 text-[10px] text-coffee/40">{BRAND.name} Admin</p>
+          <p className="mt-2 px-3 text-[10px] text-coffee/40">{BRAND.name}</p>
         </div>
       </div>
     </aside>
   );
 }
 
-export function AdminMobileNav() {
-  const pathname = usePathname();
-
+export function AdminMobileDrawer({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   return (
-    <div className="lg:hidden border-b border-beige-dark/20 bg-warm-white/90 backdrop-blur-md">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <Link href="/account" className="text-coffee/50 hover:text-coffee">
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
-        <Logo size="xs" href="/admin" />
-        <span className="text-sm font-semibold text-dark-brown">Admin</span>
-      </div>
-      <div className="hide-scrollbar flex gap-1 overflow-x-auto px-4 pb-3">
-        {navItems.map((item) => {
-          const isActive = item.exact
-            ? pathname === item.href
-            : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
-                isActive
-                  ? "bg-coffee text-warm-white"
-                  : "bg-beige/60 text-coffee"
-              )}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </div>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-dark-brown/50 lg:hidden"
+            onClick={onClose}
+          />
+          <motion.aside
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-warm-white p-5 shadow-elevated lg:hidden dark:bg-[#1a1412]"
+          >
+            <div className="flex items-center justify-between">
+              <Logo size="sm" href="/admin" showText />
+              <button onClick={onClose} className="rounded-lg p-2 hover:bg-beige/40">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-6 flex-1 overflow-y-auto">
+              <NavLinks onNavigate={onClose} />
+            </div>
+          </motion.aside>
+        </>
+      )}
+    </AnimatePresence>
   );
 }

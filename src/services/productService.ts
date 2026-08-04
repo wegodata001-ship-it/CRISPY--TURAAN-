@@ -62,6 +62,10 @@ function applyFilters(items: Product[], filters?: ProductFilters): Product[] {
     result = result.filter((p) => p.available === filters.available);
   }
 
+  if (filters?.active !== undefined) {
+    result = result.filter((p) => p.active === filters.active);
+  }
+
   switch (filters?.sortBy) {
     case "price-asc":
       result.sort((a, b) => a.price - b.price);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download, Printer, Search } from "lucide-react";
 import { useOrders } from "@/hooks/useOrders";
 import { updateOrder, deleteOrder } from "@/services";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,30 @@ const statusVariant: Record<OrderStatus, "pending" | "preparing" | "ready" | "de
 export function OrdersAdmin() {
   const { orders, loading } = useOrders();
   const [updating, setUpdating] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+
+  const filtered = orders.filter((o) => {
+    if (statusFilter !== "all" && o.status !== statusFilter) return false;
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return o.orderNumber.toLowerCase().includes(q) || o.customerName.toLowerCase().includes(q);
+  });
+
+  const exportCsv = () => {
+    const rows = [["Order", "Customer", "Status", "Total", "Date"], ...filtered.map((o) => [
+      o.orderNumber, o.customerName, o.status, String(o.total), o.createdAt,
+    ])];
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  };
+
+  const printOrders = () => window.print();
 
   const handleStatusChange = async (order: Order, status: OrderStatus) => {
     setUpdating(order.id);
@@ -45,9 +69,26 @@ export function OrdersAdmin() {
 
   return (
     <div>
-      <div>
-        <h1 className="font-display text-2xl font-bold text-dark-brown">Orders</h1>
-        <p className="text-sm text-coffee/60">{orders.length} total orders</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-dark-brown dark:text-warm-white">Orders</h1>
+          <p className="text-sm text-coffee/60">{orders.length} total orders</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="relative">
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-coffee/40" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="h-10 rounded-xl border border-beige-dark/30 bg-warm-white pl-9 pr-3 text-sm dark:border-white/10 dark:bg-white/5" />
+          </div>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as OrderStatus | "all")}>
+            <SelectTrigger className="h-10 w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              {statuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-3.5 w-3.5" /> Export</Button>
+          <Button variant="outline" size="sm" onClick={printOrders}><Printer className="h-3.5 w-3.5" /> Print</Button>
+        </div>
       </div>
 
       {loading ? (
@@ -58,7 +99,7 @@ export function OrdersAdmin() {
         </div>
       ) : (
         <div className="mt-6 space-y-3">
-          {orders.map((order, i) => (
+          {filtered.map((order, i) => (
             <motion.div
               key={order.id}
               initial={{ opacity: 0, y: 8 }}

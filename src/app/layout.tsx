@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { FirebaseProvider } from "@/components/providers/firebase-provider";
+import { AuthProvider } from "@/components/providers/auth-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { CartProvider } from "@/features/cart/cart-context";
 import { CartDrawer } from "@/features/cart/cart-drawer";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -49,13 +51,17 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body className="min-h-screen pb-20 md:pb-0 flex flex-col has-[[data-admin]]:pb-0">
         <BrandSplash />
-        <FirebaseProvider>
-          <CartProvider>
-            <main className="flex-1">{children}</main>
-            <CartDrawer />
-            <BottomNav />
-          </CartProvider>
-        </FirebaseProvider>
+        <ThemeProvider>
+          <FirebaseProvider>
+            <AuthProvider>
+              <CartProvider>
+                <main className="flex-1">{children}</main>
+                <CartDrawer />
+                <BottomNav />
+              </CartProvider>
+            </AuthProvider>
+          </FirebaseProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

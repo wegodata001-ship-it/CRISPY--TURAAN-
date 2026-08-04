@@ -20,7 +20,17 @@
   --radius-xl: 1.25rem;
   --radius-2xl: 1.5rem;
   --shadow-soft: 0 4px 24px -4px rgba(61, 43, 36, 0.08);
-  --shadow-elevated: 0 12px 40px -8px rgba(61, 43, 36, 0.15);
+  --shadow-premium: 0 20px 60px -15px rgba(61, 43, 36, 0.2);
+}
+
+.dark {
+  --color-cream: #120e0c;
+  --color-warm-white: #1a1412;
+  --color-dark-brown: #F8F3ED;
+  --color-coffee: #EDE4D8;
+  --color-beige: #2a211e;
+  --color-beige-dark: #3d322c;
+  --color-glass: rgba(26, 20, 18, 0.85);
 }
 
 @layer base {

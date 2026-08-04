@@ -13,6 +13,7 @@ import type {
   Customer,
   Order,
   BannerSlide,
+  BusinessType,
 } from "@/types";
 
 export function mapCategory(doc: FirestoreDoc<FirestoreCategory>): Category {
@@ -21,7 +22,9 @@ export function mapCategory(doc: FirestoreDoc<FirestoreCategory>): Category {
     name_ar: doc.nameAr,
     name_en: doc.nameEn,
     icon: doc.icon,
+    image: doc.imageUrl ?? "",
     sortOrder: doc.sortOrder,
+    active: doc.active,
   };
 }
 
@@ -33,12 +36,17 @@ export function mapProduct(doc: FirestoreDoc<FirestoreProduct>): Product {
     description: doc.description,
     categoryId: doc.categoryId,
     price: doc.price,
+    cost: doc.cost ?? 0,
+    profit: doc.profit ?? 0,
+    businessType: (doc.businessType ?? "food") as BusinessType,
     image: doc.imageUrl,
     isPopular: doc.popular,
     isNew: doc.newProduct,
     available: doc.available,
+    active: doc.active ?? true,
     sortOrder: doc.sortOrder,
     createdAt: timestampToIso(doc.createdAt),
+    updatedAt: timestampToIso(doc.updatedAt),
   };
 }
 

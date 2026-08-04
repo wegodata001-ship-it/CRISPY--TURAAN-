@@ -51,11 +51,22 @@ export {
 } from "./bannerService";
 
 export {
-  uploadImage,
+  uploadImageWithProgress,
   uploadProductImage,
+  uploadCategoryImage,
+  uploadBannerImage,
+  uploadSettingsImage,
+  deleteImageByUrl,
   deleteImage,
+  storagePathFromUrl,
   uploadTestImage,
 } from "./storageService";
+
+export {
+  getSettings,
+  subscribeToSettings,
+  updateSettings,
+} from "./settingsService";
 
 export {
   testFirebaseConnection,

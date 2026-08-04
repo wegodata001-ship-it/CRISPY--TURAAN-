@@ -18,6 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ImageUpload } from "@/features/admin/image-upload";
+import { uploadBannerImage, deleteImageByUrl } from "@/services/storageService";
 import type { BannerSlide } from "@/types";
 
 export function BannersAdmin() {
@@ -146,10 +148,15 @@ export function BannersAdmin() {
               <Label htmlFor="subtitle">Subtitle</Label>
               <Input id="subtitle" {...form.register("subtitle")} className="mt-1" />
             </div>
-            <div>
-              <Label htmlFor="imageUrl">Image URL</Label>
-              <Input id="imageUrl" {...form.register("imageUrl")} className="mt-1" />
-            </div>
+            <ImageUpload
+              label="Banner Image"
+              value={form.watch("imageUrl")}
+              onChange={(url) => form.setValue("imageUrl", url)}
+              onUpload={(file, onProgress) =>
+                uploadBannerImage(file, editing?.id ?? `new-${Date.now()}`, onProgress)
+              }
+              onDelete={deleteImageByUrl}
+            />
             <div>
               <Label htmlFor="cta">CTA Text</Label>
               <Input id="cta" {...form.register("cta")} className="mt-1" />
