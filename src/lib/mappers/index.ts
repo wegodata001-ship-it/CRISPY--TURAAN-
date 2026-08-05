@@ -101,8 +101,24 @@ export function mapOrder(doc: FirestoreDoc<FirestoreOrder>): Order {
     customerId: doc.customerId,
     customerName: doc.customerName,
     status: doc.status,
-    items: doc.items,
+    items: doc.items.map((item) => ({
+      ...item,
+      modifiers: item.modifiers?.map((m) => ({
+        groupId: m.groupId,
+        groupName: m.groupName,
+        optionId: m.optionId,
+        optionName: m.optionName,
+        priceDelta: m.priceDelta,
+        quantity: m.quantity,
+        kitchenNote: m.kitchenNote,
+      })),
+    })),
+    subtotal: doc.subtotal,
+    discount: doc.discount,
+    delivery: doc.delivery,
     total: doc.total,
+    paymentMethod: doc.paymentMethod,
+    notes: doc.notes,
     createdAt: timestampToIso(doc.createdAt),
   };
 }

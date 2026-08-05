@@ -18,6 +18,8 @@ import { ServiceError, type ServiceResult, success, failure } from "@/lib/errors
 import { mapOrder } from "@/lib/mappers";
 import { orderSchema, type OrderInput } from "@/lib/validation/schemas";
 import { nowTimestamp } from "@/types/firestore";
+import { selectedModifierToFirestore } from "@/lib/mappers/modifier-mappers";
+import { collectKitchenNotes } from "@/lib/product-builder/engine";
 import type { Order, OrderStatus, OrderItem, CartItem } from "@/types";
 import type { FirestoreOrder, FirestoreDoc } from "@/types/firestore";
 
@@ -210,16 +212,30 @@ export async function createOrder(input: OrderInput): Promise<ServiceResult<Orde
 export async function createOrderFromCart(
   cartItems: CartItem[],
   customerId: string,
-  customerName: string
+  customerName: string,
+  checkout?: {
+    subtotal?: number;
+    discount?: number;
+    delivery?: number;
+    total?: number;
+    paymentMethod?: string;
+    notes?: string;
+  }
 ): Promise<ServiceResult<Order>> {
   const items: OrderItem[] = cartItems.map((item) => ({
     productId: item.product.id,
     productName: item.product.name_he || item.product.name_en,
     quantity: item.quantity,
-    price: item.product.price,
+    price: item.unitPrice,
+    basePrice: item.product.price,
+    modifiers: item.selections,
+    notes: item.notes,
+    kitchenNotes: collectKitchenNotes(item.selections),
   }));
 
-  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const subtotal =
+    checkout?.subtotal ??
+    items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return createOrder({
     customerId,
@@ -227,11 +243,11 @@ export async function createOrderFromCart(
     items,
     status: "pending",
     subtotal,
-    discount: 0,
-    delivery: 0,
-    total: subtotal,
-    paymentMethod: "cash",
-    notes: "",
+    discount: checkout?.discount ?? 0,
+    delivery: checkout?.delivery ?? 0,
+    total: checkout?.total ?? subtotal,
+    paymentMethod: checkout?.paymentMethod ?? "cash",
+    notes: checkout?.notes ?? "",
   });
 }
 

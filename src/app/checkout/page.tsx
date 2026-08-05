@@ -19,12 +19,21 @@ import { formatPrice } from "@/lib/utils";
 import { ShoppingBag } from "lucide-react";
 import type { Product } from "@/types";
 
-function OrderLineItem({ product, quantity }: { product: Product; quantity: number }) {
-  const localized = useLocalizedProduct(product);
+function OrderLineItem({ item }: { item: import("@/types").CartItem }) {
+  const localized = useLocalizedProduct(item.product);
   return (
-    <div className="flex justify-between text-sm">
-      <span className="text-coffee/70">{quantity}× {localized.name}</span>
-      <span>{formatPrice(product.price * quantity)}</span>
+    <div className="space-y-0.5 text-sm">
+      <div className="flex justify-between">
+        <span className="text-coffee/70">
+          {item.quantity}× {localized.name}
+        </span>
+        <span>{formatPrice(item.unitPrice * item.quantity)}</span>
+      </div>
+      {item.selections.map((s) => (
+        <p key={`${s.groupId}-${s.optionId}`} className="ps-3 text-xs text-coffee/45">
+          + {s.optionName}
+        </p>
+      ))}
     </div>
   );
 }
@@ -73,7 +82,14 @@ export default function CheckoutPage() {
       const guest = await getOrCreateGuestCustomer();
       if (!guest.success) { setError(guest.error); return; }
 
-      const result = await createOrderFromCart(items, guest.data.id, name);
+      const result = await createOrderFromCart(items, guest.data.id, name, {
+        subtotal,
+        discount,
+        delivery: deliveryFee,
+        total,
+        paymentMethod: payment,
+        notes: notes.trim(),
+      });
       if (!result.success) { setError(result.error); return; }
 
       setSuccess(true);
@@ -184,7 +200,7 @@ export default function CheckoutPage() {
                     <h2 className="text-sm font-semibold">{t("checkout.orderSummary")}</h2>
                     <div className="mt-4 space-y-2">
                       {items.map((item) => (
-                        <OrderLineItem key={item.product.id} product={item.product} quantity={item.quantity} />
+                        <OrderLineItem key={item.lineId} item={item} />
                       ))}
                     </div>
                     <div className="mt-4 space-y-1.5 border-t border-beige-dark/20 pt-4 text-sm">

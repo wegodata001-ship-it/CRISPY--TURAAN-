@@ -15,6 +15,9 @@ import {
   UserCog,
   FolderOpen,
   MessageSquare,
+  Layers,
+  Wrench,
+  GitBranch,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,6 +30,9 @@ import { useAuth } from "@/components/providers/auth-provider";
 const navItems = [
   { href: "/admin", labelKey: "admin.dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/products", labelKey: "admin.products", icon: Package },
+  { href: "/admin/modifier-groups", labelKey: "admin.modifierGroups", icon: Layers },
+  { href: "/admin/product-builder", labelKey: "admin.productBuilder", icon: Wrench },
+  { href: "/admin/business-rules", labelKey: "admin.businessRules", icon: GitBranch },
   { href: "/admin/categories", labelKey: "admin.categories", icon: Tags },
   { href: "/admin/orders", labelKey: "admin.orders", icon: ClipboardList },
   { href: "/admin/customers", labelKey: "admin.customers", icon: Users },

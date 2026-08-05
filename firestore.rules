@@ -68,5 +68,40 @@ service cloud.firestore {
     match /connection-test/{id} {
       allow read, write: if true;
     }
+
+    match /modifier_groups/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /modifier_options/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /product_modifier_groups/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /product_modifier_options/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /business_rules/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /suggestions/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /inventory_links/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
   }
 }

@@ -186,9 +186,16 @@ export function OrdersAdmin() {
                   <p className="text-xs text-coffee/40">{formatDate(order.createdAt)}</p>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {order.items.map((item) => (
-                      <span key={item.productId} className="text-xs text-coffee/60">
-                        {item.quantity}× {item.productName}
-                      </span>
+                      <div key={`${item.productId}-${item.productName}`} className="text-xs text-coffee/60">
+                        <span>{item.quantity}× {item.productName}</span>
+                        {item.modifiers?.map((m) => (
+                          <p key={m.optionId} className="ps-3 text-[10px] text-coffee/45">
+                            + {m.optionName}
+                            {m.kitchenNote ? ` (${m.kitchenNote})` : ""}
+                          </p>
+                        ))}
+                        {item.notes && <p className="ps-3 text-[10px] italic">{item.notes}</p>}
+                      </div>
                     ))}
                   </div>
                   <AnimatePresence>

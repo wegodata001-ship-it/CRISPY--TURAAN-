@@ -126,12 +126,14 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         case "checkout":
           router.push("/checkout");
           break;
-        case "remove_from_cart":
-          removeItem(action.productId);
+        case "remove_from_cart": {
+          const line = items.find((i) => i.product.id === action.productId);
+          if (line) removeItem(line.lineId);
           break;
+        }
       }
     },
-    [removeItem, router]
+    [removeItem, router, items]
   );
 
   const fetchAssistant = useCallback(

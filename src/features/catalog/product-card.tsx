@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Heart, Plus, ShoppingBag, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice, cn } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
@@ -17,6 +19,40 @@ interface ProductCardProps {
   index?: number;
   compact?: boolean;
   onClick?: () => void;
+}
+
+function ProductImage({
+  src,
+  alt,
+  compact,
+}: {
+  src: string;
+  alt: string;
+  compact?: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <>
+      {!loaded && (
+        <Skeleton
+          className={cn("absolute inset-0 rounded-none", compact ? "aspect-square" : "aspect-[4/5]")}
+        />
+      )}
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        loading="lazy"
+        sizes={compact ? "220px" : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px"}
+        onLoad={() => setLoaded(true)}
+        className={cn(
+          "object-cover transition-all duration-500 ease-out group-hover:scale-105",
+          loaded ? "opacity-100" : "opacity-0"
+        )}
+      />
+    </>
+  );
 }
 
 export function ProductCard({
@@ -53,15 +89,8 @@ export function ProductCard({
       )}
     >
       <div className={cn("relative overflow-hidden", compact ? "aspect-square" : "aspect-[4/5]")}>
-        <Image
-          src={imageSrc}
-          alt={localized.name}
-          fill
-          className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-          sizes={compact ? "220px" : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px"}
-          loading="lazy"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-brown/55 via-dark-brown/5 to-transparent" />
+        <ProductImage src={imageSrc} alt={localized.name} compact={compact} />
+        <div className="absolute inset-0 bg-gradient-to-t from-dark-brown/55 via-dark-brown/5 to-transparent pointer-events-none" />
 
         <div className="absolute top-3 start-3 flex flex-col gap-1.5">
           {product.isNew && (

@@ -60,6 +60,10 @@ export interface OrderItem {
   productName: string;
   quantity: number;
   price: number;
+  basePrice?: number;
+  modifiers?: import("@/types/modifiers").SelectedModifier[];
+  notes?: string;
+  kitchenNotes?: string[];
 }
 
 export interface Order {
@@ -69,13 +73,22 @@ export interface Order {
   customerName: string;
   status: OrderStatus;
   items: OrderItem[];
+  subtotal?: number;
+  discount?: number;
+  delivery?: number;
   total: number;
+  paymentMethod?: string;
+  notes?: string;
   createdAt: string;
 }
 
 export interface CartItem {
+  lineId: string;
   product: Product;
   quantity: number;
+  selections: import("@/types/modifiers").SelectedModifier[];
+  unitPrice: number;
+  notes?: string;
 }
 
 export interface ProductFilters {

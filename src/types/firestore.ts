@@ -56,6 +56,10 @@ export interface FirestoreOrderItem {
   productName: string;
   quantity: number;
   price: number;
+  basePrice?: number;
+  modifiers?: import("@/types/modifier-firestore").FirestoreOrderModifier[];
+  notes?: string;
+  kitchenNotes?: string[];
 }
 
 export interface FirestoreOrder {

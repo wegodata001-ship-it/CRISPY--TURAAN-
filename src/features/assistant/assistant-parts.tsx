@@ -180,11 +180,11 @@ export function AssistantProductDetail({
   );
 }
 
-function CartLine({ product, quantity }: { product: Product; quantity: number }) {
+function CartLine({ item }: { item: import("@/types").CartItem }) {
   const t = useT();
-  const localized = useLocalizedProduct(product);
+  const localized = useLocalizedProduct(item.product);
   const { removeItem, updateQuantity } = useAssistantCart();
-  const imageSrc = getProductImage(product.image, product.categoryId);
+  const imageSrc = getProductImage(item.product.image, item.product.categoryId);
 
   return (
     <div className="flex gap-3 rounded-xl border border-beige-dark/20 bg-warm-white/80 p-2.5">
@@ -195,20 +195,25 @@ function CartLine({ product, quantity }: { product: Product; quantity: number })
         <p className="truncate text-sm font-semibold" dir={localized.dir}>
           {localized.name}
         </p>
-        <p className="text-xs text-turquoise">{formatPrice(product.price * quantity)}</p>
+        <p className="text-xs text-turquoise">{formatPrice(item.unitPrice * item.quantity)}</p>
+        {item.selections.length > 0 && (
+          <p className="truncate text-[10px] text-coffee/45">
+            {item.selections.map((s) => s.optionName).join(", ")}
+          </p>
+        )}
         <div className="mt-1 flex items-center gap-2">
           <button
             type="button"
-            onClick={() => updateQuantity(product.id, quantity - 1)}
+            onClick={() => updateQuantity(item.lineId, item.quantity - 1)}
             className="flex h-7 w-7 items-center justify-center rounded-lg bg-beige/60"
             aria-label={t("cart.decrease")}
           >
             <Minus className="h-3 w-3" strokeWidth={1.75} />
           </button>
-          <span className="w-5 text-center text-xs font-bold">{quantity}</span>
+          <span className="w-5 text-center text-xs font-bold">{item.quantity}</span>
           <button
             type="button"
-            onClick={() => updateQuantity(product.id, quantity + 1)}
+            onClick={() => updateQuantity(item.lineId, item.quantity + 1)}
             className="flex h-7 w-7 items-center justify-center rounded-lg bg-beige/60"
             aria-label={t("cart.increase")}
           >
@@ -216,7 +221,7 @@ function CartLine({ product, quantity }: { product: Product; quantity: number })
           </button>
           <button
             type="button"
-            onClick={() => removeItem(product.id)}
+            onClick={() => removeItem(item.lineId)}
             className="ms-auto flex h-7 w-7 items-center justify-center rounded-lg text-coffee/45 hover:text-coffee"
             aria-label={t("cart.remove")}
           >
@@ -244,7 +249,7 @@ export function AssistantCartPanel({ onCheckout }: { onCheckout: () => void }) {
   return (
     <div className="space-y-3">
       {items.map((item) => (
-        <CartLine key={item.product.id} product={item.product} quantity={item.quantity} />
+        <CartLine key={item.lineId} item={item} />
       ))}
       <div className="flex items-center justify-between rounded-xl bg-beige/40 px-3 py-2">
         <span className="text-sm font-medium text-coffee">

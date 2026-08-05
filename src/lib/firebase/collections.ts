@@ -9,6 +9,13 @@ export const COLLECTIONS = {
   uiTranslations: "ui_translations",
   assistant: "assistant",
   connectionTest: "connection-test",
+  modifierGroups: "modifier_groups",
+  modifierOptions: "modifier_options",
+  productModifierGroups: "product_modifier_groups",
+  productModifierOptions: "product_modifier_options",
+  businessRules: "business_rules",
+  suggestions: "suggestions",
+  inventoryLinks: "inventory_links",
 } as const;
 
 export const STORAGE_PATHS = {
@@ -16,5 +23,6 @@ export const STORAGE_PATHS = {
   banners: "banners",
   categories: "categories",
   settings: "settings",
+  modifiers: "modifiers",
   test: "test",
 } as const;

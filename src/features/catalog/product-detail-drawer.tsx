@@ -1,21 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Image from "next/image";
-import { Heart, ShoppingBag, X, Minus, Plus, Share2 } from "lucide-react";
+import { Heart, ShoppingBag, X, Share2, Sparkles } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { formatPrice, cn } from "@/lib/utils";
-import { useT } from "@/components/providers/locale-provider";
+import { useT, useLocale } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useProducts } from "@/hooks/useProducts";
+import { useProductBuilderConfig } from "@/hooks/useModifiers";
 import { getProductImage } from "@/lib/menu/placeholders";
+import { ProductBuilder } from "@/features/catalog/product-builder";
+import { productHasBuilder, getSuggestedProducts } from "@/lib/product-builder/engine";
 import { ProductCard } from "./product-card";
 import type { Product } from "@/types";
+import type { SelectedModifier } from "@/types/modifiers";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProductDetailDrawerProps {
   product: Product | null;
@@ -34,25 +38,35 @@ function ProductDetailContent({
   onSelectProduct?: (product: Product) => void;
 }) {
   const t = useT();
+  const { locale } = useLocale();
   const localized = useLocalizedProduct(product);
   const { addItem, openCart } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { products } = useProducts({ active: true });
+  const { config, loading: configLoading } = useProductBuilderConfig(product.id);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
+  const [unitPrice, setUnitPrice] = useState(product.price);
+  const [valid, setValid] = useState(true);
+  const [selections, setSelections] = useState<SelectedModifier[]>([]);
   const [zoomed, setZoomed] = useState(false);
 
+  const hasBuilder = config ? productHasBuilder(config) : false;
+  const suggestions = config ? getSuggestedProducts(config, products, locale) : [];
   const imageSrc = getProductImage(product.image, product.categoryId);
-  const related = products
-    .filter((p) => p.categoryId === product.categoryId && p.id !== product.id)
-    .slice(0, 4);
 
   const handleAdd = () => {
-    if (!product.available) return;
-    for (let i = 0; i < quantity; i++) addItem(product);
+    if (!product.available || (hasBuilder && !valid)) return;
+    addItem(product, {
+      selections: hasBuilder ? selections : [],
+      unitPrice,
+      notes: notes.trim() || undefined,
+      quantity,
+    });
     openCart();
     onOpenChange(false);
     setQuantity(1);
+    setNotes("");
   };
 
   const handleShare = async () => {
@@ -129,73 +143,88 @@ function ProductDetailContent({
 
       <div className="px-5 pt-5">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-display text-2xl font-bold" dir={localized.dir}>
-              {localized.name}
-            </h2>
-          </div>
-          <p className="text-2xl font-bold text-turquoise">{formatPrice(product.price)}</p>
+          <h2 className="font-display text-2xl font-bold" dir={localized.dir}>
+            {localized.name}
+          </h2>
+          {!hasBuilder && (
+            <p className="text-2xl font-bold text-turquoise">{formatPrice(product.price)}</p>
+          )}
         </div>
 
-        {localized.description && (
-          <p className="mt-4 text-sm leading-relaxed text-coffee/70" dir={localized.dir}>
-            {localized.description}
-          </p>
+        {configLoading && hasBuilder === false && (
+          <Skeleton className="mt-4 h-24 w-full rounded-xl" />
         )}
 
-        <div className="mt-4">
-          <p className="mb-2 text-xs font-medium text-coffee/50">{t("checkout.notes")}</p>
-          <Input
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={t("checkout.notes")}
-          />
-        </div>
-
-        <div className="mt-4 flex items-center gap-4">
-          <p className="text-sm font-medium">{t("cart.quantity")}</p>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              aria-label={t("cart.decrease", "-")}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border"
-            >
-              <Minus className="h-4 w-4" strokeWidth={1.75} />
-            </button>
-            <span className="w-8 text-center text-lg font-bold">{quantity}</span>
-            <button
-              type="button"
-              onClick={() => setQuantity(quantity + 1)}
-              aria-label={t("cart.increase", "+")}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border"
-            >
-              <Plus className="h-4 w-4" strokeWidth={1.75} />
-            </button>
+        {hasBuilder && config ? (
+          <div className="mt-4">
+            <ProductBuilder
+              product={product}
+              config={config}
+              quantity={quantity}
+              onQuantityChange={setQuantity}
+              notes={notes}
+              onNotesChange={setNotes}
+              onUnitPriceChange={setUnitPrice}
+              onValidChange={setValid}
+              onSelectionsChange={setSelections}
+            />
           </div>
-        </div>
+        ) : (
+          !configLoading && (
+            <>
+              {localized.description && (
+                <p className="mt-4 text-sm leading-relaxed text-coffee/70" dir={localized.dir}>
+                  {localized.description}
+                </p>
+              )}
+              <div className="mt-4 flex items-center gap-4">
+                <p className="text-sm font-medium">{t("cart.quantity")}</p>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border"
+                  >
+                    −
+                  </button>
+                  <span className="w-8 text-center text-lg font-bold">{quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </>
+          )
+        )}
 
         <Button
           variant="turquoise"
           size="lg"
           className="mt-6 w-full"
           onClick={handleAdd}
-          disabled={!product.available}
+          disabled={!product.available || (hasBuilder && !valid)}
         >
           <ShoppingBag className="h-4 w-4" strokeWidth={1.75} />
-          {t("catalog.addToCart")} · {formatPrice(product.price * quantity)}
+          {t("catalog.addToCart")} · {formatPrice(unitPrice * quantity)}
         </Button>
 
-        {related.length > 0 && (
-          <div className="mt-8">
-            <h3 className="mb-3 text-sm font-semibold">{t("catalog.related")}</h3>
+        {suggestions.length > 0 && (
+          <div className="mt-8 rounded-2xl border border-turquoise/20 bg-turquoise/5 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-turquoise">
+              <Sparkles className="h-4 w-4" />
+              {t("builder.suggestions")}
+            </div>
             <div className="grid grid-cols-2 gap-3">
-              {related.map((p) => (
+              {suggestions.map(({ product: sug, message }) => (
                 <ProductCard
-                  key={p.id}
-                  product={p}
+                  key={sug.id}
+                  product={sug}
                   compact
-                  onClick={() => onSelectProduct?.(p)}
+                  onClick={() => onSelectProduct?.(sug)}
                 />
               ))}
             </div>
@@ -221,6 +250,7 @@ export function ProductDetailDrawer({
               <DrawerTitle>{product.name_he || product.name_en}</DrawerTitle>
             </DrawerHeader>
             <ProductDetailContent
+              key={product.id}
               product={product}
               onOpenChange={onOpenChange}
               onSelectProduct={onSelectProduct}

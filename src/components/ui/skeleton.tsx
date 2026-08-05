@@ -35,7 +35,7 @@ function ProductCardSkeleton({ compact = false }: { compact?: boolean }) {
 
 function ProductGridSkeleton({ count = 8 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-2 gap-4 px-4 md:grid-cols-3 md:px-6 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 sm:gap-4 md:gap-6 md:px-6 lg:grid-cols-4 xl:grid-cols-5">
       {Array.from({ length: count }).map((_, i) => (
         <ProductCardSkeleton key={i} />
       ))}
