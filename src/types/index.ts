@@ -10,6 +10,7 @@ export interface Category {
   color: string;
   sortOrder: number;
   active: boolean;
+  parentId?: string | null;
 }
 
 export interface Product {
@@ -21,6 +22,7 @@ export interface Product {
   description_ar: string;
   description_en: string;
   categoryId: string;
+  subcategoryId?: string | null;
   price: number;
   cost: number;
   profit: number;
@@ -93,6 +95,7 @@ export interface CartItem {
 
 export interface ProductFilters {
   categoryId?: string;
+  subcategoryId?: string;
   search?: string;
   minPrice?: number;
   maxPrice?: number;

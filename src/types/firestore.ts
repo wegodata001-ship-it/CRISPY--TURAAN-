@@ -12,6 +12,7 @@ export interface FirestoreCategory {
   color?: string;
   sortOrder: number;
   active: boolean;
+  parentId?: string | null;
 }
 
 export interface FirestoreProduct {
@@ -24,6 +25,7 @@ export interface FirestoreProduct {
   /** @deprecated legacy single description */
   description?: string;
   categoryId: string;
+  subcategoryId?: string | null;
   price: number;
   cost: number;
   profit: number;

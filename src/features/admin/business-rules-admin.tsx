@@ -20,9 +20,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/components/providers/locale-provider";
+import { AdminPageHeader } from "./components/admin-page-header";
 import type { BusinessRule } from "@/types/modifiers";
 
+const CONDITION_TYPE_KEYS = {
+  option_selected: "admin.rules.conditionOptionSelected",
+  option_not_selected: "admin.rules.conditionOptionNotSelected",
+  group_has_selection: "admin.rules.conditionGroupHasSelection",
+} as const;
+
+const ACTION_TYPE_KEYS = {
+  hide_group: "admin.rules.actionHideGroup",
+  hide_option: "admin.rules.actionHideOption",
+  show_group: "admin.rules.actionShowGroup",
+  show_option: "admin.rules.actionShowOption",
+} as const;
+
 export function BusinessRulesAdmin() {
+  const t = useT();
   const { rules, loading } = useBusinessRules();
   const { groups } = useModifierGroups();
   const { options } = useModifierOptions();
@@ -40,6 +56,9 @@ export function BusinessRulesAdmin() {
       actions: [{ type: "hide_group", groupId: "" }],
     },
   });
+
+  const labelConditionType = (type: keyof typeof CONDITION_TYPE_KEYS) => t(CONDITION_TYPE_KEYS[type]);
+  const labelActionType = (type: keyof typeof ACTION_TYPE_KEYS) => t(ACTION_TYPE_KEYS[type]);
 
   const openCreate = () => {
     setEditing(null);
@@ -77,19 +96,19 @@ export function BusinessRulesAdmin() {
   const labelOption = (id?: string) => options.find((o) => o.id === id)?.name_he ?? id ?? "—";
   const labelGroup = (id?: string) => groups.find((g) => g.id === id)?.name_he ?? id ?? "—";
 
-  if (loading) return <p className="text-sm text-coffee/50">Loading rules…</p>;
+  if (loading) return <p className="text-sm text-coffee/50">{t("admin.rules.loadingRules")}</p>;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold">Business Rules</h1>
-          <p className="text-sm text-coffee/55">
-            Show/hide groups and options based on customer selections — no code changes needed.
-          </p>
-        </div>
-        <Button onClick={openCreate}><Plus className="h-4 w-4" /> New rule</Button>
-      </div>
+      <AdminPageHeader
+        title={t("admin.rules.title")}
+        subtitle={t("admin.rules.subtitle")}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" /> {t("admin.rules.new")}
+          </Button>
+        }
+      />
 
       <div className="space-y-3">
         {rules.map((rule) => (
@@ -99,27 +118,29 @@ export function BusinessRulesAdmin() {
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold">{rule.name}</h3>
                   <Badge variant={rule.enabled ? "default" : "outline"}>
-                    {rule.enabled ? "Active" : "Disabled"}
+                    {rule.enabled ? t("admin.status.active") : t("admin.status.disabled")}
                   </Badge>
-                  <Badge variant="outline">Priority {rule.priority}</Badge>
+                  <Badge variant="outline">
+                    {t("admin.rules.priorityBadge").replace("{priority}", String(rule.priority))}
+                  </Badge>
                 </div>
                 <p className="mt-2 text-xs text-coffee/55">
-                  IF{" "}
+                  {t("admin.rules.ifLabel")}{" "}
                   {rule.conditions.map((c, i) => (
                     <span key={i}>
-                      {i > 0 ? " AND " : ""}
-                      {c.type.replace(/_/g, " ")}
+                      {i > 0 ? ` ${t("admin.rules.andLabel")} ` : ""}
+                      {labelConditionType(c.type as keyof typeof CONDITION_TYPE_KEYS)}
                       {c.optionId ? ` (${labelOption(c.optionId)})` : ""}
                       {c.groupId ? ` (${labelGroup(c.groupId)})` : ""}
                     </span>
                   ))}
                 </p>
                 <p className="mt-1 text-xs text-coffee/55">
-                  THEN{" "}
+                  {t("admin.rules.thenLabel")}{" "}
                   {rule.actions.map((a, i) => (
                     <span key={i}>
                       {i > 0 ? ", " : ""}
-                      {a.type.replace(/_/g, " ")}
+                      {labelActionType(a.type as keyof typeof ACTION_TYPE_KEYS)}
                       {a.groupId ? ` ${labelGroup(a.groupId)}` : ""}
                       {a.optionId ? ` ${labelOption(a.optionId)}` : ""}
                     </span>
@@ -139,39 +160,41 @@ export function BusinessRulesAdmin() {
         ))}
         {rules.length === 0 && (
           <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-coffee/50">
-            No rules yet. Example: hide &quot;Ice&quot; group when hot drink is selected.
+            {t("admin.rules.emptyRules")}
           </p>
         )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Edit rule" : "New business rule"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editing ? t("admin.rules.edit") : t("admin.rules.newBusinessRule")}</DialogTitle>
+          </DialogHeader>
           <form onSubmit={onSubmit} className="space-y-4">
-            <div><Label>Rule name</Label><Input {...form.register("name")} className="mt-1" /></div>
+            <div><Label>{t("admin.rules.ruleName")}</Label><Input {...form.register("name")} className="mt-1" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Priority</Label><Input type="number" {...form.register("priority", { valueAsNumber: true })} className="mt-1" /></div>
+              <div><Label>{t("admin.rules.priority")}</Label><Input type="number" {...form.register("priority", { valueAsNumber: true })} className="mt-1" /></div>
               <div className="flex items-end gap-2 pb-2">
                 <input type="checkbox" {...form.register("enabled")} id="enabled" />
-                <Label htmlFor="enabled">Enabled</Label>
+                <Label htmlFor="enabled">{t("admin.rules.enabled")}</Label>
               </div>
             </div>
 
             <div className="rounded-xl bg-beige/30 p-3">
-              <Label>Condition</Label>
+              <Label>{t("admin.rules.condition")}</Label>
               <select {...form.register("conditions.0.type")} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="option_selected">Option selected</option>
-                <option value="option_not_selected">Option not selected</option>
-                <option value="group_has_selection">Group has selection</option>
+                <option value="option_selected">{t("admin.rules.conditionOptionSelected")}</option>
+                <option value="option_not_selected">{t("admin.rules.conditionOptionNotSelected")}</option>
+                <option value="group_has_selection">{t("admin.rules.conditionGroupHasSelection")}</option>
               </select>
               <select {...form.register("conditions.0.optionId")} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="">Select option (if applicable)</option>
+                <option value="">{t("admin.rules.selectOptionIfApplicable")}</option>
                 {options.map((o) => (
                   <option key={o.id} value={o.id}>{o.name_he || o.name_en}</option>
                 ))}
               </select>
               <select {...form.register("conditions.0.groupId")} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="">Select group (if applicable)</option>
+                <option value="">{t("admin.rules.selectGroupIfApplicable")}</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>{g.name_he || g.name_en}</option>
                 ))}
@@ -179,21 +202,21 @@ export function BusinessRulesAdmin() {
             </div>
 
             <div className="rounded-xl bg-beige/30 p-3">
-              <Label>Action</Label>
+              <Label>{t("admin.rules.actionLabel")}</Label>
               <select {...form.register("actions.0.type")} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="hide_group">Hide group</option>
-                <option value="hide_option">Hide option</option>
-                <option value="show_group">Show group</option>
-                <option value="show_option">Show option</option>
+                <option value="hide_group">{t("admin.rules.actionHideGroup")}</option>
+                <option value="hide_option">{t("admin.rules.actionHideOption")}</option>
+                <option value="show_group">{t("admin.rules.actionShowGroup")}</option>
+                <option value="show_option">{t("admin.rules.actionShowOption")}</option>
               </select>
               <select {...form.register("actions.0.groupId")} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="">Target group</option>
+                <option value="">{t("admin.rules.targetGroup")}</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>{g.name_he || g.name_en}</option>
                 ))}
               </select>
               <select {...form.register("actions.0.optionId")} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="">Target option</option>
+                <option value="">{t("admin.rules.targetOption")}</option>
                 {options.map((o) => (
                   <option key={o.id} value={o.id}>{o.name_he || o.name_en}</option>
                 ))}
@@ -201,7 +224,7 @@ export function BusinessRulesAdmin() {
             </div>
 
             <Button type="submit" disabled={saving} className="w-full">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save rule"}
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.rules.saveRule")}
             </Button>
           </form>
         </DialogContent>

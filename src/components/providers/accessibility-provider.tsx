@@ -62,7 +62,11 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     const stored = parseStoredSettings(localStorage.getItem(A11Y_STORAGE_KEY));
     setSettings(stored);
     applyToDocument(stored);
-    setTheme(themeToNext(stored.theme));
+    // Only override next-themes when user set an explicit light/dark preference in a11y.
+    // "auto" must NOT reset next-themes — that was breaking the admin theme toggle.
+    if (stored.theme === "light" || stored.theme === "dark") {
+      setTheme(stored.theme);
+    }
     setHydrated(true);
   }, [setTheme]);
 

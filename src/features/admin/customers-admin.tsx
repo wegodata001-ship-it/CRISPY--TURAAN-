@@ -18,9 +18,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { getInitials, formatDateShort, formatPrice } from "@/lib/utils";
-import type { Customer } from "@/types";
+import { useT } from "@/components/providers/locale-provider";
+import { AdminPageHeader } from "./components/admin-page-header";
+import type { Customer, OrderStatus } from "@/types";
 
 export function CustomersAdmin() {
+  const t = useT();
   const { customers, loading } = useCustomers();
   const { orders } = useOrders();
   const [editing, setEditing] = useState<Customer | null>(null);
@@ -28,6 +31,8 @@ export function CustomersAdmin() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const statusLabel = (status: OrderStatus) => t(`admin.status.${status}`);
 
   const form = useForm({
     resolver: zodResolver(customerSchema),
@@ -80,42 +85,42 @@ export function CustomersAdmin() {
   });
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this customer?")) return;
+    if (!confirm(t("admin.customers.deleteConfirm"))) return;
     await deleteCustomer(id);
     if (profile?.id === id) setProfile(null);
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-dark-brown dark:text-warm-white">Customers</h1>
-          <p className="text-sm text-coffee/60">{customers.length} customers · CRM profiles</p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Add Customer
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title={t("admin.customers.title")}
+        subtitle={t("admin.customers.subtitle")}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            {t("admin.customers.new")}
+          </Button>
+        }
+      />
 
       {loading ? (
-        <div className="mt-6 space-y-3">
+        <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-16 rounded-xl" />
           ))}
         </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-beige-dark/20 bg-warm-white shadow-soft dark:border-white/10 dark:bg-white/5">
+        <div className="overflow-hidden rounded-2xl border border-beige-dark/20 bg-warm-white shadow-soft dark:border-white/10 dark:bg-white/5">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-beige-dark/20 bg-beige/30 text-left text-xs uppercase tracking-wider text-coffee/60 dark:bg-white/5">
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="hidden px-4 py-3 md:table-cell">Phone</th>
-                  <th className="px-4 py-3">Orders</th>
-                  <th className="hidden px-4 py-3 sm:table-cell">Spending</th>
-                  <th className="hidden px-4 py-3 lg:table-cell">Last Visit</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3">{t("admin.customers.name")}</th>
+                  <th className="hidden px-4 py-3 md:table-cell">{t("admin.customers.phone")}</th>
+                  <th className="px-4 py-3">{t("admin.customers.orders")}</th>
+                  <th className="hidden px-4 py-3 sm:table-cell">{t("admin.customers.spending")}</th>
+                  <th className="hidden px-4 py-3 lg:table-cell">{t("admin.customers.lastVisit")}</th>
+                  <th className="px-4 py-3 text-right">{t("admin.table.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -154,13 +159,13 @@ export function CustomersAdmin() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon-sm" onClick={() => setProfile(customer)}>
+                        <Button variant="ghost" size="icon-sm" onClick={() => setProfile(customer)} title={t("admin.action.view")}>
                           <User className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => openEdit(customer)}>
+                        <Button variant="ghost" size="icon-sm" onClick={() => openEdit(customer)} title={t("admin.action.edit")}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(customer.id)}>
+                        <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(customer.id)} title={t("admin.action.delete")}>
                           <Trash2 className="h-3.5 w-3.5 text-red-500" />
                         </Button>
                       </div>
@@ -187,23 +192,23 @@ export function CustomersAdmin() {
               </DialogHeader>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-beige/30 p-3 dark:bg-white/5">
-                  <p className="text-xs text-coffee/50">Total Orders</p>
+                  <p className="text-xs text-coffee/50">{t("admin.customers.totalOrders")}</p>
                   <p className="text-xl font-bold text-dark-brown dark:text-warm-white">{profile.ordersCount}</p>
                 </div>
                 <div className="rounded-xl bg-beige/30 p-3 dark:bg-white/5">
-                  <p className="text-xs text-coffee/50">Total Spending</p>
+                  <p className="text-xs text-coffee/50">{t("admin.customers.totalSpending")}</p>
                   <p className="text-xl font-bold text-coffee">{formatPrice(totalSpending || profile.totalSpending)}</p>
                 </div>
               </div>
               <div className="space-y-2 text-sm">
-                <p><span className="text-coffee/50">Phone:</span> {profile.phone}</p>
-                <p><span className="text-coffee/50">Address:</span> {profile.address}</p>
-                <p><span className="text-coffee/50">Last Visit:</span> {formatDateShort(profile.lastOrder)}</p>
+                <p><span className="text-coffee/50">{t("admin.customers.phone")}:</span> {profile.phone}</p>
+                <p><span className="text-coffee/50">{t("admin.customers.address")}:</span> {profile.address}</p>
+                <p><span className="text-coffee/50">{t("admin.customers.lastVisit")}:</span> {formatDateShort(profile.lastOrder)}</p>
               </div>
               {profile.favoriteItems.length > 0 && (
                 <div>
                   <p className="mb-2 flex items-center gap-1 text-xs font-medium uppercase text-coffee/50">
-                    <Heart className="h-3.5 w-3.5" /> Favorite Products
+                    <Heart className="h-3.5 w-3.5" /> {t("admin.customers.favoriteProducts")}
                   </p>
                   <div className="flex flex-wrap gap-1">
                     {profile.favoriteItems.map((item) => (
@@ -215,17 +220,17 @@ export function CustomersAdmin() {
               {profile.notes && (
                 <div className="rounded-xl bg-beige/20 p-3 dark:bg-white/5">
                   <p className="mb-1 flex items-center gap-1 text-xs font-medium text-coffee/50">
-                    <StickyNote className="h-3.5 w-3.5" /> Notes
+                    <StickyNote className="h-3.5 w-3.5" /> {t("admin.customers.notes")}
                   </p>
                   <p className="text-sm">{profile.notes}</p>
                 </div>
               )}
               <div>
                 <p className="mb-2 flex items-center gap-1 text-xs font-medium uppercase text-coffee/50">
-                  <ShoppingBag className="h-3.5 w-3.5" /> Order History
+                  <ShoppingBag className="h-3.5 w-3.5" /> {t("admin.customers.orderHistory")}
                 </p>
                 {customerOrders.length === 0 ? (
-                  <p className="text-sm text-coffee/50">No orders yet</p>
+                  <p className="text-sm text-coffee/50">{t("admin.dashboard.noOrders")}</p>
                 ) : (
                   <div className="max-h-48 space-y-2 overflow-y-auto">
                     {customerOrders.map((order) => (
@@ -234,7 +239,7 @@ export function CustomersAdmin() {
                           <p className="font-medium">{order.orderNumber}</p>
                           <p className="text-xs text-coffee/50">{formatDateShort(order.createdAt)}</p>
                         </div>
-                        <Badge variant={order.status as "pending"}>{order.status}</Badge>
+                        <Badge variant={order.status as "pending"}>{statusLabel(order.status)}</Badge>
                         <span className="font-semibold text-coffee">{formatPrice(order.total)}</span>
                       </div>
                     ))}
@@ -249,32 +254,32 @@ export function CustomersAdmin() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Customer" : "New Customer"}</DialogTitle>
+            <DialogTitle>{editing ? t("admin.customers.edit") : t("admin.customers.new")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t("admin.customers.name")}</Label>
               <Input id="name" {...form.register("name")} className="mt-1" />
             </div>
             <div>
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">{t("admin.customers.phone")}</Label>
               <Input id="phone" {...form.register("phone")} className="mt-1" />
             </div>
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("admin.email")}</Label>
               <Input id="email" type="email" {...form.register("email")} className="mt-1" />
             </div>
             <div>
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address">{t("admin.customers.address")}</Label>
               <Input id="address" {...form.register("address")} className="mt-1" />
             </div>
             <div>
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes">{t("admin.customers.notes")}</Label>
               <Textarea id="notes" {...form.register("notes")} className="mt-1" rows={3} />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <Button type="submit" className="w-full" disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? "Save" : "Create"}
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? t("admin.action.save") : t("admin.action.create")}
             </Button>
           </form>
         </DialogContent>

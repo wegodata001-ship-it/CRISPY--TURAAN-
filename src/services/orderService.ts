@@ -11,20 +11,74 @@ import {
   runTransaction,
   type Unsubscribe,
   type DocumentData,
+  type Timestamp,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
+import { sanitizeFirestoreData, findUndefinedPaths } from "@/lib/firebase/sanitize-firestore-data";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { ServiceError, type ServiceResult, success, failure } from "@/lib/errors";
 import { mapOrder } from "@/lib/mappers";
+import { selectedModifierToFirestore } from "@/lib/mappers/modifier-mappers";
 import { orderSchema, type OrderInput } from "@/lib/validation/schemas";
 import { nowTimestamp } from "@/types/firestore";
-import { selectedModifierToFirestore } from "@/lib/mappers/modifier-mappers";
 import { collectKitchenNotes } from "@/lib/product-builder/engine";
 import type { Order, OrderStatus, OrderItem, CartItem } from "@/types";
-import type { FirestoreOrder, FirestoreDoc } from "@/types/firestore";
+import type { FirestoreOrder, FirestoreOrderItem, FirestoreDoc } from "@/types/firestore";
+
+const ORDER_SAVE_FAILED_CODE = "ORDER_SAVE_FAILED";
 
 function docToOrder(id: string, data: DocumentData): FirestoreDoc<FirestoreOrder> {
   return { id, ...(data as FirestoreOrder) };
+}
+
+function orderItemToFirestore(item: OrderItem): FirestoreOrderItem {
+  const firestoreItem: FirestoreOrderItem = {
+    productId: item.productId,
+    productName: item.productName,
+    quantity: item.quantity,
+    price: item.price,
+  };
+
+  if (item.basePrice != null) {
+    firestoreItem.basePrice = item.basePrice;
+  }
+
+  const notes = item.notes?.trim();
+  if (notes) {
+    firestoreItem.notes = notes;
+  }
+
+  const kitchenNotes = item.kitchenNotes?.filter(Boolean);
+  if (kitchenNotes?.length) {
+    firestoreItem.kitchenNotes = kitchenNotes;
+  }
+
+  if (item.modifiers?.length) {
+    firestoreItem.modifiers = item.modifiers.map(selectedModifierToFirestore);
+  }
+
+  return firestoreItem;
+}
+
+function buildFirestoreOrder(
+  parsed: OrderInput,
+  orderNumber: string,
+  now: Timestamp
+): FirestoreOrder {
+  return {
+    orderNumber,
+    customerId: parsed.customerId,
+    customerName: parsed.customerName,
+    items: parsed.items.map(orderItemToFirestore),
+    status: parsed.status,
+    subtotal: parsed.subtotal,
+    discount: parsed.discount ?? 0,
+    delivery: parsed.delivery ?? 0,
+    total: parsed.total,
+    paymentMethod: parsed.paymentMethod ?? "cash",
+    notes: parsed.notes?.trim() ?? "",
+    createdAt: now,
+  };
 }
 
 function filterOrders(
@@ -168,20 +222,14 @@ export async function createOrder(input: OrderInput): Promise<ServiceResult<Orde
     const orderNumber = await generateOrderNumber();
     const now = nowTimestamp();
 
-    const orderData: FirestoreOrder = {
-      orderNumber,
-      customerId: parsed.customerId,
-      customerName: parsed.customerName,
-      items: parsed.items,
-      status: parsed.status,
-      subtotal: parsed.subtotal,
-      discount: parsed.discount,
-      delivery: parsed.delivery,
-      total: parsed.total,
-      paymentMethod: parsed.paymentMethod,
-      notes: parsed.notes,
-      createdAt: now,
-    };
+    const rawOrder = buildFirestoreOrder(parsed, orderNumber, now);
+    const undefinedPaths = findUndefinedPaths(rawOrder);
+    if (undefinedPaths.length > 0) {
+      console.warn("[createOrder] undefined fields before sanitize:", undefinedPaths, rawOrder);
+    }
+
+    const orderData = sanitizeFirestoreData(rawOrder);
+    console.log("[createOrder] sanitized order payload:", orderData);
 
     const result = await runTransaction(db, async (transaction) => {
       const customerRef = doc(db, COLLECTIONS.customers, parsed.customerId);
@@ -205,7 +253,11 @@ export async function createOrder(input: OrderInput): Promise<ServiceResult<Orde
 
     return success(mapOrder(result as FirestoreDoc<FirestoreOrder>));
   } catch (error) {
-    return failure(error, "Failed to create order");
+    console.error("[createOrder] failed:", error);
+    if (error instanceof ServiceError && error.code === "CUSTOMER_NOT_FOUND") {
+      return failure(error);
+    }
+    return failure(new ServiceError("Order save failed", ORDER_SAVE_FAILED_CODE));
   }
 }
 
@@ -222,20 +274,37 @@ export async function createOrderFromCart(
     notes?: string;
   }
 ): Promise<ServiceResult<Order>> {
-  const items: OrderItem[] = cartItems.map((item) => ({
-    productId: item.product.id,
-    productName: item.product.name_he || item.product.name_en,
-    quantity: item.quantity,
-    price: item.unitPrice,
-    basePrice: item.product.price,
-    modifiers: item.selections,
-    notes: item.notes,
-    kitchenNotes: collectKitchenNotes(item.selections),
-  }));
+  const items: OrderItem[] = cartItems.map((item) => {
+    const mapped: OrderItem = {
+      productId: item.product.id,
+      productName: item.product.name_he || item.product.name_en,
+      quantity: item.quantity,
+      price: item.unitPrice,
+      basePrice: item.product.price,
+    };
+
+    if (item.selections.length > 0) {
+      mapped.modifiers = item.selections;
+    }
+
+    const note = item.notes?.trim();
+    if (note) {
+      mapped.notes = note;
+    }
+
+    const kitchenNotes = collectKitchenNotes(item.selections);
+    if (kitchenNotes.length > 0) {
+      mapped.kitchenNotes = kitchenNotes;
+    }
+
+    return mapped;
+  });
 
   const subtotal =
     checkout?.subtotal ??
     items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+  const total = checkout?.total ?? subtotal + (checkout?.delivery ?? 0) - (checkout?.discount ?? 0);
 
   return createOrder({
     customerId,
@@ -245,9 +314,9 @@ export async function createOrderFromCart(
     subtotal,
     discount: checkout?.discount ?? 0,
     delivery: checkout?.delivery ?? 0,
-    total: checkout?.total ?? subtotal,
+    total: Math.max(total, 0.01),
     paymentMethod: checkout?.paymentMethod ?? "cash",
-    notes: checkout?.notes ?? "",
+    notes: checkout?.notes?.trim() ?? "",
   });
 }
 
@@ -258,14 +327,16 @@ export async function updateOrder(
   try {
     const db = getDb();
     const ref = doc(db, COLLECTIONS.orders, id);
-    await updateDoc(ref, input);
+    const patch = sanitizeFirestoreData(input);
+    await updateDoc(ref, patch);
     const snap = await getDoc(ref);
     if (!snap.exists()) {
       return failure(new ServiceError("Order not found", "NOT_FOUND"));
     }
     return success(mapOrder(docToOrder(snap.id, snap.data())));
   } catch (error) {
-    return failure(error, "Failed to update order");
+    console.error("[updateOrder] failed:", error);
+    return failure(new ServiceError("Order save failed", ORDER_SAVE_FAILED_CODE));
   }
 }
 

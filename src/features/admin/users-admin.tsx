@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, Loader2, Shield } from "lucide-react";
+import { Plus, Trash2, Loader2, Shield } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useAuthFetch } from "@/lib/auth/auth-fetch";
+import { useT } from "@/components/providers/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ROLES, type UserRole } from "@/lib/auth/roles";
+import { AdminPageHeader } from "./components/admin-page-header";
 
 interface AdminUser {
   id: string;
@@ -31,7 +33,14 @@ interface AdminUser {
   active: boolean;
 }
 
+const ROLE_LABEL_KEYS: Record<UserRole, string> = {
+  Admin: "admin.role.admin",
+  Manager: "admin.role.manager",
+  Employee: "admin.role.employee",
+};
+
 export function UsersAdmin() {
+  const t = useT();
   const { user: currentUser } = useAuth();
   const authFetch = useAuthFetch();
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -45,6 +54,8 @@ export function UsersAdmin() {
     displayName: "",
     role: "Employee" as UserRole,
   });
+
+  const roleLabel = (role: UserRole) => t(ROLE_LABEL_KEYS[role]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -64,7 +75,7 @@ export function UsersAdmin() {
     return (
       <div className="py-12 text-center">
         <Shield className="mx-auto h-12 w-12 text-coffee/30" />
-        <p className="mt-4 text-coffee/60">Admin access required</p>
+        <p className="mt-4 text-coffee/60">{t("admin.users.noAccess")}</p>
       </div>
     );
   }
@@ -81,7 +92,7 @@ export function UsersAdmin() {
     setSaving(false);
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error ?? "Failed to create user");
+      setError(data.error ?? t("admin.error.createUser"));
       return;
     }
     setOpen(false);
@@ -99,40 +110,40 @@ export function UsersAdmin() {
   };
 
   const handleDelete = async (uid: string) => {
-    if (!confirm("Delete this user permanently?")) return;
+    if (!confirm(t("admin.users.deleteConfirm"))) return;
     await authFetch(`/api/admin/users?uid=${uid}`, { method: "DELETE" });
     loadUsers();
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-dark-brown">Users</h1>
-          <p className="text-sm text-coffee/60">Manage admin and staff accounts</p>
-        </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Add User
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title={t("admin.users.title")}
+        subtitle={t("admin.users.subtitle")}
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4" />
+            {t("admin.users.new")}
+          </Button>
+        }
+      />
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-beige-dark/20 bg-warm-white shadow-soft">
+      <div className="overflow-hidden rounded-2xl border border-beige-dark/20 bg-warm-white shadow-soft">
         <table className="w-full">
           <thead>
             <tr className="border-b border-beige-dark/20 bg-beige/30 text-left text-xs uppercase tracking-wider text-coffee/60">
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="px-4 py-3">{t("admin.users.displayName")}</th>
+              <th className="px-4 py-3">{t("admin.email")}</th>
+              <th className="px-4 py-3">{t("admin.users.role")}</th>
+              <th className="px-4 py-3">{t("admin.table.status")}</th>
+              <th className="px-4 py-3 text-right">{t("admin.table.actions")}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-coffee/50">
-                  Loading...
+                  {t("admin.loading")}
                 </td>
               </tr>
             ) : (
@@ -145,18 +156,18 @@ export function UsersAdmin() {
                 >
                   <td className="px-4 py-3 text-sm font-medium">{u.displayName}</td>
                   <td className="px-4 py-3 text-sm text-coffee/70">{u.email}</td>
-                  <td className="px-4 py-3 text-sm">{u.role}</td>
+                  <td className="px-4 py-3 text-sm">{roleLabel(u.role)}</td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => toggleActive(u.id, !u.active)}
                       className={`text-xs font-medium ${u.active ? "text-emerald-600" : "text-red-500"}`}
                     >
-                      {u.active ? "Active" : "Disabled"}
+                      {u.active ? t("admin.status.active") : t("admin.status.disabled")}
                     </button>
                   </td>
                   <td className="px-4 py-3 text-right">
                     {u.id !== currentUser?.uid && (
-                      <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(u.id)}>
+                      <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(u.id)} title={t("admin.action.delete")}>
                         <Trash2 className="h-3.5 w-3.5 text-red-500" />
                       </Button>
                     )}
@@ -171,11 +182,11 @@ export function UsersAdmin() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create User</DialogTitle>
+            <DialogTitle>{t("admin.users.create")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
-              <Label>Name</Label>
+              <Label>{t("admin.users.displayName")}</Label>
               <Input
                 value={form.displayName}
                 onChange={(e) => setForm({ ...form, displayName: e.target.value })}
@@ -184,7 +195,7 @@ export function UsersAdmin() {
               />
             </div>
             <div>
-              <Label>Email</Label>
+              <Label>{t("admin.email")}</Label>
               <Input
                 type="email"
                 value={form.email}
@@ -194,7 +205,7 @@ export function UsersAdmin() {
               />
             </div>
             <div>
-              <Label>Password</Label>
+              <Label>{t("admin.password")}</Label>
               <Input
                 type="password"
                 value={form.password}
@@ -205,7 +216,7 @@ export function UsersAdmin() {
               />
             </div>
             <div>
-              <Label>Role</Label>
+              <Label>{t("admin.users.role")}</Label>
               <Select
                 value={form.role}
                 onValueChange={(v) => setForm({ ...form, role: v as UserRole })}
@@ -215,14 +226,14 @@ export function UsersAdmin() {
                 </SelectTrigger>
                 <SelectContent>
                   {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                    <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <Button type="submit" className="w-full" disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create User"}
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.users.create")}
             </Button>
           </form>
         </DialogContent>

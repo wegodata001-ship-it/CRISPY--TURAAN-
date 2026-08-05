@@ -1,0 +1,93 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  Package,
+  Tags,
+  Layers,
+  Wrench,
+  GitBranch,
+  ClipboardList,
+  Users,
+  ImageIcon,
+  MessageSquare,
+  FolderOpen,
+  UserCog,
+  Settings,
+} from "lucide-react";
+
+export type AdminNavItem = {
+  href: string;
+  labelKey: string;
+  icon: LucideIcon;
+  exact?: boolean;
+  adminOnly?: boolean;
+};
+
+export type AdminNavGroup = {
+  labelKey: string;
+  items: AdminNavItem[];
+};
+
+export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
+  {
+    labelKey: "admin.nav.group.overview",
+    items: [{ href: "/admin", labelKey: "admin.dashboard", icon: LayoutDashboard, exact: true }],
+  },
+  {
+    labelKey: "admin.nav.group.catalog",
+    items: [
+      { href: "/admin/products", labelKey: "admin.products", icon: Package },
+      { href: "/admin/categories", labelKey: "admin.categories", icon: Tags },
+      { href: "/admin/modifier-groups", labelKey: "admin.modifierGroups", icon: Layers },
+      { href: "/admin/product-builder", labelKey: "admin.productBuilder", icon: Wrench },
+    ],
+  },
+  {
+    labelKey: "admin.nav.group.sales",
+    items: [
+      { href: "/admin/orders", labelKey: "admin.orders", icon: ClipboardList },
+      { href: "/admin/customers", labelKey: "admin.customers", icon: Users },
+    ],
+  },
+  {
+    labelKey: "admin.nav.group.content",
+    items: [
+      { href: "/admin/banners", labelKey: "admin.banners", icon: ImageIcon },
+      { href: "/admin/media", labelKey: "admin.media", icon: FolderOpen },
+    ],
+  },
+  {
+    labelKey: "admin.nav.group.system",
+    items: [
+      { href: "/admin/business-rules", labelKey: "admin.businessRules", icon: GitBranch },
+      { href: "/admin/assistant", labelKey: "admin.assistantManager", icon: MessageSquare },
+      { href: "/admin/users", labelKey: "admin.users", icon: UserCog, adminOnly: true },
+      { href: "/admin/settings", labelKey: "admin.settings", icon: Settings },
+    ],
+  },
+];
+
+/** Map pathname → page title translation key */
+export const ADMIN_PAGE_TITLES: Record<string, string> = {
+  "/admin": "admin.dashboard",
+  "/admin/products": "admin.products",
+  "/admin/categories": "admin.categories",
+  "/admin/modifier-groups": "admin.modifiers.title",
+  "/admin/product-builder": "admin.builder.title",
+  "/admin/business-rules": "admin.rules.title",
+  "/admin/orders": "admin.orders.title",
+  "/admin/customers": "admin.customers.title",
+  "/admin/banners": "admin.banners.title",
+  "/admin/media": "admin.media.title",
+  "/admin/assistant": "admin.assistant.title",
+  "/admin/users": "admin.users.title",
+  "/admin/settings": "admin.settings.title",
+};
+
+export function getAdminPageTitleKey(pathname: string): string {
+  if (ADMIN_PAGE_TITLES[pathname]) return ADMIN_PAGE_TITLES[pathname];
+  const match = Object.keys(ADMIN_PAGE_TITLES)
+    .filter((k) => k !== "/admin")
+    .find((k) => pathname.startsWith(k));
+  return match ? ADMIN_PAGE_TITLES[match] : "admin.dashboard";
+}

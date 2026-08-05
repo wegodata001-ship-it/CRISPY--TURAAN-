@@ -52,6 +52,7 @@ export function mapCategory(doc: FirestoreDoc<FirestoreCategory>): Category {
     color: doc.color ?? "#8B6914",
     sortOrder: doc.sortOrder,
     active: doc.active,
+    parentId: doc.parentId ?? null,
   };
 }
 
@@ -65,6 +66,7 @@ export function mapProduct(doc: FirestoreDoc<FirestoreProduct>): Product {
     description_ar: readDescription(doc, "ar"),
     description_en: readDescription(doc, "en"),
     categoryId: doc.categoryId,
+    subcategoryId: doc.subcategoryId ?? null,
     price: doc.price,
     cost: doc.cost ?? 0,
     profit: doc.profit ?? 0,
@@ -174,6 +176,7 @@ export function productToFirestore(input: {
   description_ar: string;
   description_en: string;
   categoryId: string;
+  subcategoryId?: string | null;
   price: number;
   cost: number;
   profit: number;
@@ -193,6 +196,7 @@ export function productToFirestore(input: {
     descriptionAr: input.description_ar,
     descriptionEn: input.description_en,
     categoryId: input.categoryId,
+    ...(input.subcategoryId ? { subcategoryId: input.subcategoryId } : {}),
     price: input.price,
     cost: input.cost,
     profit: input.profit,
@@ -215,6 +219,7 @@ export function categoryToFirestore(input: {
   color?: string;
   sortOrder: number;
   active: boolean;
+  parentId?: string | null;
 }) {
   return {
     nameHe: input.name_he,
@@ -225,5 +230,6 @@ export function categoryToFirestore(input: {
     color: input.color ?? "#8B6914",
     sortOrder: input.sortOrder,
     active: input.active,
+    ...(input.parentId ? { parentId: input.parentId } : {}),
   };
 }

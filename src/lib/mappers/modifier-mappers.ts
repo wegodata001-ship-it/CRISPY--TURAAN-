@@ -140,15 +140,18 @@ export function mapInventoryLink(doc: FirestoreDoc<FirestoreInventoryLink>): Inv
 }
 
 export function selectedModifierToFirestore(mod: SelectedModifier): FirestoreOrderModifier {
-  return {
+  const result: FirestoreOrderModifier = {
     groupId: mod.groupId,
     groupName: mod.groupName,
     optionId: mod.optionId,
     optionName: mod.optionName,
     priceDelta: mod.priceDelta,
     quantity: mod.quantity,
-    kitchenNote: mod.kitchenNote,
   };
+  if (mod.kitchenNote?.trim()) {
+    result.kitchenNote = mod.kitchenNote.trim();
+  }
+  return result;
 }
 
 export function firestoreModifierToSelected(mod: FirestoreOrderModifier): SelectedModifier {

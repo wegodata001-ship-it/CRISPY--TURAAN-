@@ -37,6 +37,7 @@ export {
   reorderModifierOptions,
   linkProductModifierGroup,
   unlinkProductModifierGroup,
+  getProductModifierGroups,
   reorderProductModifierGroups,
   loadProductBuilderConfig,
   subscribeToProductBuilderConfig,

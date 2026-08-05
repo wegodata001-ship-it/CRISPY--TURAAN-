@@ -1,43 +1,46 @@
-/** Category placeholder images — replace via admin when real photos are ready */
+import { BRAND } from "@/lib/brand";
+
+/**
+ * Local-only product placeholders — never use external URLs here.
+ * External images (Unsplash etc.) can 404 and break Next.js image optimization.
+ */
+const LOCAL_DEFAULT = BRAND.store;
+
+/** Per-category local paths; all fall back to store.jpg until custom assets are added in /public/placeholders/ */
 export const CATEGORY_PLACEHOLDERS: Record<string, string> = {
-  "soft-drinks":
-    "https://images.unsplash.com/photo-1622483767028-3aa137008f97?w=800&q=80",
-  "fresh-juices":
-    "https://images.unsplash.com/photo-1622597467836-fbc1a2b8c9c2?w=800&q=80",
-  shakes:
-    "https://images.unsplash.com/photo-1505252587541-4a1d2f5f656e?w=800&q=80",
-  "hot-drinks":
-    "https://images.unsplash.com/photo-1514432324607-09a9bf4a0374?w=800&q=80",
-  "ice-drinks":
-    "https://images.unsplash.com/photo-1461023058943-f07a80b96202?w=800&q=80",
-  breakfast:
-    "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=800&q=80",
-  sandwiches:
-    "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=800&q=80",
-  salads:
-    "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80",
-  "mains-pasta":
-    "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=800&q=80",
-  bakery:
-    "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&q=80",
-  desserts:
-    "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=800&q=80",
-  "ice-cream-yogurt":
-    "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=800&q=80",
+  "soft-drinks": LOCAL_DEFAULT,
+  "fresh-juices": LOCAL_DEFAULT,
+  shakes: LOCAL_DEFAULT,
+  "hot-drinks": LOCAL_DEFAULT,
+  "ice-drinks": LOCAL_DEFAULT,
+  breakfast: LOCAL_DEFAULT,
+  sandwiches: LOCAL_DEFAULT,
+  salads: LOCAL_DEFAULT,
+  "mains-pasta": LOCAL_DEFAULT,
+  bakery: LOCAL_DEFAULT,
+  desserts: LOCAL_DEFAULT,
+  "ice-cream-yogurt": LOCAL_DEFAULT,
 };
 
 export function getCategoryPlaceholder(categoryId: string): string {
-  return (
-    CATEGORY_PLACEHOLDERS[categoryId] ??
-    "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80"
-  );
+  return CATEGORY_PLACEHOLDERS[categoryId] ?? LOCAL_DEFAULT;
 }
 
-const DEFAULT_PRODUCT_PLACEHOLDER =
-  "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80";
+export function isAllowedProductImageUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("/")) return true;
+  if (trimmed.includes("firebasestorage.googleapis.com")) return true;
+  if (trimmed.includes("firebasestorage.app")) return true;
+  return false;
+}
 
-/** Returns product image or a category-themed placeholder — never empty */
+/** Returns product image or a local category placeholder — never empty, never external fallback */
 export function getProductImage(image: string | undefined | null, categoryId: string): string {
-  if (image && image.trim().length > 0 && !image.includes("placeholder")) return image;
-  return getCategoryPlaceholder(categoryId) || DEFAULT_PRODUCT_PLACEHOLDER;
+  if (image && isAllowedProductImageUrl(image) && !image.includes("placeholder")) {
+    return image.trim();
+  }
+  return getCategoryPlaceholder(categoryId);
 }
+
+export const PRODUCT_IMAGE_FALLBACK = LOCAL_DEFAULT;

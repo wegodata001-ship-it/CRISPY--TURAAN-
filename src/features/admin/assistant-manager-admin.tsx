@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save, Plus, Trash2, MessageSquare } from "lucide-react";
+import { Loader2, Save, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,8 @@ import {
   updateAssistantConfig,
 } from "@/services/assistantService";
 import { useAllProducts } from "@/hooks/useProducts";
+import { useT } from "@/components/providers/locale-provider";
+import { AdminPageHeader } from "./components/admin-page-header";
 import type {
   AssistantConfig,
   AssistantFaqItem,
@@ -66,6 +68,7 @@ function reorderActions(actions: AssistantQuickAction[]): AssistantQuickAction[]
 }
 
 export function AssistantManagerAdmin() {
+  const t = useT();
   const [config, setConfig] = useState<AssistantConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -121,27 +124,20 @@ export function AssistantManagerAdmin() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-turquoise/15 text-turquoise">
-            <MessageSquare className="h-6 w-6" strokeWidth={1.75} />
-          </div>
-          <div>
-            <h1 className="font-display text-2xl font-bold text-dark-brown">Assistant Manager</h1>
-            <p className="text-sm text-coffee/60">
-              Manage MISHKAT Assistant — greeting, quick actions, FAQ (no code)
-            </p>
-          </div>
-        </div>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {saved ? "Saved!" : "Save Changes"}
-        </Button>
-      </div>
+      <AdminPageHeader
+        title={t("admin.assistant.title")}
+        subtitle={t("admin.assistant.subtitle")}
+        actions={
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saved ? t("admin.action.saved") : t("admin.assistant.saveChanges")}
+          </Button>
+        }
+      />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft">
-          <h2 className="text-sm font-semibold text-dark-brown">General</h2>
+          <h2 className="text-sm font-semibold text-dark-brown">{t("admin.assistant.general")}</h2>
           <label className="flex items-center gap-3">
             <input
               type="checkbox"
@@ -149,10 +145,10 @@ export function AssistantManagerAdmin() {
               onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
               className="h-4 w-4 rounded accent-turquoise"
             />
-            <span className="text-sm">Enable Assistant</span>
+            <span className="text-sm">{t("admin.assistant.enableAssistant")}</span>
           </label>
           <LocaleFields
-            label="Greeting Message"
+            label={t("admin.assistant.greeting")}
             value={config.greeting}
             onChange={(greeting) => setConfig({ ...config, greeting })}
             multiline
@@ -161,15 +157,15 @@ export function AssistantManagerAdmin() {
 
         <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-dark-brown">Suggested Questions</h2>
+            <h2 className="text-sm font-semibold text-dark-brown">{t("admin.assistant.suggestedQuestions")}</h2>
             <Button variant="outline" size="sm" onClick={addSuggested}>
-              <Plus className="h-3.5 w-3.5" /> Add
+              <Plus className="h-3.5 w-3.5" /> {t("admin.action.add")}
             </Button>
           </div>
           {config.suggestedQuestions.map((q, i) => (
             <div key={i} className="rounded-xl border border-beige-dark/20 p-3">
               <LocaleFields
-                label={`Question ${i + 1}`}
+                label={t("admin.assistant.questionNumber").replace("{n}", String(i + 1))}
                 value={q}
                 onChange={(v) => {
                   const next = [...config.suggestedQuestions];
@@ -188,17 +184,15 @@ export function AssistantManagerAdmin() {
                   })
                 }
               >
-                <Trash2 className="h-3.5 w-3.5" /> Remove
+                <Trash2 className="h-3.5 w-3.5" /> {t("admin.assistant.remove")}
               </Button>
             </div>
           ))}
         </div>
 
         <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft lg:col-span-2">
-          <h2 className="text-sm font-semibold text-dark-brown">Quick Actions</h2>
-          <p className="text-xs text-coffee/50">
-            Drag to reorder. Toggle visibility per button. Labels are shown in the assistant drawer.
-          </p>
+          <h2 className="text-sm font-semibold text-dark-brown">{t("admin.assistant.quickActions")}</h2>
+          <p className="text-xs text-coffee/50">{t("admin.assistant.quickActionsHint")}</p>
           <SortableList
             items={sortedActions}
             onReorder={(items) =>
@@ -222,12 +216,12 @@ export function AssistantManagerAdmin() {
                           onChange={(e) => updateAction(action.id, { enabled: e.target.checked })}
                           className="h-4 w-4 rounded accent-turquoise"
                         />
-                        Visible
+                        {t("admin.assistant.visible")}
                       </label>
                       <span className="text-xs text-coffee/40">{action.action}</span>
                     </div>
                     <LocaleFields
-                      label="Button label"
+                      label={t("admin.assistant.buttonLabel")}
                       value={action.label}
                       onChange={(label) => updateAction(action.id, { label })}
                     />
@@ -240,14 +234,12 @@ export function AssistantManagerAdmin() {
 
         <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft lg:col-span-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-dark-brown">Custom FAQ</h2>
+            <h2 className="text-sm font-semibold text-dark-brown">{t("admin.assistant.customFaq")}</h2>
             <Button variant="outline" size="sm" onClick={addFaq}>
-              <Plus className="h-3.5 w-3.5" /> Add FAQ
+              <Plus className="h-3.5 w-3.5" /> {t("admin.assistant.addFaq")}
             </Button>
           </div>
-          <p className="text-sm text-coffee/50">
-            Hours, address, phone, delivery and pickup are answered automatically from Settings.
-          </p>
+          <p className="text-sm text-coffee/50">{t("admin.assistant.faqAutoHint")}</p>
           {config.faq.map((item, i) => (
             <div key={item.id} className="space-y-3 rounded-xl border border-beige-dark/20 p-4">
               <label className="flex items-center gap-2 text-sm">
@@ -261,10 +253,10 @@ export function AssistantManagerAdmin() {
                   }}
                   className="h-4 w-4 rounded accent-turquoise"
                 />
-                Enabled
+                {t("admin.rules.enabled")}
               </label>
               <LocaleFields
-                label="Question"
+                label={t("admin.assistant.question")}
                 value={item.question}
                 onChange={(question) => {
                   const faq = [...config.faq];
@@ -273,7 +265,7 @@ export function AssistantManagerAdmin() {
                 }}
               />
               <LocaleFields
-                label="Answer"
+                label={t("admin.assistant.answer")}
                 value={item.answer}
                 onChange={(answer) => {
                   const faq = [...config.faq];
@@ -283,7 +275,7 @@ export function AssistantManagerAdmin() {
                 multiline
               />
               <div>
-                <Label>Keywords (comma-separated)</Label>
+                <Label>{t("admin.assistant.keywords")}</Label>
                 <Input
                   value={item.keywords.join(", ")}
                   onChange={(e) => {
@@ -305,17 +297,15 @@ export function AssistantManagerAdmin() {
                   setConfig({ ...config, faq: config.faq.filter((f) => f.id !== item.id) })
                 }
               >
-                <Trash2 className="h-3.5 w-3.5" /> Remove
+                <Trash2 className="h-3.5 w-3.5" /> {t("admin.assistant.remove")}
               </Button>
             </div>
           ))}
         </div>
 
         <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft lg:col-span-2">
-          <h2 className="text-sm font-semibold text-dark-brown">Featured Products (Offers)</h2>
-          <p className="text-xs text-coffee/50">
-            Products highlighted when customers tap &quot;Offers&quot;.
-          </p>
+          <h2 className="text-sm font-semibold text-dark-brown">{t("admin.assistant.featuredProducts")}</h2>
+          <p className="text-xs text-coffee/50">{t("admin.assistant.featuredProductsHint")}</p>
           <div className="max-h-64 overflow-y-auto rounded-xl border border-beige-dark/20 p-2">
             {products.slice(0, 80).map((p) => (
               <label
@@ -341,17 +331,14 @@ export function AssistantManagerAdmin() {
         </div>
 
         <div className="rounded-2xl bg-beige/30 p-4 lg:col-span-2">
-          <p className="text-xs text-coffee/60">
-            Menu data (products, categories, prices, availability, hours, address) is loaded live from
-            Firestore on every request — no AI, no external services.
-          </p>
+          <p className="text-xs text-coffee/60">{t("admin.assistant.liveDataHint")}</p>
           <Button
             variant="outline"
             size="sm"
             className="mt-3"
             onClick={() => setConfig({ ...DEFAULT_ASSISTANT_CONFIG })}
           >
-            Reset to Defaults
+            {t("admin.assistant.resetDefaults")}
           </Button>
         </div>
       </div>

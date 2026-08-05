@@ -17,9 +17,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useT } from "@/components/providers/locale-provider";
+import { AdminPageHeader } from "./components/admin-page-header";
 import type { ModifierGroup, ProductModifierGroup } from "@/types/modifiers";
 
+const SELECTION_TYPE_KEYS = {
+  single: "admin.modifiers.selectionSingle",
+  multiple: "admin.modifiers.selectionMultiple",
+  quantity: "admin.modifiers.selectionQuantity",
+  counter: "admin.modifiers.selectionCounter",
+} as const;
+
+const DISPLAY_TYPE_KEYS = {
+  buttons: "admin.modifiers.displayButtons",
+  dropdown: "admin.modifiers.displayDropdown",
+  chips: "admin.modifiers.displayChips",
+  cards: "admin.modifiers.displayCards",
+  icons: "admin.modifiers.displayIcons",
+  images: "admin.modifiers.displayImages",
+} as const;
+
 export function ProductBuilderAdmin() {
+  const t = useT();
   const { products, loading: productsLoading } = useProducts();
   const { groups } = useModifierGroups();
   const [productId, setProductId] = useState<string>("");
@@ -55,6 +74,11 @@ export function ProductBuilderAdmin() {
     }))
     .filter((x) => x.group) as { id: string; link: ProductModifierGroup; group: ModifierGroup }[];
 
+  const labelRequirement = (req: "required" | "optional") =>
+    req === "required" ? t("admin.modifiers.required") : t("admin.modifiers.optional");
+  const labelSelectionType = (type: keyof typeof SELECTION_TYPE_KEYS) => t(SELECTION_TYPE_KEYS[type]);
+  const labelDisplayType = (type: keyof typeof DISPLAY_TYPE_KEYS) => t(DISPLAY_TYPE_KEYS[type]);
+
   const handleLink = async () => {
     if (!productId || !selectedGroupId) return;
     setSaving(true);
@@ -76,24 +100,22 @@ export function ProductBuilderAdmin() {
     await reorderProductModifierGroups(productId, items.map((i) => i.link.id));
   };
 
-  if (productsLoading) return <p className="text-sm text-coffee/50">Loading products…</p>;
+  if (productsLoading) return <p className="text-sm text-coffee/50">{t("admin.builder.loadingProducts")}</p>;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold">Product Builder</h1>
-        <p className="text-sm text-coffee/55">
-          Assign modifier groups to each product. No hardcoded options — everything is configured here.
-        </p>
-      </div>
+      <AdminPageHeader
+        title={t("admin.builder.title")}
+        subtitle={t("admin.builder.subtitle")}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <div className="rounded-2xl border border-beige-dark/25 bg-warm-white p-4 shadow-soft">
-          <Label>Select product</Label>
+          <Label>{t("admin.builder.selectProduct")}</Label>
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products…"
+            placeholder={t("admin.builder.searchProducts")}
             className="mt-2"
           />
           <div className="mt-3 max-h-[420px] space-y-1 overflow-y-auto">
@@ -115,21 +137,23 @@ export function ProductBuilderAdmin() {
         <div className="space-y-4">
           {!product ? (
             <div className="rounded-2xl border border-dashed border-beige-dark/30 p-12 text-center text-sm text-coffee/50">
-              Select a product to configure its modifier groups
+              {t("admin.builder.selectProductHint")}
             </div>
           ) : (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-bold">{product.name_he || product.name_en}</h2>
-                  <p className="text-sm text-coffee/50">{links.length} groups linked</p>
+                  <p className="text-sm text-coffee/50">
+                    {t("admin.builder.groupsLinked").replace("{count}", String(links.length))}
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setPreviewOpen(true)} disabled={!config}>
-                    <Eye className="h-4 w-4" /> Preview
+                    <Eye className="h-4 w-4" /> {t("admin.builder.preview")}
                   </Button>
                   <Button onClick={() => setLinkOpen(true)} disabled={availableGroups.length === 0}>
-                    <Plus className="h-4 w-4" /> Add group
+                    <Plus className="h-4 w-4" /> {t("admin.builder.addGroup")}
                   </Button>
                 </div>
               </div>
@@ -147,9 +171,9 @@ export function ProductBuilderAdmin() {
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">{group.name_he || group.name_en}</p>
                         <div className="mt-1 flex flex-wrap gap-1">
-                          <Badge variant="outline">{link.selectionType ?? group.selectionType}</Badge>
-                          <Badge variant="outline">{link.requirement ?? group.requirement}</Badge>
-                          <Badge variant="outline">{link.displayType ?? group.displayType}</Badge>
+                          <Badge variant="outline">{labelSelectionType((link.selectionType ?? group.selectionType) as keyof typeof SELECTION_TYPE_KEYS)}</Badge>
+                          <Badge variant="outline">{labelRequirement((link.requirement ?? group.requirement) as "required" | "optional")}</Badge>
+                          <Badge variant="outline">{labelDisplayType((link.displayType ?? group.displayType) as keyof typeof DISPLAY_TYPE_KEYS)}</Badge>
                         </div>
                       </div>
                       <select
@@ -161,9 +185,11 @@ export function ProductBuilderAdmin() {
                           })
                         }
                       >
-                        <option value="">Default ({group.requirement})</option>
-                        <option value="required">Required</option>
-                        <option value="optional">Optional</option>
+                        <option value="">
+                          {t("admin.builder.defaultRequirement").replace("{requirement}", labelRequirement(group.requirement))}
+                        </option>
+                        <option value="required">{t("admin.modifiers.required")}</option>
+                        <option value="optional">{t("admin.modifiers.optional")}</option>
                       </select>
                       <button
                         type="button"
@@ -183,26 +209,26 @@ export function ProductBuilderAdmin() {
 
       <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add modifier group</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("admin.builder.addModifierGroup")}</DialogTitle></DialogHeader>
           <select
             className="w-full rounded-xl border px-3 py-2"
             value={selectedGroupId}
             onChange={(e) => setSelectedGroupId(e.target.value)}
           >
-            <option value="">Choose group…</option>
+            <option value="">{t("admin.builder.chooseGroup")}</option>
             {availableGroups.map((g) => (
               <option key={g.id} value={g.id}>{g.name_he || g.name_en}</option>
             ))}
           </select>
           <Button onClick={handleLink} disabled={!selectedGroupId || saving} className="mt-3 w-full">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Link group"}
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.builder.linkGroup")}
           </Button>
         </DialogContent>
       </Dialog>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Customer preview</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("admin.builder.customerPreview")}</DialogTitle></DialogHeader>
           {product && config && <ProductBuilderPreview product={product} config={config} />}
         </DialogContent>
       </Dialog>

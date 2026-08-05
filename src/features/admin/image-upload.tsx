@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Upload, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
 
 interface ImageUploadProps {
   value?: string;
@@ -23,9 +24,11 @@ export function ImageUpload({
   onChange,
   onUpload,
   onDelete,
-  label = "Image",
+  label,
   className,
 }: ImageUploadProps) {
+  const t = useT();
+  const resolvedLabel = label ?? t("admin.upload.image");
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +36,7 @@ export function ImageUpload({
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      setError("Please select an image file");
+      setError(t("admin.upload.selectImage"));
       return;
     }
     setUploading(true);
@@ -51,7 +54,7 @@ export function ImageUpload({
       onChange(result.data);
       setProgress(100);
     } else {
-      setError(result.error ?? "Upload failed");
+      setError(result.error ?? t("admin.upload.failed"));
     }
   };
 
@@ -63,16 +66,16 @@ export function ImageUpload({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <p className="text-sm font-medium text-dark-brown">{label}</p>
+      <p className="text-sm font-medium text-dark-brown dark:text-warm-white">{resolvedLabel}</p>
 
       {value ? (
-        <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-beige-dark/30">
-          <Image src={value} alt="Preview" fill className="object-cover" sizes="400px" />
+        <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-beige-dark/30 dark:border-white/10">
+          <Image src={value} alt={t("admin.upload.preview")} fill className="object-cover" sizes="400px" />
           {!uploading && (
             <button
               type="button"
               onClick={handleRemove}
-              className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-dark-brown/70 text-warm-white"
+              className="absolute top-2 end-2 flex h-8 w-8 items-center justify-center rounded-full bg-dark-brown/70 text-warm-white"
             >
               <X className="h-4 w-4" />
             </button>
@@ -83,21 +86,21 @@ export function ImageUpload({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-beige-dark/50 bg-beige/20 transition-colors hover:border-turquoise/50 hover:bg-beige/40"
+          className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-beige-dark/50 bg-beige/20 transition-colors hover:border-turquoise/50 hover:bg-beige/40 dark:border-white/10 dark:bg-white/5"
         >
           {uploading ? (
             <Loader2 className="h-8 w-8 animate-spin text-turquoise" />
           ) : (
             <Upload className="h-8 w-8 text-coffee/40" />
           )}
-          <span className="text-sm text-coffee/60">
-            {uploading ? "Uploading..." : "Click to upload"}
+          <span className="text-sm text-coffee/60 dark:text-warm-white/60">
+            {uploading ? t("admin.upload.uploading") : t("admin.upload.clickToUpload")}
           </span>
         </button>
       )}
 
       {uploading && (
-        <div className="h-2 overflow-hidden rounded-full bg-beige">
+        <div className="h-2 overflow-hidden rounded-full bg-beige dark:bg-white/10">
           <div
             className="h-full rounded-full bg-turquoise transition-all duration-300"
             style={{ width: `${progress}%` }}
@@ -112,9 +115,10 @@ export function ImageUpload({
           type="button"
           variant="outline"
           size="sm"
+          className="rounded-xl"
           onClick={() => inputRef.current?.click()}
         >
-          Replace image
+          {t("admin.upload.replace")}
         </Button>
       )}
 

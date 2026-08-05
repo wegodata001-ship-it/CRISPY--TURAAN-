@@ -18,6 +18,8 @@ import {
 import { formatPrice, formatDate } from "@/lib/utils";
 import { exportHtmlAsPdf } from "@/lib/export-pdf";
 import { cn } from "@/lib/utils";
+import { useT } from "@/components/providers/locale-provider";
+import { AdminPageHeader } from "./components/admin-page-header";
 import type { Order, OrderStatus } from "@/types";
 
 const statuses: OrderStatus[] = ["pending", "preparing", "ready", "delivered", "cancelled"];
@@ -39,8 +41,10 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 function OrderTimeline({ status }: { status: OrderStatus }) {
+  const t = useT();
   const steps: OrderStatus[] = ["pending", "preparing", "ready", "delivered"];
   const currentIndex = status === "cancelled" ? -1 : steps.indexOf(status);
+  const statusLabel = (s: OrderStatus) => t(`admin.status.${s}`);
 
   return (
     <div className="mt-4 flex items-center gap-1">
@@ -53,8 +57,8 @@ function OrderTimeline({ status }: { status: OrderStatus }) {
                 i <= currentIndex ? statusColors[step] : "border-beige-dark/40 bg-transparent"
               )}
             />
-            <span className={cn("text-[10px] capitalize", i <= currentIndex ? "text-dark-brown dark:text-warm-white" : "text-coffee/40")}>
-              {step}
+            <span className={cn("text-[10px]", i <= currentIndex ? "text-dark-brown dark:text-warm-white" : "text-coffee/40")}>
+              {statusLabel(step)}
             </span>
           </div>
           {i < steps.length - 1 && (
@@ -63,18 +67,21 @@ function OrderTimeline({ status }: { status: OrderStatus }) {
         </div>
       ))}
       {status === "cancelled" && (
-        <Badge variant="cancelled" className="ml-2">Cancelled</Badge>
+        <Badge variant="cancelled" className="ml-2">{t("admin.status.cancelled")}</Badge>
       )}
     </div>
   );
 }
 
 export function OrdersAdmin() {
+  const t = useT();
   const { orders, loading } = useOrders();
   const [updating, setUpdating] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  const statusLabel = (status: OrderStatus) => t(`admin.status.${status}`);
 
   const filtered = orders.filter((o) => {
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
@@ -84,9 +91,23 @@ export function OrdersAdmin() {
   });
 
   const exportCsv = () => {
-    const rows = [["Order", "Customer", "Status", "Total", "Date"], ...filtered.map((o) => [
-      o.orderNumber, o.customerName, o.status, String(o.total), o.createdAt,
-    ])];
+    const headers = [
+      t("orders.orderNumber"),
+      t("orders.customer"),
+      t("orders.status"),
+      t("orders.total"),
+      t("orders.date"),
+    ];
+    const rows = [
+      headers,
+      ...filtered.map((o) => [
+        o.orderNumber,
+        o.customerName,
+        statusLabel(o.status),
+        String(o.total),
+        o.createdAt,
+      ]),
+    ];
     const csv = rows.map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -97,14 +118,21 @@ export function OrdersAdmin() {
   };
 
   const exportPdf = () => {
+    const headers = [
+      t("orders.orderNumber"),
+      t("orders.customer"),
+      t("orders.status"),
+      t("orders.total"),
+      t("orders.date"),
+    ];
     const rows = filtered.map((o) =>
-      `<tr><td>${o.orderNumber}</td><td>${o.customerName}</td><td>${o.status}</td><td>${formatPrice(o.total)}</td><td>${formatDate(o.createdAt)}</td></tr>`
+      `<tr><td>${o.orderNumber}</td><td>${o.customerName}</td><td>${statusLabel(o.status)}</td><td>${formatPrice(o.total)}</td><td>${formatDate(o.createdAt)}</td></tr>`
     ).join("");
     exportHtmlAsPdf(
-      "MISHKAT CAFÉ Orders",
-      `<h1>MISHKAT CAFÉ — Orders Report</h1>
-       <p>Generated ${new Date().toLocaleString()}</p>
-       <table><thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Total</th><th>Date</th></tr></thead>
+      t("admin.orders.title"),
+      `<h1>${t("admin.orders.title")}</h1>
+       <p>${new Date().toLocaleString()}</p>
+       <table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
        <tbody>${rows}</tbody></table>`
     );
   };
@@ -118,34 +146,47 @@ export function OrdersAdmin() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this order?")) return;
+    if (!confirm(t("admin.orders.deleteConfirm"))) return;
     await deleteOrder(id);
   };
 
   return (
     <div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-dark-brown dark:text-warm-white">Orders</h1>
-          <p className="text-sm text-coffee/60">{orders.length} total orders</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <div className="relative">
-            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-coffee/40" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="h-10 rounded-xl border border-beige-dark/30 bg-warm-white pl-9 pr-3 text-sm dark:border-white/10 dark:bg-white/5" />
-          </div>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as OrderStatus | "all")}>
-            <SelectTrigger className="h-10 w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              {statuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" onClick={exportCsv}><Download className="h-3.5 w-3.5" /> Excel</Button>
-          <Button variant="outline" size="sm" onClick={exportPdf}><FileText className="h-3.5 w-3.5" /> PDF</Button>
-          <Button variant="outline" size="sm" onClick={printOrders}><Printer className="h-3.5 w-3.5" /> Print</Button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title={t("admin.orders.title")}
+        subtitle={`${orders.length} ${t("orders.totalOrders")}`}
+        actions={
+          <>
+            <div className="relative">
+              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-coffee/40" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("admin.orders.search")}
+                className="h-10 rounded-xl border border-beige-dark/30 bg-warm-white pl-9 pr-3 text-sm dark:border-white/10 dark:bg-white/5"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as OrderStatus | "all")}>
+              <SelectTrigger className="h-10 w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("admin.status.all")}</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={exportCsv}>
+              <Download className="h-3.5 w-3.5" /> {t("admin.orders.exportCsv")}
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportPdf}>
+              <FileText className="h-3.5 w-3.5" /> {t("admin.orders.exportPdf")}
+            </Button>
+            <Button variant="outline" size="sm" onClick={printOrders}>
+              <Printer className="h-3.5 w-3.5" /> {t("admin.action.print")}
+            </Button>
+          </>
+        }
+      />
 
       {loading ? (
         <div className="mt-6 space-y-3">
@@ -179,7 +220,7 @@ export function OrdersAdmin() {
                     className="flex w-full items-center gap-2 text-left"
                   >
                     <p className="font-semibold text-dark-brown dark:text-warm-white">{order.orderNumber}</p>
-                    <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
+                    <Badge variant={statusVariant[order.status]}>{statusLabel(order.status)}</Badge>
                     <ChevronDown className={cn("h-4 w-4 text-coffee/40 transition-transform", expanded === order.id && "rotate-180")} />
                   </button>
                   <p className="mt-1 text-sm text-coffee/60">{order.customerName}</p>
@@ -226,12 +267,12 @@ export function OrdersAdmin() {
                     </SelectTrigger>
                     <SelectContent>
                       {statuses.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                        <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <Button variant="ghost" size="sm" onClick={() => handleDelete(order.id)}>
-                    Delete
+                    {t("admin.action.delete")}
                   </Button>
                 </div>
               </div>

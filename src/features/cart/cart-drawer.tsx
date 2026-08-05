@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Minus, Plus, Trash2, ShoppingBag, Tag, ArrowRight } from "lucide-react";
@@ -14,7 +13,7 @@ import { Logo } from "@/components/brand/logo";
 import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
-import { getProductImage } from "@/lib/menu/placeholders";
+import { ProductImage } from "@/components/catalog/product-image";
 import type { CartItem } from "@/types";
 
 function CartLineItem({
@@ -27,7 +26,6 @@ function CartLineItem({
   onUpdateQuantity: (qty: number) => void;
 }) {
   const localized = useLocalizedProduct(item.product);
-  const imageSrc = getProductImage(item.product.image, item.product.categoryId);
 
   return (
     <motion.div
@@ -38,7 +36,13 @@ function CartLineItem({
       className="flex gap-3 rounded-xl bg-beige/30 p-3 dark:bg-white/5"
     >
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
-        <Image src={imageSrc} alt={localized.name} fill className="object-cover" sizes="64px" />
+        <ProductImage
+          image={item.product.image}
+          categoryId={item.product.categoryId}
+          alt={localized.name}
+          compact
+          sizes="64px"
+        />
       </div>
       <div className="flex flex-1 flex-col">
         <div className="flex items-start justify-between">

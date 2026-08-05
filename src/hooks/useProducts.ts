@@ -84,6 +84,33 @@ export function useCategories() {
   return { categories, loading, error };
 }
 
+/** Admin — includes inactive/hidden categories */
+export function useAllCategories() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { categories: fallbackCategories } = useMasterMenuFallback();
+
+  useEffect(() => {
+    setLoading(true);
+    const unsubscribe = subscribeToCategories(
+      (data) => {
+        setCategories(data.length > 0 ? data : fallbackCategories);
+        setLoading(false);
+      },
+      (err) => {
+        setError(err);
+        setCategories(fallbackCategories);
+        setLoading(false);
+      },
+      { includeInactive: true }
+    );
+    return unsubscribe;
+  }, [fallbackCategories]);
+
+  return { categories, loading, error };
+}
+
 export function useAllProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);

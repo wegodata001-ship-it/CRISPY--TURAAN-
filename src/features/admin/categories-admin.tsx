@@ -3,10 +3,10 @@
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, Loader2, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Eye } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCategories, useProducts } from "@/hooks/useProducts";
+import { useAllCategories, useProducts } from "@/hooks/useProducts";
 import { createCategory, updateCategory, deleteCategory, reorderCategories } from "@/services";
 import { categorySchema, type CategoryInput } from "@/lib/validation/schemas";
 import { Button } from "@/components/ui/button";
@@ -20,29 +20,52 @@ import { SortableList } from "@/components/admin/sortable-list";
 import { uploadCategoryImage, deleteImageByUrl } from "@/services/storageService";
 import { cn } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
+import { AdminPageHeader } from "./components/admin-page-header";
+import {
+  countProductsInCategory,
+  countProductsInSubcategory,
+  getRootCategoriesForAdmin,
+} from "@/lib/menu/category-tree";
 import type { Category } from "@/types";
 
 const ICONS = ["coffee", "cup-soda", "cake", "salad", "sandwich", "ice-cream", "milk", "star"];
 
+type StatusFilter = "all" | "active" | "hidden";
+
 export function CategoriesAdmin() {
   const t = useT();
-  const { categories, loading } = useCategories();
+  const { categories, loading } = useAllCategories();
   const { products } = useProducts();
   const [editing, setEditing] = useState<Category | null>(null);
+  const [viewing, setViewing] = useState<Category | null>(null);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ordered, setOrdered] = useState<Category[]>([]);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const sorted = useMemo(
     () => [...categories].sort((a, b) => a.sortOrder - b.sortOrder),
     [categories]
   );
 
-  const displayList = ordered.length ? ordered : sorted;
+  const filtered = useMemo(() => {
+    const base = ordered.length ? ordered : sorted;
+    if (statusFilter === "active") return base.filter((c) => c.active);
+    if (statusFilter === "hidden") return base.filter((c) => !c.active);
+    return base;
+  }, [ordered, sorted, statusFilter]);
 
-  const productCount = (catId: string) =>
-    products.filter((p) => p.categoryId === catId).length;
+  const productCount = (cat: Category) =>
+    cat.parentId
+      ? countProductsInSubcategory(products, cat.id)
+      : countProductsInCategory(products, cat.id, categories);
+
+  const parentOptions = useMemo(
+    () => getRootCategoriesForAdmin(categories).filter((c) => c.id !== editing?.id),
+    [categories, editing?.id]
+  );
 
   const form = useForm({
     resolver: zodResolver(categorySchema),
@@ -55,6 +78,7 @@ export function CategoriesAdmin() {
       color: "#8B6914",
       sortOrder: 0,
       active: true,
+      parentId: "",
     },
   });
 
@@ -69,6 +93,7 @@ export function CategoriesAdmin() {
       color: "#8B6914",
       sortOrder: categories.length + 1,
       active: true,
+      parentId: "",
     });
     setError(null);
     setOpen(true);
@@ -85,6 +110,7 @@ export function CategoriesAdmin() {
       color: cat.color,
       sortOrder: cat.sortOrder,
       active: cat.active,
+      parentId: cat.parentId ?? "",
     });
     setError(null);
     setOpen(true);
@@ -93,9 +119,13 @@ export function CategoriesAdmin() {
   const onSubmit = form.handleSubmit(async (data) => {
     setSaving(true);
     setError(null);
+    const payload = {
+      ...data,
+      parentId: data.parentId?.trim() ? data.parentId : undefined,
+    };
     const result = editing
-      ? await updateCategory(editing.id, data)
-      : await createCategory(data);
+      ? await updateCategory(editing.id, payload)
+      : await createCategory(payload);
     setSaving(false);
     if (!result.success) {
       setError(result.error);
@@ -105,12 +135,15 @@ export function CategoriesAdmin() {
   });
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this category?")) return;
+    if (!confirm(t("admin.categories.deleteConfirm"))) return;
     await deleteCategory(id);
   };
 
   const toggleActive = async (cat: Category) => {
+    if (togglingId) return;
+    setTogglingId(cat.id);
     await updateCategory(cat.id, { active: !cat.active });
+    setTogglingId(null);
   };
 
   const handleReorder = async (items: Category[]) => {
@@ -118,82 +151,276 @@ export function CategoriesAdmin() {
     await reorderCategories(items.map((c) => c.id));
   };
 
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-dark-brown dark:text-warm-white">
-            Categories
-          </h1>
-          <p className="text-sm text-coffee/60">Drag to reorder · {categories.length} categories</p>
+  const filterOptions: { id: StatusFilter; label: string }[] = [
+    { id: "all", label: t("admin.categories.filterAll") },
+    { id: "active", label: t("admin.categories.filterActive") },
+    { id: "hidden", label: t("admin.categories.filterHidden") },
+  ];
+
+  const renderCategoryCard = (cat: Category, dragHandle: React.ReactNode) => {
+    const parent = cat.parentId ? categories.find((c) => c.id === cat.parentId) : null;
+    return (
+    <motion.div
+      layout
+      className={cn(
+        "flex items-center gap-3 rounded-2xl p-4 shadow-soft transition-colors",
+        cat.parentId && "ms-4 border-s-2 border-turquoise/25",
+        cat.active
+          ? "bg-warm-white dark:bg-white/5"
+          : "bg-beige/50 opacity-55 dark:bg-white/[0.03]"
+      )}
+    >
+      {dragHandle}
+      <div
+        className={cn(
+          "h-12 w-12 shrink-0 overflow-hidden rounded-xl",
+          !cat.active && "grayscale"
+        )}
+        style={{ backgroundColor: cat.active ? cat.color : "#9ca3af" }}
+      >
+        {cat.image ? (
+          <Image
+            src={cat.image}
+            alt={cat.name_en}
+            width={48}
+            height={48}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-lg text-white/90">
+            {cat.icon.slice(0, 1).toUpperCase()}
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p
+            className={cn(
+              "font-medium",
+              cat.active
+                ? "text-dark-brown dark:text-warm-white"
+                : "text-coffee/50 dark:text-warm-white/50"
+            )}
+          >
+            {cat.name_en}
+          </p>
+          {!cat.active && (
+            <Badge variant="cancelled">{t("admin.categories.hiddenBadge")}</Badge>
+          )}
+          {parent && (
+            <Badge variant="outline" className="text-xs">
+              ↳ {parent.name_he}
+            </Badge>
+          )}
+          <Badge variant="outline">
+            {productCount(cat)} {t("admin.products")}
+          </Badge>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Add Category
+        <p className="text-sm text-coffee/50" dir="rtl">
+          {cat.name_he}
+        </p>
+        <p className="mt-0.5 text-xs text-coffee/40">{cat.icon} · #{cat.sortOrder}</p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => void toggleActive(cat)}
+        disabled={togglingId === cat.id}
+        title={cat.active ? t("admin.categories.deactivate") : t("admin.categories.activate")}
+        className={cn(
+          "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+          cat.active
+            ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400"
+            : "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-white/10 dark:text-gray-400"
+        )}
+      >
+        {togglingId === cat.id ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <span
+            className={cn(
+              "h-2 w-2 rounded-full",
+              cat.active ? "bg-emerald-500" : "bg-gray-400"
+            )}
+          />
+        )}
+        {cat.active ? t("admin.status.active") : t("admin.status.inactive")}
+      </button>
+
+      <div className="flex shrink-0 gap-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setViewing(cat)}
+          title={t("admin.action.view")}
+        >
+          <Eye className="h-3.5 w-3.5" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => openEdit(cat)}
+          title={t("admin.action.edit")}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => handleDelete(cat.id)}
+          title={t("admin.action.delete")}
+        >
+          <Trash2 className="h-3.5 w-3.5 text-red-500" />
+        </Button>
+      </div>
+    </motion.div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <AdminPageHeader
+        title={t("admin.categories.title")}
+        subtitle={`${t("admin.banners.dragHint")} · ${categories.length} ${t("admin.categories")}`}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            {t("admin.categories.new")}
+          </Button>
+        }
+      />
+
+      <div className="flex flex-wrap gap-2">
+        {filterOptions.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setStatusFilter(opt.id)}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              statusFilter === opt.id
+                ? "bg-turquoise text-warm-white"
+                : "bg-beige/60 text-coffee hover:bg-beige dark:bg-white/10 dark:text-warm-white/80"
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {loading ? (
-        <div className="mt-6 space-y-3">
+        <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
         </div>
-      ) : (
+      ) : filtered.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-beige-dark/30 py-12 text-center text-sm text-coffee/50">
+          {t("admin.categories.noResults")}
+        </p>
+      ) : statusFilter === "all" ? (
         <SortableList
-          className="mt-6 space-y-3"
-          items={displayList}
+          className="space-y-3"
+          items={filtered}
           onReorder={handleReorder}
-          renderItem={(cat, dragHandle) => (
-            <motion.div
-              layout
-              className={cn(
-                "flex items-center gap-3 rounded-2xl bg-warm-white p-4 shadow-soft dark:bg-white/5",
-                !cat.active && "opacity-60"
-              )}
-            >
-              {dragHandle}
-              <div
-                className="h-12 w-12 shrink-0 overflow-hidden rounded-xl"
-                style={{ backgroundColor: cat.color }}
-              >
-                {cat.image ? (
-                  <Image src={cat.image} alt={cat.name_en} width={48} height={48} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-lg text-white/90">
-                    {cat.icon.slice(0, 1).toUpperCase()}
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-dark-brown dark:text-warm-white">{cat.name_en}</p>
-                  {!cat.active && <Badge variant="cancelled">Hidden</Badge>}
-                  <Badge variant="outline">{productCount(cat.id)} products</Badge>
-                </div>
-                <p className="text-sm text-coffee/50" dir="rtl">{cat.name_ar}</p>
-                <p className="mt-0.5 text-xs text-coffee/40">{cat.icon} · #{cat.sortOrder}</p>
-              </div>
-              <div className="flex shrink-0 gap-1">
-                <Button variant="ghost" size="icon-sm" onClick={() => toggleActive(cat)} title={cat.active ? "Hide" : "Show"}>
-                  {cat.active ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                </Button>
-                <Button variant="ghost" size="icon-sm" onClick={() => openEdit(cat)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(cat.id)}>
-                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                </Button>
-              </div>
-            </motion.div>
-          )}
+          renderItem={(cat, dragHandle) => renderCategoryCard(cat, dragHandle)}
         />
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((cat) => (
+            <div key={cat.id}>{renderCategoryCard(cat, null)}</div>
+          ))}
+        </div>
       )}
+
+      {/* View-only dialog — no data changes */}
+      <Dialog open={!!viewing} onOpenChange={() => setViewing(null)}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("admin.categories.viewTitle")}</DialogTitle>
+          </DialogHeader>
+          {viewing && (
+            <div className="space-y-4 text-sm">
+              <div className="flex items-start gap-4">
+                <div
+                  className="h-16 w-16 shrink-0 overflow-hidden rounded-xl"
+                  style={{ backgroundColor: viewing.color }}
+                >
+                  {viewing.image ? (
+                    <Image
+                      src={viewing.image}
+                      alt={viewing.name_en}
+                      width={64}
+                      height={64}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xl text-white/90">
+                      {viewing.icon.slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="text-lg font-semibold dark:text-warm-white">{viewing.name_en}</p>
+                  <Badge variant={viewing.active ? "ready" : "cancelled"}>
+                    {viewing.active ? t("admin.status.active") : t("admin.categories.hiddenBadge")}
+                  </Badge>
+                </div>
+              </div>
+
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-coffee/45">{t("admin.categoryNameHe")}</dt>
+                  <dd className="font-medium dark:text-warm-white" dir="rtl">
+                    {viewing.name_he}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-coffee/45">{t("admin.categoryNameAr")}</dt>
+                  <dd className="font-medium dark:text-warm-white" dir="rtl">
+                    {viewing.name_ar}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-coffee/45">{t("admin.categoryNameEn")}</dt>
+                  <dd className="font-medium dark:text-warm-white">{viewing.name_en}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-coffee/45">{t("admin.categories.icon")}</dt>
+                  <dd className="font-medium dark:text-warm-white">{viewing.icon}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-coffee/45">{t("admin.categories.color")}</dt>
+                  <dd className="flex items-center gap-2 font-medium dark:text-warm-white">
+                    <span
+                      className="inline-block h-4 w-4 rounded border border-beige-dark/30"
+                      style={{ backgroundColor: viewing.color }}
+                    />
+                    {viewing.color}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-coffee/45">{t("admin.categories.sortOrder")}</dt>
+                  <dd className="font-medium dark:text-warm-white">{viewing.sortOrder}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-coffee/45">{t("admin.products")}</dt>
+                  <dd className="font-medium dark:text-warm-white">
+                    {productCount(viewing)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Category" : "New Category"}</DialogTitle>
+            <DialogTitle>
+              {editing ? t("admin.categories.edit") : t("admin.categories.new")}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
@@ -212,28 +439,50 @@ export function CategoriesAdmin() {
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <Label htmlFor="icon">Icon</Label>
+                <Label htmlFor="parentId">{t("admin.categories.parentCategory")}</Label>
+                <select
+                  id="parentId"
+                  {...form.register("parentId")}
+                  className="mt-1 h-10 w-full rounded-xl border border-beige-dark/30 bg-warm-white px-3 text-sm dark:border-white/10 dark:bg-white/5"
+                >
+                  <option value="">{t("admin.categories.rootCategory")}</option>
+                  {parentOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name_he || c.name_en}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="icon">{t("admin.categories.icon")}</Label>
                 <select
                   id="icon"
                   {...form.register("icon")}
                   className="mt-1 h-10 w-full rounded-xl border border-beige-dark/30 bg-warm-white px-3 text-sm dark:border-white/10 dark:bg-white/5"
                 >
                   {ICONS.map((ic) => (
-                    <option key={ic} value={ic}>{ic}</option>
+                    <option key={ic} value={ic}>
+                      {ic}
+                    </option>
                   ))}
                 </select>
               </div>
               <div>
-                <Label htmlFor="color">Color</Label>
+                <Label htmlFor="color">{t("admin.categories.color")}</Label>
                 <Input id="color" type="color" {...form.register("color")} className="mt-1 h-10 p-1" />
               </div>
               <div>
-                <Label htmlFor="sortOrder">Sort Order</Label>
-                <Input id="sortOrder" type="number" {...form.register("sortOrder", { valueAsNumber: true })} className="mt-1" />
+                <Label htmlFor="sortOrder">{t("admin.categories.sortOrder")}</Label>
+                <Input
+                  id="sortOrder"
+                  type="number"
+                  {...form.register("sortOrder", { valueAsNumber: true })}
+                  className="mt-1"
+                />
               </div>
             </div>
             <ImageUpload
-              label="Cover Image"
+              label={t("admin.categories.coverImage")}
               value={form.watch("imageUrl") ?? ""}
               onChange={(url) => form.setValue("imageUrl", url)}
               onUpload={(file, onProgress) =>
@@ -243,11 +492,17 @@ export function CategoriesAdmin() {
             />
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" {...form.register("active")} className="rounded" />
-              Visible in catalog
+              {t("admin.categories.visibleInCatalog")}
             </label>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <Button type="submit" className="w-full" disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? "Save" : "Create"}
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : editing ? (
+                t("admin.action.save")
+              ) : (
+                t("admin.action.create")
+              )}
             </Button>
           </form>
         </DialogContent>

@@ -7,7 +7,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Loader2,
   LayoutGrid,
   List,
   Copy,
@@ -16,23 +15,19 @@ import {
   Square,
   GripVertical,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useProducts, useCategories } from "@/hooks/useProducts";
+import { useProducts, useAllCategories } from "@/hooks/useProducts";
 import { createProduct, updateProduct, deleteProduct, reorderProducts } from "@/services";
-import { productSchema, type ProductInput } from "@/lib/validation/schemas";
+import { type ProductInput } from "@/lib/validation/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ImageUpload } from "@/features/admin/image-upload";
-import { uploadProductImage, deleteImageByUrl } from "@/services/storageService";
+import { deleteImageByUrl } from "@/services/storageService";
 import { formatPrice, cn } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
+import { AdminPageHeader } from "./components/admin-page-header";
 import { SortableList } from "@/components/admin/sortable-list";
+import { ProductFormDialog } from "./product-form/product-form-dialog";
 import type { Product } from "@/types";
 
 type ViewMode = "grid" | "table" | "reorder";
@@ -40,32 +35,21 @@ type ViewMode = "grid" | "table" | "reorder";
 export function ProductsAdmin() {
   const t = useT();
   const { products, loading } = useProducts();
-  const { categories } = useCategories();
+  const { categories } = useAllCategories();
   const [view, setView] = useState<ViewMode>("grid");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [inlinePrices, setInlinePrices] = useState<Record<string, string>>({});
   const [ordered, setOrdered] = useState<Product[]>([]);
+
+  const copySuffix = ` (${t("admin.action.copy")})`;
 
   const sortedProducts = useMemo(
     () => [...products].sort((a, b) => a.sortOrder - b.sortOrder),
     [products]
   );
-
-  const form = useForm({
-    resolver: zodResolver(productSchema),
-    defaultValues: {
-      nameHe: "", nameAr: "", nameEn: "",
-      descriptionHe: "", descriptionAr: "", descriptionEn: "",
-      categoryId: "", price: 0,
-      cost: 0, profit: 0, businessType: "food" as const, imageUrl: "",
-      available: true, popular: false, newProduct: false, active: true, sortOrder: 0,
-    },
-  });
 
   const filtered = useMemo(() => {
     if (!search) return products;
@@ -93,7 +77,7 @@ export function ProductsAdmin() {
   };
 
   const bulkDelete = async () => {
-    if (!confirm(`Delete ${selected.size} products?`)) return;
+    if (!confirm(t("admin.products.bulkDeleteConfirm").replace("{count}", String(selected.size)))) return;
     for (const id of selected) {
       const p = products.find((x) => x.id === id);
       if (p?.image) await deleteImageByUrl(p.image);
@@ -114,9 +98,9 @@ export function ProductsAdmin() {
 
   const duplicateProduct = async (product: Product) => {
     const data: ProductInput = {
-      nameHe: `${product.name_he} (Copy)`,
-      nameAr: `${product.name_ar} (Copy)`,
-      nameEn: `${product.name_en} (Copy)`,
+      nameHe: `${product.name_he}${copySuffix}`,
+      nameAr: `${product.name_ar}${copySuffix}`,
+      nameEn: `${product.name_en}${copySuffix}`,
       descriptionHe: product.description_he,
       descriptionAr: product.description_ar,
       descriptionEn: product.description_en,
@@ -145,46 +129,16 @@ export function ProductsAdmin() {
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({
-      nameHe: "", nameAr: "", nameEn: "",
-      descriptionHe: "", descriptionAr: "", descriptionEn: "",
-      categoryId: categories[0]?.id ?? "", price: 0, cost: 0, profit: 0,
-      businessType: "food", imageUrl: "", available: true, popular: false,
-      newProduct: false, active: true, sortOrder: products.length + 1,
-    });
-    setError(null);
     setOpen(true);
   };
 
   const openEdit = (product: Product) => {
     setEditing(product);
-    form.reset({
-      nameHe: product.name_he,
-      nameAr: product.name_ar,
-      nameEn: product.name_en,
-      descriptionHe: product.description_he,
-      descriptionAr: product.description_ar,
-      descriptionEn: product.description_en,
-      categoryId: product.categoryId, price: product.price, cost: product.cost,
-      profit: product.profit, businessType: product.businessType, imageUrl: product.image,
-      available: product.available, popular: product.isPopular, newProduct: product.isNew,
-      active: product.active, sortOrder: product.sortOrder,
-    });
-    setError(null);
     setOpen(true);
   };
 
-  const onSubmit = form.handleSubmit(async (data) => {
-    setSaving(true);
-    setError(null);
-    const result = editing ? await updateProduct(editing.id, data) : await createProduct(data);
-    setSaving(false);
-    if (!result.success) { setError(result.error); return; }
-    setOpen(false);
-  });
-
   const handleDelete = async (product: Product) => {
-    if (!confirm("Delete this product?")) return;
+    if (!confirm(t("admin.products.deleteConfirm"))) return;
     if (product.image) await deleteImageByUrl(product.image);
     await deleteProduct(product.id);
   };
@@ -195,33 +149,50 @@ export function ProductsAdmin() {
   };
 
   return (
-    <div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-dark-brown dark:text-warm-white">Products</h1>
-          <p className="text-sm text-coffee/60">{products.length} items · Shopify-style management</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-coffee/40" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." className="h-10 w-44 pl-9 sm:w-56" />
-          </div>
-          <div className="flex rounded-xl border border-beige-dark/30 p-0.5 dark:border-white/10">
-            <button onClick={() => setView("grid")} className={cn("rounded-lg p-2", view === "grid" && "bg-coffee text-warm-white")}>
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button onClick={() => setView("table")} className={cn("rounded-lg p-2", view === "table" && "bg-coffee text-warm-white")}>
-              <List className="h-4 w-4" />
-            </button>
-            <button onClick={() => setView("reorder")} className={cn("rounded-lg p-2", view === "reorder" && "bg-coffee text-warm-white")} title="Reorder">
-              <GripVertical className="h-4 w-4" />
-            </button>
-          </div>
-          <Button onClick={openCreate} variant="turquoise">
-            <Plus className="h-4 w-4" /> Add Product
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title={t("admin.products.title")}
+        subtitle={t("admin.products.subtitle")}
+        actions={
+          <>
+            <div className="relative">
+              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-coffee/40" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("admin.action.search")}
+                className="h-10 w-44 pl-9 sm:w-56"
+              />
+            </div>
+            <div className="flex rounded-xl border border-beige-dark/30 p-0.5 dark:border-white/10">
+              <button
+                onClick={() => setView("grid")}
+                className={cn("rounded-lg p-2", view === "grid" && "bg-coffee text-warm-white")}
+                title={t("admin.products.grid")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setView("table")}
+                className={cn("rounded-lg p-2", view === "table" && "bg-coffee text-warm-white")}
+                title={t("admin.products.table")}
+              >
+                <List className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setView("reorder")}
+                className={cn("rounded-lg p-2", view === "reorder" && "bg-coffee text-warm-white")}
+                title={t("admin.action.reorder")}
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+            </div>
+            <Button onClick={openCreate} variant="turquoise">
+              <Plus className="h-4 w-4" /> {t("admin.products.new")}
+            </Button>
+          </>
+        }
+      />
 
       <AnimatePresence>
         {selected.size > 0 && (
@@ -229,29 +200,39 @@ export function ProductsAdmin() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="mt-4 flex flex-wrap items-center gap-2 rounded-xl bg-coffee/5 p-3 dark:bg-white/5"
+            className="flex flex-wrap items-center gap-2 rounded-xl bg-coffee/5 p-3 dark:bg-white/5"
           >
-            <span className="text-sm font-medium">{selected.size} selected</span>
-            <Button size="sm" variant="outline" onClick={() => bulkAvailability(true)}>Set Available</Button>
-            <Button size="sm" variant="outline" onClick={() => bulkAvailability(false)}>Set Unavailable</Button>
+            <span className="text-sm font-medium">
+              {t("admin.products.selected").replace("{count}", String(selected.size))}
+            </span>
+            <Button size="sm" variant="outline" onClick={() => bulkAvailability(true)}>
+              {t("admin.action.makeAvailable")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => bulkAvailability(false)}>
+              {t("admin.action.makeUnavailable")}
+            </Button>
             <Select onValueChange={bulkCategory}>
-              <SelectTrigger className="h-8 w-40"><SelectValue placeholder="Change category" /></SelectTrigger>
+              <SelectTrigger className="h-8 w-40">
+                <SelectValue placeholder={t("admin.action.changeCategory")} />
+              </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name_en}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button size="sm" variant="destructive" onClick={bulkDelete}><Trash2 className="h-3.5 w-3.5" /> Delete</Button>
+            <Button size="sm" variant="destructive" onClick={bulkDelete}>
+              <Trash2 className="h-3.5 w-3.5" /> {t("admin.action.delete")}
+            </Button>
           </motion.div>
         )}
       </AnimatePresence>
 
       {loading ? (
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4] rounded-2xl" />)}
         </div>
       ) : view === "reorder" ? (
         <SortableList
-          className="mt-6 space-y-2"
+          className="space-y-2"
           items={ordered.length ? ordered : sortedProducts}
           onReorder={handleReorder}
           renderItem={(product, dragHandle) => (
@@ -268,7 +249,7 @@ export function ProductsAdmin() {
           )}
         />
       ) : view === "grid" ? (
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {filtered.map((product, i) => (
             <motion.div
               key={product.id}
@@ -286,11 +267,25 @@ export function ProductsAdmin() {
                   {selected.has(product.id) ? <CheckSquare className="h-4 w-4 text-turquoise" /> : <Square className="h-4 w-4 text-coffee/40" />}
                 </button>
                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button onClick={() => duplicateProduct(product)} className="rounded-lg bg-warm-white/90 p-1.5"><Copy className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => openEdit(product)} className="rounded-lg bg-warm-white/90 p-1.5"><Pencil className="h-3.5 w-3.5" /></button>
+                  <button
+                    onClick={() => duplicateProduct(product)}
+                    className="rounded-lg bg-warm-white/90 p-1.5"
+                    title={t("admin.action.duplicate")}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => openEdit(product)}
+                    className="rounded-lg bg-warm-white/90 p-1.5"
+                    title={t("admin.action.edit")}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
                 </div>
                 {!product.available && (
-                  <span className="absolute bottom-2 left-2 rounded-full bg-red-500/90 px-2 py-0.5 text-[10px] text-white">Unavailable</span>
+                  <span className="absolute bottom-2 left-2 rounded-full bg-red-500/90 px-2 py-0.5 text-[10px] text-white">
+                    {t("admin.status.unavailable")}
+                  </span>
                 )}
               </div>
               <div className="p-3">
@@ -312,16 +307,20 @@ export function ProductsAdmin() {
           ))}
         </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-beige-dark/20 bg-warm-white shadow-soft dark:border-white/10 dark:bg-[#1a1412]">
+        <div className="overflow-hidden rounded-2xl border border-beige-dark/20 bg-warm-white shadow-soft dark:border-white/10 dark:bg-[#1a1412]">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-beige/30 text-left text-xs uppercase text-coffee/60 dark:bg-white/5">
-                <th className="px-4 py-3"><button onClick={selectAll}><Square className="h-4 w-4" /></button></th>
-                <th className="px-4 py-3">Product</th>
-                <th className="hidden px-4 py-3 md:table-cell">Category</th>
-                <th className="px-4 py-3">Price</th>
-                <th className="hidden px-4 py-3 sm:table-cell">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3">
+                  <button onClick={selectAll} title={t("admin.action.selectAll")}>
+                    <Square className="h-4 w-4" />
+                  </button>
+                </th>
+                <th className="px-4 py-3">{t("admin.products.title")}</th>
+                <th className="hidden px-4 py-3 md:table-cell">{t("admin.products.category")}</th>
+                <th className="px-4 py-3">{t("admin.products.price")}</th>
+                <th className="hidden px-4 py-3 sm:table-cell">{t("admin.table.status")}</th>
+                <th className="px-4 py-3 text-right">{t("admin.table.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -354,14 +353,20 @@ export function ProductsAdmin() {
                   </td>
                   <td className="hidden px-4 py-3 sm:table-cell">
                     <span className={cn("text-xs font-medium", product.available ? "text-emerald-600" : "text-red-500")}>
-                      {product.available ? "Available" : "Unavailable"}
+                      {product.available ? t("admin.status.available") : t("admin.status.unavailable")}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon-sm" onClick={() => duplicateProduct(product)}><Copy className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon-sm" onClick={() => openEdit(product)}><Pencil className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(product)}><Trash2 className="h-3.5 w-3.5 text-red-500" /></Button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => duplicateProduct(product)} title={t("admin.action.duplicate")}>
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => openEdit(product)} title={t("admin.action.edit")}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(product)} title={t("admin.action.delete")}>
+                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -371,50 +376,14 @@ export function ProductsAdmin() {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Edit Product" : "New Product"}</DialogTitle></DialogHeader>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div><Label>{t("admin.productNameHe")}</Label><Input dir="rtl" {...form.register("nameHe")} className="mt-1" /></div>
-              <div><Label>{t("admin.productNameAr")}</Label><Input dir="rtl" {...form.register("nameAr")} className="mt-1" /></div>
-              <div><Label>{t("admin.productNameEn")}</Label><Input {...form.register("nameEn")} className="mt-1" /></div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div><Label>{t("admin.descHe")}</Label><Textarea dir="rtl" {...form.register("descriptionHe")} className="mt-1" /></div>
-              <div><Label>{t("admin.descAr")}</Label><Textarea dir="rtl" {...form.register("descriptionAr")} className="mt-1" /></div>
-              <div><Label>{t("admin.descEn")}</Label><Textarea {...form.register("descriptionEn")} className="mt-1" /></div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label>Category</Label>
-                <Select value={form.watch("categoryId")} onValueChange={(v) => form.setValue("categoryId", v)}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name_en}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div><Label>Price (₪)</Label><Input type="number" step="0.01" {...form.register("price", { valueAsNumber: true })} className="mt-1" /></div>
-              <div><Label>Cost</Label><Input type="number" step="0.01" {...form.register("cost", { valueAsNumber: true })} className="mt-1" /></div>
-              <div><Label>Profit</Label><Input type="number" step="0.01" {...form.register("profit", { valueAsNumber: true })} className="mt-1" /></div>
-            </div>
-            <ImageUpload label="Product Image" value={form.watch("imageUrl")} onChange={(url) => form.setValue("imageUrl", url)}
-              onUpload={(file, onProgress) => uploadProductImage(file, editing?.id ?? `new-${Date.now()}`, onProgress)} onDelete={deleteImageByUrl} />
-            <div className="flex flex-wrap gap-4">
-              {(["available", "popular", "newProduct", "active"] as const).map((field) => (
-                <label key={field} className="flex items-center gap-2 text-sm capitalize">
-                  <input type="checkbox" {...form.register(field)} className="rounded" />{field.replace("newProduct", "New")}
-                </label>
-              ))}
-            </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <Button type="submit" className="w-full" disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? "Save Changes" : "Create Product"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ProductFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        editing={editing}
+        categories={categories}
+        productsCount={products.length}
+        onDuplicate={duplicateProduct}
+      />
     </div>
   );
 }

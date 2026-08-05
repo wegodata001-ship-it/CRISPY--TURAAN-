@@ -25,7 +25,8 @@ export function Logo({
 }: LogoProps) {
   const t = useT();
   const height = LOGO_HEIGHT[size];
-  const width = Math.round(height * 0.85);
+  const width = Math.max(40, Math.round(height * 0.85));
+  const useBlur = width >= 40 && height >= 40;
 
   const content = (
     <div className={cn("flex items-center gap-2.5", className)}>
@@ -33,12 +34,11 @@ export function Logo({
         src={BRAND.logo}
         alt={BRAND.name}
         width={width}
-        height={height}
+        height={Math.max(40, height)}
         priority={priority}
-        placeholder="blur"
-        blurDataURL={BLUR.logo}
+        {...(useBlur ? { placeholder: "blur" as const, blurDataURL: BLUR.logo } : {})}
         className="h-auto w-auto object-contain"
-        style={{ height, width: "auto", maxWidth: width * 1.4 }}
+        style={{ height: Math.max(40, height), width: "auto", maxWidth: width * 1.4 }}
       />
       {(showText || showTagline) && (
         <div className="min-w-0">

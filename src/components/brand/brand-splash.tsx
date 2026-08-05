@@ -1,17 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { BRAND, BLUR } from "@/lib/brand";
 
 export function BrandSplash() {
+  const pathname = usePathname();
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
+    if (pathname.startsWith("/admin")) {
+      setVisible(false);
+      return;
+    }
     const timer = setTimeout(() => setVisible(false), 1400);
     return () => clearTimeout(timer);
-  }, []);
+  }, [pathname]);
+
+  if (pathname.startsWith("/admin")) return null;
 
   return (
     <AnimatePresence>

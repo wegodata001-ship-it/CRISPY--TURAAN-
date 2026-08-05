@@ -42,6 +42,10 @@ import {
   type ProductSuggestionInput,
   type InventoryLinkInput,
 } from "@/lib/validation/modifier-schemas";
+import {
+  normalizeModifierGroupInput,
+  normalizeModifierOptionInput,
+} from "@/lib/validation/modifier-normalize";
 import { nowTimestamp } from "@/types/firestore";
 import type { FirestoreDoc } from "@/types/firestore";
 import type {
@@ -100,7 +104,7 @@ export function subscribeToModifierGroups(
 
 export async function createModifierGroup(input: ModifierGroupInput): Promise<ServiceResult<ModifierGroup>> {
   try {
-    const parsed = modifierGroupSchema.parse(input);
+    const parsed = modifierGroupSchema.parse(normalizeModifierGroupInput(input));
     const db = getDb();
     const now = nowTimestamp();
     const data: FirestoreModifierGroup = { ...parsed, createdAt: now, updatedAt: now };
@@ -118,10 +122,31 @@ export async function updateModifierGroup(
   try {
     const db = getDb();
     const ref = doc(db, COLLECTIONS.modifierGroups, id);
-    await updateDoc(ref, { ...input, updatedAt: nowTimestamp() });
     const snap = await getDoc(ref);
     if (!snap.exists()) return failure(new ServiceError("Not found", "NOT_FOUND"));
-    return success(mapModifierGroup(docTo<FirestoreModifierGroup>(snap.id, snap.data())));
+
+    const existing = snap.data() as FirestoreModifierGroup;
+    const parsed = modifierGroupSchema.parse(
+      normalizeModifierGroupInput({
+        nameHe: input.nameHe ?? existing.nameHe,
+        nameAr: input.nameAr ?? existing.nameAr,
+        nameEn: input.nameEn ?? existing.nameEn,
+        selectionType: input.selectionType ?? existing.selectionType,
+        requirement: input.requirement ?? existing.requirement,
+        minSelections: input.minSelections ?? existing.minSelections,
+        maxSelections: input.maxSelections ?? existing.maxSelections,
+        displayType: input.displayType ?? existing.displayType,
+        sortOrder: input.sortOrder ?? existing.sortOrder,
+        color: input.color ?? existing.color,
+        icon: input.icon ?? existing.icon,
+        active: input.active ?? existing.active,
+        archived: input.archived ?? existing.archived,
+      })
+    );
+
+    await updateDoc(ref, { ...parsed, updatedAt: nowTimestamp() });
+    const updated = await getDoc(ref);
+    return success(mapModifierGroup(docTo<FirestoreModifierGroup>(updated.id, updated.data()!)));
   } catch (error) {
     return failure(error, "Failed to update modifier group");
   }
@@ -237,7 +262,7 @@ export function subscribeToModifierOptions(
 
 export async function createModifierOption(input: ModifierOptionInput): Promise<ServiceResult<ModifierOption>> {
   try {
-    const parsed = modifierOptionSchema.parse(input);
+    const parsed = modifierOptionSchema.parse(normalizeModifierOptionInput(input));
     const db = getDb();
     const now = nowTimestamp();
     const data: FirestoreModifierOption = { ...parsed, createdAt: now, updatedAt: now };
@@ -255,10 +280,31 @@ export async function updateModifierOption(
   try {
     const db = getDb();
     const ref = doc(db, COLLECTIONS.modifierOptions, id);
-    await updateDoc(ref, { ...input, updatedAt: nowTimestamp() });
     const snap = await getDoc(ref);
     if (!snap.exists()) return failure(new ServiceError("Not found", "NOT_FOUND"));
-    return success(mapModifierOption(docTo<FirestoreModifierOption>(snap.id, snap.data())));
+
+    const existing = snap.data() as FirestoreModifierOption;
+    const parsed = modifierOptionSchema.parse(
+      normalizeModifierOptionInput({
+        groupId: input.groupId ?? existing.groupId,
+        nameHe: input.nameHe ?? existing.nameHe,
+        nameAr: input.nameAr ?? existing.nameAr,
+        nameEn: input.nameEn ?? existing.nameEn,
+        priceDelta: input.priceDelta ?? existing.priceDelta,
+        cost: input.cost ?? existing.cost,
+        sortOrder: input.sortOrder ?? existing.sortOrder,
+        color: input.color ?? existing.color,
+        icon: input.icon ?? existing.icon,
+        imageUrl: input.imageUrl ?? existing.imageUrl,
+        kitchenNote: input.kitchenNote ?? existing.kitchenNote,
+        active: input.active ?? existing.active,
+        archived: input.archived ?? existing.archived,
+      })
+    );
+
+    await updateDoc(ref, { ...parsed, updatedAt: nowTimestamp() });
+    const updated = await getDoc(ref);
+    return success(mapModifierOption(docTo<FirestoreModifierOption>(updated.id, updated.data()!)));
   } catch (error) {
     return failure(error, "Failed to update modifier option");
   }

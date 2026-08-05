@@ -17,6 +17,7 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { ServiceError, type ServiceResult, success, failure } from "@/lib/errors";
 import { mapProduct } from "@/lib/mappers";
 import { productSchema, type ProductInput } from "@/lib/validation/schemas";
+import { sanitizeFirestoreData } from "@/lib/firebase/sanitize-firestore-data";
 import { nowTimestamp } from "@/types/firestore";
 import type { Product, ProductFilters } from "@/types";
 import type { FirestoreProduct, FirestoreDoc } from "@/types/firestore";
@@ -29,7 +30,13 @@ function applyFilters(items: Product[], filters?: ProductFilters): Product[] {
   let result = [...items];
 
   if (filters?.categoryId && filters.categoryId !== "all") {
-    result = result.filter((p) => p.categoryId === filters.categoryId);
+    if (filters.subcategoryId) {
+      result = result.filter((p) => p.subcategoryId === filters.subcategoryId);
+    } else {
+      result = result.filter(
+        (p) => p.categoryId === filters.categoryId && !p.subcategoryId
+      );
+    }
   }
 
   if (filters?.search) {
@@ -167,11 +174,12 @@ export async function createProduct(input: ProductInput): Promise<ServiceResult<
     const parsed = productSchema.parse(input);
     const db = getDb();
     const now = nowTimestamp();
-    const ref = await addDoc(collection(db, COLLECTIONS.products), {
+    const ref = await addDoc(collection(db, COLLECTIONS.products), sanitizeFirestoreData({
       ...parsed,
+      subcategoryId: parsed.subcategoryId || null,
       createdAt: now,
       updatedAt: now,
-    });
+    }));
     const snap = await getDoc(ref);
     return success(mapProduct(docToProduct(snap.id, snap.data()!)));
   } catch (error) {
@@ -186,7 +194,11 @@ export async function updateProduct(
   try {
     const db = getDb();
     const ref = doc(db, COLLECTIONS.products, id);
-    await updateDoc(ref, { ...input, updatedAt: nowTimestamp() });
+    await updateDoc(ref, sanitizeFirestoreData({
+      ...input,
+      ...(input.subcategoryId === "" ? { subcategoryId: null } : {}),
+      updatedAt: nowTimestamp(),
+    }));
     const snap = await getDoc(ref);
     if (!snap.exists()) {
       return failure(new ServiceError("Product not found", "NOT_FOUND"));

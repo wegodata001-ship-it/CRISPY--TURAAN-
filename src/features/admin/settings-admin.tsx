@@ -17,8 +17,13 @@ import {
   deleteImageByUrl,
 } from "@/services/storageService";
 import { SystemStatusCard } from "@/features/admin/system-status-card";
+import { useT } from "@/components/providers/locale-provider";
+import { AdminPageHeader } from "./components/admin-page-header";
+import { AdminCard } from "./components/admin-card";
+import { adminInput } from "./components/admin-styles";
 
 export function SettingsAdmin() {
+  const t = useT();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -43,97 +48,134 @@ export function SettingsAdmin() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const themeLabels = {
+    primary: t("admin.settings.themePrimary"),
+    accent: t("admin.settings.themeAccent"),
+    background: t("admin.settings.themeBackground"),
+  } as const;
+
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-dark-brown">Settings</h1>
-          <p className="text-sm text-coffee/60">Business info, branding & theme</p>
-        </div>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {saved ? "Saved!" : "Save Changes"}
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title={t("admin.settings.title")}
+        subtitle={t("admin.settings.subtitle")}
+        actions={
+          <Button onClick={handleSave} disabled={saving} className="h-10 rounded-xl">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saved ? t("admin.action.saved") : t("admin.settings.saveChanges")}
+          </Button>
+        }
+      />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft">
-          <h2 className="text-sm font-semibold text-dark-brown">Business Info</h2>
-          <div>
-            <Label>Store Name</Label>
-            <Input
-              value={settings.storeName}
-              onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
-              className="mt-1"
-            />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AdminCard title={t("admin.settings.businessInfo")}>
+          <div className="space-y-4">
+            <div>
+              <Label>{t("admin.settings.storeName")}</Label>
+              <Input
+                value={settings.storeName}
+                onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
+                className={`mt-1 ${adminInput}`}
+              />
+            </div>
+            <div>
+              <Label>{t("admin.settings.phone")}</Label>
+              <Input
+                value={settings.phone}
+                onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
+                className={`mt-1 ${adminInput}`}
+              />
+            </div>
+            <div>
+              <Label>{t("admin.settings.address")}</Label>
+              <Input
+                value={settings.address}
+                onChange={(e) => setSettings({ ...settings, address: e.target.value })}
+                className={`mt-1 ${adminInput}`}
+              />
+            </div>
+            <div>
+              <Label>{t("admin.settings.hours")}</Label>
+              <Textarea
+                value={settings.hours}
+                onChange={(e) => setSettings({ ...settings, hours: e.target.value })}
+                className={`mt-1 rounded-xl ${adminInput}`}
+              />
+            </div>
           </div>
-          <div>
-            <Label>Phone</Label>
-            <Input
-              value={settings.phone}
-              onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label>Address</Label>
-            <Input
-              value={settings.address}
-              onChange={(e) => setSettings({ ...settings, address: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label>Hours</Label>
-            <Textarea
-              value={settings.hours}
-              onChange={(e) => setSettings({ ...settings, hours: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-        </div>
+        </AdminCard>
 
-        <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft">
-          <h2 className="text-sm font-semibold text-dark-brown">Branding</h2>
-          <ImageUpload
-            label="Logo"
-            value={settings.logoUrl}
-            onChange={(url) => setSettings({ ...settings, logoUrl: url })}
-            onUpload={(file, onProgress) =>
-              uploadSettingsImage(file, "logo", onProgress)
-            }
-            onDelete={deleteImageByUrl}
-          />
-          <ImageUpload
-            label="Store Image"
-            value={settings.storeImageUrl}
-            onChange={(url) => setSettings({ ...settings, storeImageUrl: url })}
-            onUpload={(file, onProgress) =>
-              uploadSettingsImage(file, "store", onProgress)
-            }
-            onDelete={deleteImageByUrl}
-          />
-        </div>
+        <AdminCard title={t("admin.settings.branding")}>
+          <div className="space-y-4">
+            <ImageUpload
+              label={t("admin.settings.logo")}
+              value={settings.logoUrl}
+              onChange={(url) => setSettings({ ...settings, logoUrl: url })}
+              onUpload={(file, onProgress) => uploadSettingsImage(file, "logo", onProgress)}
+              onDelete={deleteImageByUrl}
+            />
+            <ImageUpload
+              label={t("admin.settings.storeImage")}
+              value={settings.storeImageUrl}
+              onChange={(url) => setSettings({ ...settings, storeImageUrl: url })}
+              onUpload={(file, onProgress) => uploadSettingsImage(file, "store", onProgress)}
+              onDelete={deleteImageByUrl}
+            />
+          </div>
+        </AdminCard>
 
-        <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft dark:bg-[#1a1412]">
-          <h2 className="text-sm font-semibold dark:text-warm-white">SEO & Social</h2>
+        <AdminCard title={t("admin.settings.seoSocial")} className="dark:bg-[#1a1412]/80">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div><Label>SEO Title</Label><Input value={settings.seo.title} onChange={(e) => setSettings({ ...settings, seo: { ...settings.seo, title: e.target.value } })} className="mt-1" /></div>
-            <div><Label>WhatsApp</Label><Input value={settings.social.whatsapp} onChange={(e) => setSettings({ ...settings, social: { ...settings.social, whatsapp: e.target.value } })} className="mt-1" placeholder="+972..." /></div>
-            <div className="sm:col-span-2"><Label>SEO Description</Label><Textarea value={settings.seo.description} onChange={(e) => setSettings({ ...settings, seo: { ...settings.seo, description: e.target.value } })} className="mt-1" /></div>
-            <div><Label>Instagram</Label><Input value={settings.social.instagram} onChange={(e) => setSettings({ ...settings, social: { ...settings.social, instagram: e.target.value } })} className="mt-1" /></div>
-            <div><Label>Google Maps URL</Label><Input value={settings.mapsUrl} onChange={(e) => setSettings({ ...settings, mapsUrl: e.target.value })} className="mt-1" /></div>
+            <div>
+              <Label>{t("admin.settings.seoTitle")}</Label>
+              <Input
+                value={settings.seo.title}
+                onChange={(e) => setSettings({ ...settings, seo: { ...settings.seo, title: e.target.value } })}
+                className={`mt-1 ${adminInput}`}
+              />
+            </div>
+            <div>
+              <Label>{t("admin.settings.whatsapp")}</Label>
+              <Input
+                value={settings.social.whatsapp}
+                onChange={(e) => setSettings({ ...settings, social: { ...settings.social, whatsapp: e.target.value } })}
+                className={`mt-1 ${adminInput}`}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label>{t("admin.settings.seoDescription")}</Label>
+              <Textarea
+                value={settings.seo.description}
+                onChange={(e) => setSettings({ ...settings, seo: { ...settings.seo, description: e.target.value } })}
+                className={`mt-1 rounded-xl ${adminInput}`}
+              />
+            </div>
+            <div>
+              <Label>{t("admin.settings.instagram")}</Label>
+              <Input
+                value={settings.social.instagram}
+                onChange={(e) => setSettings({ ...settings, social: { ...settings.social, instagram: e.target.value } })}
+                className={`mt-1 ${adminInput}`}
+              />
+            </div>
+            <div>
+              <Label>{t("admin.settings.mapsUrl")}</Label>
+              <Input
+                value={settings.mapsUrl}
+                onChange={(e) => setSettings({ ...settings, mapsUrl: e.target.value })}
+                className={`mt-1 ${adminInput}`}
+              />
+            </div>
           </div>
-        </div>
+        </AdminCard>
 
         <SystemStatusCard />
 
-        <div className="space-y-4 rounded-2xl bg-warm-white p-5 shadow-soft lg:col-span-2 dark:bg-[#1a1412]">
-          <h2 className="text-sm font-semibold text-dark-brown">Theme Colors</h2>
+        <AdminCard title={t("admin.settings.themeColors")} className="lg:col-span-2">
           <div className="grid gap-4 sm:grid-cols-3">
             {(["primary", "accent", "background"] as const).map((key) => (
               <div key={key}>
-                <Label className="capitalize">{key}</Label>
+                <Label>{themeLabels[key]}</Label>
                 <div className="mt-1 flex gap-2">
                   <input
                     type="color"
@@ -154,12 +196,13 @@ export function SettingsAdmin() {
                         theme: { ...settings.theme, [key]: e.target.value },
                       })
                     }
+                    className={adminInput}
                   />
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </AdminCard>
       </div>
     </div>
   );

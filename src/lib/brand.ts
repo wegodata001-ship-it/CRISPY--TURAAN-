@@ -2,9 +2,8 @@
 export const BRAND = {
   logo: "/logo.png",
   store: "/store.jpg",
-  /** Remote fallback when /store.jpg is missing or fails to load */
-  storeFallback:
-    "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1920&q=85",
+  /** Local fallback when remote store image fails */
+  storeFallback: "/store.jpg",
   name: "MISHKAT CAFÉ",
   nameShort: "Mishkat",
   tagline: "Coffee • Crêpes • Desserts",

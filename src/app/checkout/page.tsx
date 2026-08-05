@@ -88,15 +88,20 @@ export default function CheckoutPage() {
         delivery: deliveryFee,
         total,
         paymentMethod: payment,
-        notes: notes.trim(),
+        notes: notes.trim() || undefined,
       });
-      if (!result.success) { setError(result.error); return; }
+      if (!result.success) {
+        console.error("[checkout] order failed:", result.error, result.code);
+        setError(t("checkout.orderSaveError"));
+        return;
+      }
 
       setSuccess(true);
       clearCart();
       setTimeout(() => router.push("/orders"), 2800);
-    } catch {
-      setError(t("error.generic"));
+    } catch (err) {
+      console.error("[checkout] unexpected error:", err);
+      setError(t("checkout.orderSaveError"));
     } finally {
       setLoading(false);
     }

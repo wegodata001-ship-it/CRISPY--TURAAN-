@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "./accessibility.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-cream: #F8F3ED;
   --color-warm-white: #FFFEFB;
@@ -36,6 +38,23 @@
 }
 
 @layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  [data-admin] {
+    transition:
+      background-color 250ms ease,
+      color 250ms ease,
+      border-color 250ms ease;
+  }
+
   * {
     @apply border-beige-dark/30;
   }

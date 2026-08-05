@@ -18,6 +18,7 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { ServiceError, type ServiceResult, success, failure } from "@/lib/errors";
 import { mapCategory } from "@/lib/mappers";
 import { categorySchema, type CategoryInput } from "@/lib/validation/schemas";
+import { sanitizeFirestoreData } from "@/lib/firebase/sanitize-firestore-data";
 import type { Category } from "@/types";
 import type { FirestoreCategory, FirestoreDoc } from "@/types/firestore";
 
@@ -25,7 +26,7 @@ function docToCategory(id: string, data: DocumentData): FirestoreDoc<FirestoreCa
   return { id, ...(data as FirestoreCategory) };
 }
 
-export async function getCategories(): Promise<Category[]> {
+export async function getCategories(options?: { includeInactive?: boolean }): Promise<Category[]> {
   try {
     const db = getDb();
     const q = query(
@@ -34,7 +35,7 @@ export async function getCategories(): Promise<Category[]> {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs
-      .filter((d) => (d.data() as FirestoreCategory).active !== false)
+      .filter((d) => options?.includeInactive || (d.data() as FirestoreCategory).active !== false)
       .map((d) => mapCategory(docToCategory(d.id, d.data())));
   } catch (error) {
     throw new ServiceError(
@@ -60,7 +61,8 @@ export async function getCategoryById(id: string): Promise<Category | undefined>
 
 export function subscribeToCategories(
   onData: (categories: Category[]) => void,
-  onError: (error: string) => void
+  onError: (error: string) => void,
+  options?: { includeInactive?: boolean }
 ): Unsubscribe {
   try {
     const db = getDb();
@@ -72,7 +74,7 @@ export function subscribeToCategories(
       q,
       (snapshot) => {
         const categories = snapshot.docs
-          .filter((d) => (d.data() as FirestoreCategory).active !== false)
+          .filter((d) => options?.includeInactive || (d.data() as FirestoreCategory).active !== false)
           .map((d) => mapCategory(docToCategory(d.id, d.data())));
         onData(categories);
       },
@@ -87,8 +89,12 @@ export function subscribeToCategories(
 export async function createCategory(input: CategoryInput): Promise<ServiceResult<Category>> {
   try {
     const parsed = categorySchema.parse(input);
+    const data = sanitizeFirestoreData({
+      ...parsed,
+      parentId: parsed.parentId || null,
+    });
     const db = getDb();
-    const ref = await addDoc(collection(db, COLLECTIONS.categories), parsed);
+    const ref = await addDoc(collection(db, COLLECTIONS.categories), data);
     const snap = await getDoc(ref);
     return success(mapCategory(docToCategory(snap.id, snap.data()!)));
   } catch (error) {
@@ -103,7 +109,10 @@ export async function updateCategory(
   try {
     const db = getDb();
     const ref = doc(db, COLLECTIONS.categories, id);
-    await updateDoc(ref, input);
+    await updateDoc(ref, sanitizeFirestoreData({
+      ...input,
+      ...(input.parentId === "" ? { parentId: null } : {}),
+    }));
     const snap = await getDoc(ref);
     if (!snap.exists()) {
       return failure(new ServiceError("Category not found", "NOT_FOUND"));

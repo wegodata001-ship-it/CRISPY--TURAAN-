@@ -27,12 +27,14 @@ export const categorySchema = z.object({
   color: z.string().default("#8B6914"),
   sortOrder: z.number().int().min(0),
   active: z.boolean().default(true),
+  parentId: z.string().optional().nullable(),
 });
 
 export const productSchema = z.object({
   ...trilingualName,
   ...trilingualDescription,
   categoryId: z.string().min(1, "Category is required"),
+  subcategoryId: z.string().optional().nullable(),
   price: z.number().positive("Price must be greater than 0"),
   cost: z.number().min(0).default(0),
   profit: z.number().default(0),

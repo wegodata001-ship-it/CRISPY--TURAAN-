@@ -17,6 +17,7 @@ import {
   type TranslationMap,
 } from "@/lib/i18n/types";
 import { fetchAllLocaleStrings } from "@/services/translationService";
+import { ADMIN_TRANSLATIONS } from "@/data/admin-translations";
 
 const STORAGE_KEY = "mishkat-locale";
 
@@ -49,7 +50,11 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setLocaleState(readStoredLocale());
     fetchAllLocaleStrings().then((all) => {
-      setStrings(all);
+      setStrings({
+        he: { ...ADMIN_TRANSLATIONS.he, ...all.he },
+        ar: { ...ADMIN_TRANSLATIONS.ar, ...all.ar },
+        en: { ...ADMIN_TRANSLATIONS.en, ...all.en },
+      });
       setLoading(false);
     });
   }, []);
@@ -72,6 +77,8 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       if (value) return value;
       const defaultVal = strings[DEFAULT_LOCALE]?.[key];
       if (defaultVal) return defaultVal;
+      const adminFallback = ADMIN_TRANSLATIONS[locale]?.[key] ?? ADMIN_TRANSLATIONS[DEFAULT_LOCALE]?.[key];
+      if (adminFallback) return adminFallback;
       return fallback ?? key;
     },
     [locale, strings]

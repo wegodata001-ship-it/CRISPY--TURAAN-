@@ -53,7 +53,13 @@ export function applyProductFilters(
   let result = products.filter((p) => p.active !== false);
 
   if (filters?.categoryId && filters.categoryId !== "all") {
-    result = result.filter((p) => p.categoryId === filters.categoryId);
+    if (filters.subcategoryId) {
+      result = result.filter((p) => p.subcategoryId === filters.subcategoryId);
+    } else {
+      result = result.filter(
+        (p) => p.categoryId === filters.categoryId && !p.subcategoryId
+      );
+    }
   }
   if (filters?.search) {
     const q = filters.search.toLowerCase();
