@@ -151,6 +151,34 @@ async function main() {
     const option2 = optionDocs[1]!;
     const option3 = optionDocs[2]!;
 
+    const productName = await timed(() =>
+      saveProductEditorChanges({
+        productId,
+        productValues: { ...productValues, nameHe: `${runId}:name` },
+        productPatch: { nameHe: `${runId}:name` },
+        existingLinks: links,
+        desiredGroupIds: [groupId!],
+        modifiers: emptyModifiers(),
+      })
+    );
+    assert(productName.value.success, "Product-name save failed");
+    assert(productName.value.data.writes === 1, "Product-name diff should contain one write");
+    report.productName = { ms: productName.ms, writes: 1 };
+
+    const productPrice = await timed(() =>
+      saveProductEditorChanges({
+        productId,
+        productValues: { ...productValues, price: 10.5, profit: 8.5 },
+        productPatch: { price: 10.5, profit: 8.5 },
+        existingLinks: links,
+        desiredGroupIds: [groupId!],
+        modifiers: emptyModifiers(),
+      })
+    );
+    assert(productPrice.value.success, "Product-price save failed");
+    assert(productPrice.value.data.writes === 1, "Product-price diff should contain one write");
+    report.productPrice = { ms: productPrice.ms, writes: 1 };
+
     // TEST A — price currently in input is included without blur.
     const addonPrice = await timed(() =>
       saveProductEditorChanges({
