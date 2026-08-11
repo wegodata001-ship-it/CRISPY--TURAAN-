@@ -1,161 +1,911 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Loader2, Plus, Trash2, ChevronDown, Layers } from "lucide-react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import Image from "next/image";
+import {
+  Camera,
+  ChevronDown,
+  Loader2,
+  MoreVertical,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import { SortableList } from "@/components/admin/sortable-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useModifierOptions } from "@/hooks/useModifiers";
-import { createModifierGroup, createModifierOption, deleteModifierOption } from "@/services";
+import { updateModifierOption } from "@/services";
+import { uploadModifierOptionImage, deleteImageByUrl } from "@/services/storageService";
 import { useT } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 import {
   normalizeModifierGroupInput,
   normalizeModifierOptionInput,
 } from "@/lib/validation/modifier-normalize";
-import type { ModifierGroup } from "@/types/modifiers";
+import type { ModifierGroup, ModifierOption } from "@/types/modifiers";
+import { MODIFIER_TEMPLATES, type ModifierTemplate } from "./modifier-templates";
+import type {
+  PendingModifierChanges,
+  PendingModifierGroupCreate,
+} from "./product-modifier-pending";
 
-function GroupOptionsEditor({
-  group,
-  defaultExpanded,
+function formatPrice(value: number): string {
+  if (!value) return "0";
+  return value % 1 === 0 ? String(value) : value.toFixed(2);
+}
+
+function OptionImageButton({
+  option,
+  onUpdated,
 }: {
-  group: ModifierGroup;
-  defaultExpanded?: boolean;
+  option: ModifierOption;
+  onUpdated: () => void;
 }) {
   const t = useT();
-  const { options, loading } = useModifierOptions(group.id);
-  const [expanded, setExpanded] = useState(defaultExpanded ?? true);
-  const [newName, setNewName] = useState("");
-  const [newPrice, setNewPrice] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
-  const handleAddOption = async () => {
-    const nameHe = newName.trim();
-    if (!nameHe || adding) return;
-    setAdding(true);
-    setError(null);
-    const result = await createModifierOption(
-      normalizeModifierOptionInput({
-        groupId: group.id,
-        nameHe,
-        priceDelta: parseFloat(newPrice) || 0,
-        sortOrder: options.length + 1,
-        active: true,
-        archived: false,
-      })
-    );
-    setAdding(false);
-    if (!result.success) {
-      setError(result.error);
-      return;
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    setUploading(true);
+    const result = await uploadModifierOptionImage(file, option.groupId, option.id);
+    if (result.success && result.data) {
+      if (option.image) await deleteImageByUrl(option.image).catch(() => {});
+      await updateModifierOption(
+        option.id,
+        normalizeModifierOptionInput({
+          groupId: option.groupId,
+          nameHe: option.name_he,
+          priceDelta: option.priceDelta,
+          sortOrder: option.sortOrder,
+          imageUrl: result.data,
+          active: option.active,
+          archived: option.archived,
+        })
+      );
+      onUpdated();
     }
-    setNewName("");
-    setNewPrice("");
-  };
-
-  const handleDeleteOption = async (optionId: string) => {
-    if (!confirm(t("admin.modifiers.deleteOptionConfirm"))) return;
-    await deleteModifierOption(optionId);
+    setUploading(false);
   };
 
   return (
-    <div className="rounded-xl border border-beige-dark/20 bg-cream/30 dark:border-white/10 dark:bg-white/5">
+    <>
       <button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-start"
+        title={t("admin.productForm.optionImage")}
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        className={cn(
+          "relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-beige-dark/25 bg-beige/30 hover:bg-beige/50 dark:border-white/10 dark:bg-white/5",
+          uploading && "opacity-60"
+        )}
       >
-        <span className="flex min-w-0 items-center gap-2">
-          <Layers className="h-4 w-4 shrink-0 text-turquoise" strokeWidth={1.75} />
-          <span className="truncate text-sm font-semibold dark:text-warm-white" dir="rtl">
-            {group.name_he}
-          </span>
-          <span className="text-caption shrink-0 rounded-full bg-beige/60 px-2 py-0.5 text-[10px]">
-            {group.selectionType === "multiple"
-              ? t("admin.modifiers.selectionMultiple")
-              : t("admin.modifiers.selectionSingle")}
-          </span>
-        </span>
-        <ChevronDown
-          className={cn("h-4 w-4 shrink-0 text-coffee/40 transition-transform", expanded && "rotate-180")}
-        />
+        {uploading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-turquoise" />
+        ) : option.image ? (
+          <Image src={option.image} alt="" fill className="object-cover" sizes="36px" />
+        ) : (
+          <Camera className="h-3.5 w-3.5 text-coffee/45" />
+        )}
       </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleFile(file);
+          e.target.value = "";
+        }}
+      />
+    </>
+  );
+}
 
-      {expanded && (
-        <div className="border-t border-beige-dark/15 px-4 pb-4 pt-3">
-          {loading ? (
-            <p className="text-xs text-coffee/50">{t("admin.modifiers.loadingOptions")}</p>
-          ) : options.length === 0 ? (
-            <p className="mb-3 text-xs text-coffee/45">{t("admin.modifiers.noOptions")}</p>
-          ) : (
-            <ul className="mb-3 space-y-1.5">
-              {options.map((opt) => (
-                <li
-                  key={opt.id}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-warm-white px-3 py-2 dark:bg-[#1a1412]/60"
-                >
-                  <span className="text-sm dark:text-warm-white" dir="rtl">
-                    {opt.name_he}
-                    {opt.priceDelta > 0 && (
-                      <span className="ms-2 text-xs text-coffee/45">+₪{opt.priceDelta}</span>
-                    )}
-                  </span>
+function OptionRow({
+  option,
+  onDelete,
+  onUpdate,
+  onPendingChange,
+  resetVersion,
+}: {
+  option: ModifierOption;
+  onDelete: () => void;
+  onUpdate: () => void;
+  onPendingChange: (name: string, price: string) => void;
+  resetVersion: number;
+}) {
+  const [name, setName] = useState(option.name_he);
+  const [price, setPrice] = useState(formatPrice(option.priceDelta));
+
+  useEffect(() => {
+    setName(option.name_he);
+    setPrice(formatPrice(option.priceDelta));
+  }, [option.name_he, option.priceDelta, resetVersion]);
+
+  return (
+    <div className="flex items-center gap-2 rounded-xl bg-warm-white px-2 py-1.5 dark:bg-[#1a1412]/60">
+      <OptionImageButton option={option} onUpdated={onUpdate} />
+      <Input
+        dir="rtl"
+        value={name}
+        onChange={(e) => {
+          const next = e.target.value;
+          setName(next);
+          onPendingChange(next, price);
+        }}
+        className="h-10 min-w-0 flex-1 rounded-lg border-0 bg-transparent px-2 text-sm shadow-none focus-visible:ring-1"
+      />
+      <div className="flex w-[88px] shrink-0 items-center gap-0.5 text-sm text-coffee/60">
+        <span>+</span>
+        <Input
+          type="number"
+          min={0}
+          step="0.5"
+          value={price}
+          onChange={(e) => {
+            const next = e.target.value;
+            setPrice(next);
+            onPendingChange(name, next);
+          }}
+          className="h-10 w-full rounded-lg border-beige-dark/20 px-2 text-sm"
+        />
+        <span className="shrink-0 text-xs">₪</span>
+      </div>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="rounded-lg p-2 text-coffee/35 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30"
+        aria-label="Delete"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+function NewOptionInput({
+  groupId,
+  sortOrder,
+  onStage,
+  onDraftChange,
+  autoFocus,
+  resetVersion,
+}: {
+  groupId: string;
+  sortOrder: number;
+  onStage: (key: string, name: string, price: string) => void;
+  onDraftChange: (name: string, price: string) => void;
+  autoFocus?: boolean;
+  resetVersion: number;
+}) {
+  const t = useT();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+
+  useEffect(() => {
+    setName("");
+    setPrice("");
+  }, [resetVersion]);
+
+  const addOption = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onStage(`${groupId}:${Date.now()}`, trimmed, price);
+    setName("");
+    setPrice("");
+    onDraftChange("", "");
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-beige-dark/30">
+          <Plus className="h-3.5 w-3.5 text-coffee/30" />
+        </div>
+        <Input
+          ref={inputRef}
+          dir="rtl"
+          autoFocus={autoFocus}
+          value={name}
+          onChange={(e) => {
+            const next = e.target.value;
+            setName(next);
+            onDraftChange(next, price);
+          }}
+          placeholder={t("admin.productForm.addOptionPlaceholder")}
+          className="h-10 flex-1 rounded-lg text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addOption();
+            }
+          }}
+        />
+        <div className="flex w-[88px] shrink-0 items-center gap-0.5 text-sm text-coffee/60">
+          <span>+</span>
+          <Input
+            type="number"
+            min={0}
+            step="0.5"
+            value={price}
+            onChange={(e) => {
+              const next = e.target.value;
+              setPrice(next);
+              onDraftChange(name, next);
+            }}
+            placeholder="0"
+            className="h-10 w-full rounded-lg border-beige-dark/20 px-2 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addOption();
+              }
+            }}
+          />
+          <span className="shrink-0 text-xs">₪</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModifierGroupCard({
+  group,
+  dragHandle,
+  onUnlink,
+  onGroupChange,
+  onPendingGroupChange,
+  onPendingOptionChange,
+  onStageOption,
+  onDraftOptionChange,
+  onDeleteOption,
+  defaultFocusOptions,
+  resetVersion,
+}: {
+  group: ModifierGroup;
+  dragHandle?: React.ReactNode;
+  onUnlink: () => void;
+  onGroupChange: () => void;
+  onPendingGroupChange: (
+    group: ModifierGroup,
+    settings: {
+      name: string;
+      selectionType: "single" | "multiple";
+      requirement: "required" | "optional";
+      minSelections: number;
+      maxSelections: number;
+    }
+  ) => void;
+  onPendingOptionChange: (
+    option: ModifierOption,
+    name: string,
+    price: string,
+    sortOrder?: number
+  ) => void;
+  onStageOption: (
+    groupId: string,
+    key: string,
+    name: string,
+    price: string,
+    sortOrder: number
+  ) => void;
+  onDraftOptionChange: (
+    groupId: string,
+    name: string,
+    price: string,
+    sortOrder: number
+  ) => void;
+  onDeleteOption: (option: ModifierOption) => void;
+  defaultFocusOptions?: boolean;
+  resetVersion: number;
+}) {
+  const t = useT();
+  const { options, loading } = useModifierOptions(group.id);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [selectionType, setSelectionType] = useState<"single" | "multiple">(
+    group.selectionType === "multiple" ? "multiple" : "single"
+  );
+  const [groupName, setGroupName] = useState(group.name_he);
+  const [requirement, setRequirement] = useState<"required" | "optional">(
+    group.requirement
+  );
+  const [minSelections, setMinSelections] = useState(group.minSelections);
+  const [maxSelections, setMaxSelections] = useState(group.maxSelections);
+  const [orderedOptions, setOrderedOptions] = useState<ModifierOption[]>(options);
+  const [hiddenOptionIds, setHiddenOptionIds] = useState<Set<string>>(new Set());
+  const [stagedOptions, setStagedOptions] = useState<
+    { key: string; name: string; price: string }[]
+  >([]);
+
+  useEffect(() => {
+    setSelectionType(group.selectionType === "multiple" ? "multiple" : "single");
+    setGroupName(group.name_he);
+    setRequirement(group.requirement);
+    setMinSelections(group.minSelections);
+    setMaxSelections(group.maxSelections);
+    setOrderedOptions(options);
+    setHiddenOptionIds(new Set());
+    setStagedOptions([]);
+  }, [
+    group.requirement,
+    group.selectionType,
+    group.name_he,
+    group.minSelections,
+    group.maxSelections,
+    options,
+    resetVersion,
+  ]);
+
+  const selectionLabel =
+    selectionType === "multiple"
+      ? t("admin.productForm.selectionMultipleShort")
+      : t("admin.productForm.selectionSingleShort");
+  const requiredLabel = requirement === "required"
+    ? t("admin.productForm.requiredShort")
+    : t("admin.productForm.optionalShort");
+
+  const updateGroupSettings = (
+    patch: Partial<{
+      name: string;
+      selectionType: "single" | "multiple";
+      requirement: "required" | "optional";
+      minSelections: number;
+      maxSelections: number;
+    }>
+  ) => {
+    const nextSelection = patch.selectionType ?? selectionType;
+    const nextRequirement = patch.requirement ?? requirement;
+    const nextName = patch.name ?? groupName;
+    const nextMin =
+      nextSelection === "multiple"
+        ? patch.minSelections ?? minSelections
+        : 0;
+    const nextMax =
+      nextSelection === "multiple"
+        ? patch.maxSelections ?? maxSelections
+        : 1;
+    setSelectionType(nextSelection);
+    setRequirement(nextRequirement);
+    setGroupName(nextName);
+    setMinSelections(nextMin);
+    setMaxSelections(nextMax);
+    onPendingGroupChange(group, {
+      name: nextName,
+      selectionType: nextSelection,
+      requirement: nextRequirement,
+      minSelections: nextMin,
+      maxSelections: nextMax,
+    });
+  };
+
+  const handleReorderOptions = (reordered: ModifierOption[]) => {
+    setOrderedOptions(reordered);
+    reordered.forEach((option, index) => {
+      onPendingOptionChange(
+        option,
+        option.name_he,
+        formatPrice(option.priceDelta),
+        index + 1
+      );
+    });
+  };
+
+  const handleDeleteOption = (option: ModifierOption) => {
+    if (!confirm(t("admin.modifiers.deleteOptionConfirm"))) return;
+    setHiddenOptionIds((previous) => new Set(previous).add(option.id));
+    onDeleteOption(option);
+  };
+
+  return (
+    <div className="rounded-2xl border border-beige-dark/20 bg-cream/20 dark:border-white/10 dark:bg-white/[0.03]">
+      <div className="flex items-start gap-2 border-b border-beige-dark/15 px-3 py-3 sm:px-4">
+        {dragHandle}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <Input
+                dir="rtl"
+                value={groupName}
+                onChange={(event) =>
+                  updateGroupSettings({ name: event.target.value })
+                }
+                className="h-9 border-0 bg-transparent px-0 text-base font-semibold shadow-none focus-visible:ring-1 dark:text-warm-white"
+              />
+              <p className="mt-0.5 text-xs text-coffee/45">
+                {selectionLabel} • {requiredLabel}
+              </p>
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="rounded-lg p-2 text-coffee/40 hover:bg-beige/40"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+              {menuOpen && (
+                <>
                   <button
                     type="button"
-                    onClick={() => void handleDeleteOption(opt.id)}
-                    className="rounded p-1 text-coffee/35 hover:text-red-500"
-                    aria-label={t("admin.action.delete")}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                    className="fixed inset-0 z-10"
+                    onClick={() => setMenuOpen(false)}
+                    aria-hidden
+                  />
+                  <div className="absolute end-0 top-full z-20 mt-1 min-w-[140px] rounded-xl border border-beige-dark/20 bg-warm-white py-1 shadow-soft dark:border-white/10 dark:bg-[#1a1412]">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onUnlink();
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {t("admin.productForm.unlinkGroup")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4 px-3 py-4 sm:px-4">
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-coffee/55">{t("admin.productForm.selectionTypeLabel")}</p>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={`selection-${group.id}`}
+                checked={selectionType !== "multiple"}
+                onChange={() => updateGroupSettings({ selectionType: "single" })}
+                className="accent-coffee"
+              />
+              {t("admin.productForm.selectionSingleShort")}
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={`selection-${group.id}`}
+                checked={selectionType === "multiple"}
+                onChange={() => updateGroupSettings({ selectionType: "multiple" })}
+                className="accent-coffee"
+              />
+              {t("admin.productForm.selectionMultipleShort")}
+            </label>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={requirement === "required"}
+              onChange={(e) =>
+                updateGroupSettings({
+                  requirement: e.target.checked ? "required" : "optional",
+                })
+              }
+              className="rounded accent-coffee"
+            />
+            {t("admin.productForm.requiredCheckbox")}
+          </label>
+          {selectionType === "multiple" && (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="space-y-1 text-xs text-coffee/55">
+                <span>Min</span>
+                <Input
+                  type="number"
+                  min={0}
+                  value={minSelections}
+                  onChange={(event) =>
+                    updateGroupSettings({
+                      minSelections: Math.max(
+                        0,
+                        Number(event.target.value) || 0
+                      ),
+                    })
+                  }
+                  className="h-9"
+                />
+              </label>
+              <label className="space-y-1 text-xs text-coffee/55">
+                <span>Max</span>
+                <Input
+                  type="number"
+                  min={1}
+                  value={maxSelections}
+                  onChange={(event) =>
+                    updateGroupSettings({
+                      maxSelections: Math.max(
+                        1,
+                        Number(event.target.value) || 1
+                      ),
+                    })
+                  }
+                  className="h-9"
+                />
+              </label>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <div className="hidden grid-cols-[1fr_88px_36px] gap-2 px-2 text-xs text-coffee/45 sm:grid">
+            <span>{t("admin.productForm.optionName")}</span>
+            <span>{t("admin.productForm.priceExtra")}</span>
+            <span />
+          </div>
+
+          {loading ? (
+            <p className="text-xs text-coffee/45">{t("admin.modifiers.loadingOptions")}</p>
+          ) : orderedOptions.filter((option) => !hiddenOptionIds.has(option.id))
+              .length > 0 ? (
+            <SortableList
+              items={orderedOptions.filter(
+                (option) => !hiddenOptionIds.has(option.id)
+              )}
+              onReorder={handleReorderOptions}
+              className="space-y-1.5"
+              renderItem={(opt, handle) => (
+                <div className="flex items-center gap-1">
+                  {handle}
+                  <div className="min-w-0 flex-1">
+                    <OptionRow
+                      option={opt}
+                      onDelete={() => handleDeleteOption(opt)}
+                      onUpdate={onGroupChange}
+                      onPendingChange={(name, price) =>
+                        onPendingOptionChange(opt, name, price)
+                      }
+                      resetVersion={resetVersion}
+                    />
+                  </div>
+                </div>
+              )}
+            />
+          ) : null}
+
+          {stagedOptions.map((option) => (
+            <div
+              key={option.key}
+              className="flex items-center justify-between rounded-xl bg-warm-white px-3 py-2 text-sm dark:bg-[#1a1412]/60"
+              dir="rtl"
+            >
+              <span>{option.name}</span>
+              <span className="text-xs text-coffee/45">
+                +{formatPrice(parseFloat(option.price) || 0)} ₪
+              </span>
+            </div>
+          ))}
+
+          <NewOptionInput
+            groupId={group.id}
+            sortOrder={orderedOptions.length + stagedOptions.length + 1}
+            onStage={(key, name, price) => {
+              setStagedOptions((previous) => [
+                ...previous,
+                { key, name, price },
+              ]);
+              onStageOption(
+                group.id,
+                key,
+                name,
+                price,
+                orderedOptions.length + stagedOptions.length + 1
+              );
+            }}
+            onDraftChange={(name, price) =>
+              onDraftOptionChange(
+                group.id,
+                name,
+                price,
+                orderedOptions.length + stagedOptions.length + 1
+              )
+            }
+            autoFocus={defaultFocusOptions}
+            resetVersion={resetVersion}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewGroupCard({
+  draftKey,
+  onDraftChange,
+  onReady,
+  onCancel,
+  initialTemplate,
+}: {
+  draftKey: string;
+  onDraftChange: (draft: PendingModifierGroupCreate | null) => void;
+  onReady: () => void;
+  onCancel: () => void;
+  initialTemplate?: ModifierTemplate | null;
+}) {
+  const t = useT();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const optionRef = useRef<HTMLInputElement>(null);
+  const [groupName, setGroupName] = useState(initialTemplate?.nameHe ?? "");
+  const [selectionType, setSelectionType] = useState<"single" | "multiple">(
+    initialTemplate?.selectionType ?? "single"
+  );
+  const [required, setRequired] = useState(initialTemplate?.required ?? false);
+  const [pendingOptions, setPendingOptions] = useState<{ nameHe: string; priceDelta: number }[]>(
+    initialTemplate?.options.map((o) => ({ nameHe: o.nameHe, priceDelta: o.priceDelta ?? 0 })) ?? []
+  );
+  const [optionName, setOptionName] = useState("");
+  const [optionPrice, setOptionPrice] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const emitDraft = useCallback(
+    (
+      next: Partial<{
+        groupName: string;
+        selectionType: "single" | "multiple";
+        required: boolean;
+        pendingOptions: { nameHe: string; priceDelta: number }[];
+        optionName: string;
+        optionPrice: string;
+      }> = {}
+    ) => {
+      const nextGroupName = next.groupName ?? groupName;
+      const nextSelectionType = next.selectionType ?? selectionType;
+      const nextRequired = next.required ?? required;
+      const nextPendingOptions = next.pendingOptions ?? pendingOptions;
+      const nextOptionName = next.optionName ?? optionName;
+      const nextOptionPrice = next.optionPrice ?? optionPrice;
+      const currentOption = nextOptionName.trim()
+        ? [
+            {
+              nameHe: nextOptionName.trim(),
+              priceDelta: parseFloat(nextOptionPrice) || 0,
+            },
+          ]
+        : [];
+      const allOptions = [...nextPendingOptions, ...currentOption];
+
+      if (!nextGroupName.trim() && allOptions.length === 0) {
+        onDraftChange(null);
+        return;
+      }
+
+      onDraftChange({
+        key: draftKey,
+        data: normalizeModifierGroupInput({
+          nameHe: nextGroupName,
+          selectionType: nextSelectionType,
+          requirement: nextRequired ? "required" : "optional",
+          minSelections: 0,
+          maxSelections: nextSelectionType === "multiple" ? 10 : 1,
+          sortOrder: Date.now(),
+          active: true,
+          archived: false,
+          displayType: "buttons",
+        }),
+        options: allOptions.map((option, index) =>
+          normalizeModifierOptionInput({
+            groupId: "__pending_group__",
+            nameHe: option.nameHe,
+            priceDelta: option.priceDelta,
+            sortOrder: index + 1,
+            active: true,
+            archived: false,
+          })
+        ),
+      });
+    },
+    [
+      draftKey,
+      groupName,
+      onDraftChange,
+      optionName,
+      optionPrice,
+      pendingOptions,
+      required,
+      selectionType,
+    ]
+  );
+
+  useEffect(() => {
+    emitDraft();
+  }, [emitDraft]);
+
+  const handleAddOptionEnter = () => {
+    const trimmed = optionName.trim();
+    if (!trimmed) return;
+
+    const priceDelta = parseFloat(optionPrice) || 0;
+    const nextOptions = [...pendingOptions, { nameHe: trimmed, priceDelta }];
+    setPendingOptions(nextOptions);
+    setOptionName("");
+    setOptionPrice("");
+    emitDraft({
+      pendingOptions: nextOptions,
+      optionName: "",
+      optionPrice: "",
+    });
+    optionRef.current?.focus();
+  };
+
+  const handleDone = () => {
+    if (!groupName.trim()) {
+      setNameError(t("admin.productForm.groupNameRequired"));
+      nameRef.current?.focus();
+      return;
+    }
+    emitDraft();
+    onReady();
+  };
+
+  return (
+    <div className="rounded-2xl border-2 border-turquoise/30 bg-turquoise/5 p-4 dark:bg-turquoise/10">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold text-dark-brown dark:text-warm-white">
+          {t("admin.productForm.newGroupCardTitle")}
+        </h4>
+        <button
+          type="button"
+          onClick={() => {
+            onDraftChange(null);
+            onCancel();
+          }}
+          className="rounded-lg p-1.5 hover:bg-beige/40"
+        >
+          <X className="h-4 w-4 text-coffee/45" />
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <Label className="text-xs">{t("admin.productForm.groupNameLabel")}</Label>
+          <Input
+            ref={nameRef}
+            dir="rtl"
+            value={groupName}
+            onChange={(e) => {
+              const next = e.target.value;
+              setGroupName(next);
+              setNameError(null);
+              emitDraft({ groupName: next });
+            }}
+            placeholder={t("admin.productForm.groupNamePlaceholder")}
+            className={cn("mt-1 h-11 rounded-xl", nameError && "border-red-400 ring-1 ring-red-400")}
+          />
+          {nameError && <p className="mt-1 text-xs text-red-600">{nameError}</p>}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-coffee/55">{t("admin.productForm.selectionTypeLabel")}</p>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                checked={selectionType === "single"}
+                onChange={() => {
+                  setSelectionType("single");
+                  emitDraft({ selectionType: "single" });
+                }}
+                className="accent-coffee"
+              />
+              {t("admin.productForm.selectionSingleShort")}
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                checked={selectionType === "multiple"}
+                onChange={() => {
+                  setSelectionType("multiple");
+                  emitDraft({ selectionType: "multiple" });
+                }}
+                className="accent-coffee"
+              />
+              {t("admin.productForm.selectionMultipleShort")}
+            </label>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={required}
+              onChange={(e) => {
+                setRequired(e.target.checked);
+                emitDraft({ required: e.target.checked });
+              }}
+              className="rounded accent-coffee"
+            />
+            {t("admin.productForm.requiredCheckbox")}
+          </label>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-coffee/55">{t("admin.productForm.optionsLabel")}</p>
+
+          {pendingOptions.length > 0 && (
+            <ul className="space-y-1">
+              {pendingOptions.map((opt, i) => (
+                <li
+                  key={`${opt.nameHe}-${i}`}
+                  className="flex items-center justify-between rounded-lg bg-warm-white/80 px-3 py-2 text-sm dark:bg-white/5"
+                  dir="rtl"
+                >
+                  <span>{opt.nameHe}</span>
+                  <span className="text-xs text-coffee/45">+{formatPrice(opt.priceDelta)} ₪</span>
                 </li>
               ))}
             </ul>
           )}
 
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="min-w-[140px] flex-1">
-              <Label className="text-xs">{t("admin.productForm.optionName")}</Label>
-              <Input
-                dir="rtl"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder={t("admin.productForm.optionNamePlaceholder")}
-                className="mt-1 h-9 rounded-lg text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void handleAddOption();
-                  }
-                }}
-              />
-            </div>
-            <div className="w-20">
-              <Label className="text-xs">{t("admin.modifiers.priceDelta")}</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              ref={optionRef}
+              dir="rtl"
+              value={optionName}
+              onChange={(e) => {
+                const next = e.target.value;
+                setOptionName(next);
+                emitDraft({ optionName: next });
+              }}
+              placeholder={t("admin.productForm.addOptionPlaceholder")}
+              className="h-11 flex-1 rounded-xl text-sm"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddOptionEnter();
+                }
+              }}
+            />
+            <div className="flex w-[88px] shrink-0 items-center gap-0.5 text-sm">
+              <span className="text-coffee/50">+</span>
               <Input
                 type="number"
                 min={0}
                 step="0.5"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
+                value={optionPrice}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setOptionPrice(next);
+                  emitDraft({ optionPrice: next });
+                }}
                 placeholder="0"
-                className="mt-1 h-9 rounded-lg text-sm"
+                className="h-11 rounded-xl px-2 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddOptionEnter();
+                  }
+                }}
               />
+              <span className="text-xs text-coffee/50">₪</span>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              className="h-9 rounded-lg px-3"
-              disabled={adding || !newName.trim()}
-              onClick={() => void handleAddOption()}
-            >
-              {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            </Button>
           </div>
-          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+          <p className="text-xs text-coffee/40">{t("admin.productForm.pressEnterHint")}</p>
         </div>
-      )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            className="h-11 flex-1 rounded-xl sm:flex-none"
+            onClick={handleDone}
+          >
+            {t("admin.productForm.finishGroup")}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -165,22 +915,47 @@ interface ProductModifiersPanelProps {
   allGroups: ModifierGroup[];
   linkedGroupIds: string[];
   onLinkedChange: (ids: string[]) => void;
+  onDirty?: () => void;
 }
 
-export function ProductModifiersPanel({
-  productId,
-  allGroups,
-  linkedGroupIds,
-  onLinkedChange,
-}: ProductModifiersPanelProps) {
+export interface ProductModifiersPanelHandle {
+  collectPendingChanges: () => PendingModifierChanges;
+  markSaved: () => void;
+}
+
+export const ProductModifiersPanel = forwardRef<
+  ProductModifiersPanelHandle,
+  ProductModifiersPanelProps
+>(function ProductModifiersPanel(
+  {
+    productId,
+    allGroups,
+    linkedGroupIds,
+    onLinkedChange,
+    onDirty,
+  },
+  ref
+) {
   const t = useT();
-  const [creating, setCreating] = useState(false);
-  const [groupName, setGroupName] = useState("");
-  const [selectionType, setSelectionType] = useState<"single" | "multiple">("multiple");
-  const [required, setRequired] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [showNewGroup, setShowNewGroup] = useState(false);
+  const [templateSeed, setTemplateSeed] = useState<ModifierTemplate | null>(null);
   const [newGroupId, setNewGroupId] = useState<string | null>(null);
   const [extraGroups, setExtraGroups] = useState<ModifierGroup[]>([]);
+  const [showExisting, setShowExisting] = useState(false);
+  const [resetVersion, setResetVersion] = useState(0);
+  const newGroupDraftKey = useRef(`group:${Date.now()}`);
+  const pendingGroupUpdates = useRef(
+    new Map<string, PendingModifierChanges["groupUpdates"][number]>()
+  );
+  const pendingOptionUpdates = useRef(
+    new Map<string, PendingModifierChanges["optionUpdates"][number]>()
+  );
+  const pendingOptionCreates = useRef(
+    new Map<string, PendingModifierChanges["optionCreates"][number]>()
+  );
+  const pendingGroupCreates = useRef(
+    new Map<string, PendingModifierGroupCreate>()
+  );
 
   const mergedGroups = useMemo(() => {
     const byId = new Map(allGroups.map((g) => [g.id, g]));
@@ -192,193 +967,356 @@ export function ProductModifiersPanel({
     .map((id) => mergedGroups.find((g) => g.id === id))
     .filter(Boolean) as ModifierGroup[];
 
-  const unlinkedGroups = mergedGroups.filter((g) => !linkedGroupIds.includes(g.id));
+  const unlinkedGroups = mergedGroups.filter(
+    (g) => !linkedGroupIds.includes(g.id) && !g.archived
+  );
 
-  const toggleLink = (groupId: string) => {
-    if (linkedGroupIds.includes(groupId)) {
-      onLinkedChange(linkedGroupIds.filter((id) => id !== groupId));
-    } else {
+  const markDirty = useCallback(() => onDirty?.(), [onDirty]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      collectPendingChanges: () => ({
+        groupUpdates: [...pendingGroupUpdates.current.values()],
+        optionUpdates: [...pendingOptionUpdates.current.values()],
+        optionCreates: [...pendingOptionCreates.current.values()],
+        groupCreates: [...pendingGroupCreates.current.values()],
+      }),
+      markSaved: () => {
+        pendingGroupUpdates.current.clear();
+        pendingOptionUpdates.current.clear();
+        pendingOptionCreates.current.clear();
+        pendingGroupCreates.current.clear();
+        setShowNewGroup(false);
+        setTemplateSeed(null);
+        setResetVersion((version) => version + 1);
+        newGroupDraftKey.current = `group:${Date.now()}`;
+      },
+    }),
+    []
+  );
+
+  const handlePendingGroupChange = useCallback(
+    (
+      group: ModifierGroup,
+      settings: {
+        name: string;
+        selectionType: "single" | "multiple";
+        requirement: "required" | "optional";
+        minSelections: number;
+        maxSelections: number;
+      }
+    ) => {
+      const data = normalizeModifierGroupInput({
+        nameHe: settings.name,
+        nameAr: group.name_ar,
+        nameEn: group.name_en,
+        selectionType: settings.selectionType,
+        requirement: settings.requirement,
+        minSelections: settings.minSelections,
+        maxSelections: settings.maxSelections,
+        displayType: group.displayType,
+        sortOrder: group.sortOrder,
+        color: group.color,
+        icon: group.icon,
+        active: group.active,
+        archived: group.archived,
+      });
+
+      if (
+        settings.name.trim() === group.name_he &&
+        settings.selectionType === group.selectionType &&
+        settings.requirement === group.requirement &&
+        settings.minSelections === group.minSelections &&
+        settings.maxSelections === group.maxSelections
+      ) {
+        pendingGroupUpdates.current.delete(group.id);
+      } else {
+        pendingGroupUpdates.current.set(group.id, { id: group.id, data });
+      }
+      markDirty();
+    },
+    [markDirty]
+  );
+
+  const handlePendingOptionChange = useCallback(
+    (
+      option: ModifierOption,
+      name: string,
+      price: string,
+      sortOrder?: number
+    ) => {
+      const previous = pendingOptionUpdates.current.get(option.id)?.data;
+      const data = normalizeModifierOptionInput({
+        groupId: option.groupId,
+        nameHe: sortOrder === undefined ? name : previous?.nameHe ?? name,
+        nameAr: previous?.nameAr ?? option.name_ar,
+        nameEn: previous?.nameEn ?? option.name_en,
+        priceDelta:
+          sortOrder === undefined
+            ? parseFloat(price) || 0
+            : previous?.priceDelta ?? (parseFloat(price) || 0),
+        cost: option.cost,
+        sortOrder: sortOrder ?? previous?.sortOrder ?? option.sortOrder,
+        color: option.color,
+        icon: option.icon,
+        imageUrl: option.image,
+        kitchenNote: option.kitchenNote,
+        active: previous?.active ?? option.active,
+        archived: previous?.archived ?? option.archived,
+      });
+
+      if (
+        data.nameHe === option.name_he &&
+        data.priceDelta === option.priceDelta &&
+        data.sortOrder === option.sortOrder &&
+        data.active === option.active &&
+        data.archived === option.archived
+      ) {
+        pendingOptionUpdates.current.delete(option.id);
+      } else {
+        pendingOptionUpdates.current.set(option.id, { id: option.id, data });
+      }
+      markDirty();
+    },
+    [markDirty]
+  );
+
+  const stageOption = useCallback(
+    (
+      groupId: string,
+      key: string,
+      name: string,
+      price: string,
+      sortOrder: number
+    ) => {
+      pendingOptionCreates.current.delete(`draft:${groupId}`);
+      pendingOptionCreates.current.set(key, {
+        key,
+        data: normalizeModifierOptionInput({
+          groupId,
+          nameHe: name,
+          priceDelta: parseFloat(price) || 0,
+          sortOrder,
+          active: true,
+          archived: false,
+        }),
+      });
+      markDirty();
+    },
+    [markDirty]
+  );
+
+  const updateOptionDraft = useCallback(
+    (groupId: string, name: string, price: string, sortOrder: number) => {
+      const key = `draft:${groupId}`;
+      if (!name.trim()) {
+        pendingOptionCreates.current.delete(key);
+      } else {
+        pendingOptionCreates.current.set(key, {
+          key,
+          data: normalizeModifierOptionInput({
+            groupId,
+            nameHe: name,
+            priceDelta: parseFloat(price) || 0,
+            sortOrder,
+            active: true,
+            archived: false,
+          }),
+        });
+        markDirty();
+      }
+    },
+    [markDirty]
+  );
+
+  const stageOptionDeletion = useCallback(
+    (option: ModifierOption) => {
+      pendingOptionUpdates.current.set(option.id, {
+        id: option.id,
+        data: normalizeModifierOptionInput({
+          groupId: option.groupId,
+          nameHe: option.name_he,
+          nameAr: option.name_ar,
+          nameEn: option.name_en,
+          priceDelta: option.priceDelta,
+          cost: option.cost,
+          sortOrder: option.sortOrder,
+          color: option.color,
+          icon: option.icon,
+          imageUrl: option.image,
+          kitchenNote: option.kitchenNote,
+          active: false,
+          archived: true,
+        }),
+      });
+      markDirty();
+    },
+    [markDirty]
+  );
+
+  const linkGroup = (groupId: string) => {
+    if (!linkedGroupIds.includes(groupId)) {
       onLinkedChange([...linkedGroupIds, groupId]);
+      markDirty();
     }
   };
 
-  const handleCreateGroup = async () => {
-    const nameHe = groupName.trim();
-    if (!nameHe || creating) return;
-    setCreating(true);
-    setCreateError(null);
+  const unlinkGroup = (groupId: string) => {
+    onLinkedChange(linkedGroupIds.filter((id) => id !== groupId));
+    markDirty();
+  };
 
-    const result = await createModifierGroup(
-      normalizeModifierGroupInput({
-        nameHe,
-        selectionType,
-        requirement: required ? "required" : "optional",
-        minSelections: selectionType === "multiple" ? 0 : 0,
-        maxSelections: selectionType === "multiple" ? 5 : 1,
-        sortOrder: mergedGroups.length + 1,
-        active: true,
-        archived: false,
-        displayType: "buttons",
-      })
-    );
+  const handleReorderGroups = (reordered: ModifierGroup[]) => {
+    onLinkedChange(reordered.map((g) => g.id));
+    markDirty();
+  };
 
-    setCreating(false);
-    if (!result.success) {
-      setCreateError(result.error);
-      return;
-    }
-
-    const id = result.data.id;
-    setExtraGroups((prev) => [...prev.filter((g) => g.id !== id), result.data]);
-    onLinkedChange([...linkedGroupIds, id]);
-    setNewGroupId(id);
-    setGroupName("");
+  const applyTemplate = (template: ModifierTemplate) => {
+    newGroupDraftKey.current = `group:${Date.now()}`;
+    setTemplateSeed(template);
+    setShowNewGroup(true);
+    markDirty();
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-2xl space-y-5">
+      <div>
+        <h3 className="text-base font-semibold text-dark-brown dark:text-warm-white">
+          {t("admin.productForm.modifiersTitle")}
+        </h3>
+        <p className="mt-1 text-sm text-coffee/50">{t("admin.productForm.modifiersSubtitle")}</p>
+      </div>
+
       {!productId && (
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
           {t("admin.productForm.modifiersAfterSave")}
         </p>
       )}
 
-      {/* Inline create group */}
-      <div className="rounded-xl border border-turquoise/25 bg-turquoise/5 p-4 dark:bg-turquoise/10">
-        <p className="mb-3 text-sm font-semibold text-dark-brown dark:text-warm-white">
-          {t("admin.productForm.newModifierGroup")}
-        </p>
-        <div className="space-y-3">
-          <div>
-            <Label className="text-xs">{t("admin.modifiers.nameHeRequired")}</Label>
-            <Input
-              dir="rtl"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              placeholder={t("admin.productForm.groupNamePlaceholder")}
-              className="mt-1 rounded-xl"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void handleCreateGroup();
-                }
-              }}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-coffee/50">{t("admin.productForm.commonTemplates")}</p>
+        <div className="flex flex-wrap gap-2">
+          {MODIFIER_TEMPLATES.map((tpl) => (
+            <Button
+              key={tpl.id}
               type="button"
-              onClick={() => setSelectionType("single")}
-              className={cn(
-                "rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
-                selectionType === "single"
-                  ? "border-turquoise bg-warm-white text-turquoise"
-                  : "border-beige-dark/25 text-coffee/60"
-              )}
+              variant="outline"
+              size="sm"
+              className="h-9 rounded-full px-3 text-xs"
+              onClick={() => applyTemplate(tpl)}
             >
-              {t("admin.modifiers.selectionSingle")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectionType("multiple")}
-              className={cn(
-                "rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
-                selectionType === "multiple"
-                  ? "border-turquoise bg-warm-white text-turquoise"
-                  : "border-beige-dark/25 text-coffee/60"
-              )}
-            >
-              {t("admin.modifiers.selectionMultiple")}
-            </button>
-            <label className="flex items-center gap-2 rounded-lg border border-beige-dark/25 px-3 py-2 text-xs">
-              <input
-                type="checkbox"
-                checked={required}
-                onChange={(e) => setRequired(e.target.checked)}
-                className="rounded"
-              />
-              {t("admin.modifiers.required")}
-            </label>
-          </div>
-
-          <Button
-            type="button"
-            className="w-full rounded-xl sm:w-auto"
-            disabled={creating || !groupName.trim()}
-            onClick={() => void handleCreateGroup()}
-          >
-            {creating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <Plus className="h-4 w-4" />
-                {t("admin.productForm.createAndLinkGroup")}
-              </>
-            )}
-          </Button>
-          {createError && <p className="text-xs text-red-600">{createError}</p>}
+              <Plus className="h-3 w-3" />
+              {t(tpl.labelKey)}
+            </Button>
+          ))}
         </div>
       </div>
 
-      {/* Linked groups with options editor */}
+      {!showNewGroup ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-12 w-full rounded-xl border-dashed border-turquoise/40 text-base font-medium text-turquoise hover:bg-turquoise/5"
+          onClick={() => {
+            newGroupDraftKey.current = `group:${Date.now()}`;
+            setTemplateSeed(null);
+            setShowNewGroup(true);
+          }}
+        >
+          <Plus className="h-5 w-5" />
+          {t("admin.productForm.addModifierGroup")}
+        </Button>
+      ) : (
+        <NewGroupCard
+          key={`${newGroupDraftKey.current}:${templateSeed?.id ?? "custom"}`}
+          draftKey={newGroupDraftKey.current}
+          initialTemplate={templateSeed}
+          onDraftChange={(draft) => {
+            if (draft) {
+              pendingGroupCreates.current.set(draft.key, draft);
+              markDirty();
+            } else {
+              pendingGroupCreates.current.delete(newGroupDraftKey.current);
+            }
+          }}
+          onReady={() => {
+            setShowNewGroup(false);
+            setTemplateSeed(null);
+          }}
+          onCancel={() => {
+            setShowNewGroup(false);
+            setTemplateSeed(null);
+          }}
+        />
+      )}
+
       {linkedGroups.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-coffee/45">
-            {t("admin.productForm.linkedGroups")}
-          </p>
-          {linkedGroups.map((group) => (
-            <div key={group.id} className="space-y-2">
-              <div className="flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={() => toggleLink(group.id)}
-                  className="text-xs text-red-500 hover:underline"
-                >
-                  {t("admin.productForm.unlinkGroup")}
-                </button>
-              </div>
-              <GroupOptionsEditor
-                group={group}
-                defaultExpanded={group.id === newGroupId || linkedGroups.length === 1}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Link existing groups */}
-      {unlinkedGroups.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-coffee/45">
-            {t("admin.productForm.otherGroups")}
-          </p>
-          {unlinkedGroups.map((group) => (
-            <div
+        <SortableList
+          items={linkedGroups}
+          onReorder={handleReorderGroups}
+          className="space-y-3"
+          renderItem={(group, dragHandle) => (
+            <ModifierGroupCard
               key={group.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-beige-dark/20 px-4 py-3 dark:border-white/10"
-            >
-              <span className="text-sm font-medium dark:text-warm-white" dir="rtl">
-                {group.name_he}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0 rounded-lg text-xs"
-                onClick={() => toggleLink(group.id)}
-              >
-                <Plus className="h-3 w-3" />
-                {t("admin.productForm.linkGroup")}
-              </Button>
-            </div>
-          ))}
-        </div>
+              group={group}
+              dragHandle={dragHandle}
+              onUnlink={() => unlinkGroup(group.id)}
+              onGroupChange={markDirty}
+              onPendingGroupChange={handlePendingGroupChange}
+              onPendingOptionChange={handlePendingOptionChange}
+              onStageOption={stageOption}
+              onDraftOptionChange={updateOptionDraft}
+              onDeleteOption={stageOptionDeletion}
+              defaultFocusOptions={group.id === newGroupId}
+              resetVersion={resetVersion}
+            />
+          )}
+        />
       )}
 
-      {mergedGroups.length === 0 && !creating && (
-        <p className="text-center text-sm text-coffee/50">{t("admin.productForm.noModifierGroupsHint")}</p>
+      {linkedGroups.length === 0 && !showNewGroup && (
+        <p className="rounded-xl border border-dashed border-beige-dark/30 py-8 text-center text-sm text-coffee/45">
+          {t("admin.productForm.noModifierGroupsHint")}
+        </p>
+      )}
+
+      {unlinkedGroups.length > 0 && (
+        <div className="rounded-xl border border-beige-dark/15 dark:border-white/10">
+          <button
+            type="button"
+            onClick={() => setShowExisting((v) => !v)}
+            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-coffee/70"
+          >
+            {t("admin.productForm.otherGroups")} ({unlinkedGroups.length})
+            <ChevronDown className={cn("h-4 w-4 transition-transform", showExisting && "rotate-180")} />
+          </button>
+          {showExisting && (
+            <div className="space-y-2 border-t border-beige-dark/15 px-4 py-3">
+              {unlinkedGroups.map((group) => (
+                <div
+                  key={group.id}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-beige/20 px-3 py-2 dark:bg-white/5"
+                >
+                  <span className="text-sm font-medium dark:text-warm-white" dir="rtl">
+                    {group.name_he}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0 rounded-lg text-xs"
+                    onClick={() => linkGroup(group.id)}
+                  >
+                    <Plus className="h-3 w-3" />
+                    {t("admin.productForm.linkGroup")}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
-}
+});

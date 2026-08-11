@@ -11,6 +11,12 @@ export {
 } from "./productService";
 
 export {
+  saveProductEditorChanges,
+  type ProductEditorSaveInput,
+  type ProductEditorSaveResult,
+} from "./productEditorSaveService";
+
+export {
   getCategories,
   getCategoryById,
   subscribeToCategories,
@@ -36,9 +42,11 @@ export {
   deleteModifierOption,
   reorderModifierOptions,
   linkProductModifierGroup,
+  updateProductModifierGroup,
   unlinkProductModifierGroup,
   getProductModifierGroups,
   reorderProductModifierGroups,
+  syncProductModifierLinks,
   loadProductBuilderConfig,
   subscribeToProductBuilderConfig,
   getBusinessRules,
@@ -93,6 +101,7 @@ export {
   uploadCategoryImage,
   uploadBannerImage,
   uploadSettingsImage,
+  uploadModifierOptionImage,
   deleteImageByUrl,
   deleteImage,
   storagePathFromUrl,

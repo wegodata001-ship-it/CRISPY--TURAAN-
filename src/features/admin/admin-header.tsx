@@ -23,7 +23,6 @@ import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/brand/logo";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useT } from "@/components/providers/locale-provider";
-import { BRAND } from "@/lib/brand";
 import { getAdminPageTitleKey } from "./admin-nav-config";
 import { adminInput } from "./components/admin-styles";
 
@@ -59,9 +58,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         </button>
 
         <div className="hidden min-w-0 items-center gap-3 sm:flex">
-          <Logo size="xs" href="/admin" />
+          <Logo size="sm" href="/admin" className="h-10 w-auto" />
           <div className="min-w-0 border-s border-beige-dark/20 ps-3 dark:border-white/10">
-            <p className="truncate text-sm font-bold text-dark-brown dark:text-warm-white">{BRAND.name}</p>
             <p className="truncate text-[10px] text-coffee/50 dark:text-warm-white/50">{t("admin.subtitle")}</p>
           </div>
         </div>

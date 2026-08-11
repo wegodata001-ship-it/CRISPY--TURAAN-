@@ -112,7 +112,7 @@ export function AdminSidebar() {
       aria-label={t("admin.subtitle")}
     >
       <div className="flex h-full flex-col p-5">
-        <Logo size="md" href="/admin" showText showTagline />
+        <Logo size="md" href="/admin" className="h-12 w-auto max-w-[180px]" />
         <div className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <NavLinks />
         </div>
@@ -166,7 +166,7 @@ export function AdminMobileDrawer({
             style={{ width: ADMIN_SIDEBAR_WIDTH_PX }}
           >
             <div className="flex items-center justify-between">
-              <Logo size="sm" href="/admin" showText />
+              <Logo size="sm" href="/admin" className="h-10 w-auto max-w-[160px]" />
               <button
                 onClick={onClose}
                 className="rounded-xl p-2 transition-colors hover:bg-beige/40 dark:hover:bg-white/10"

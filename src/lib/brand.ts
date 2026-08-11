@@ -1,6 +1,11 @@
-/** Central brand asset paths — swap to Firebase Storage URLs later without changing components */
+/** Central brand asset paths */
 export const BRAND = {
-  logo: "/logo.png",
+  /** Display logo — transparent PNG derived from logo.png */
+  logo: "/logo-transparent.png",
+  /** Original asset preserved in repo */
+  logoOriginal: "/logo.png",
+  /** width / height from public/logo.png */
+  logoAspect: 1059 / 931,
   store: "/store.jpg",
   /** Local fallback when remote store image fails */
   storeFallback: "/store.jpg",
@@ -30,22 +35,22 @@ export const BLUR = {
 
 export type LogoSize = "xs" | "sm" | "md" | "lg" | "xl";
 
+/** Logo display heights — mobile 38–48px, desktop 48–64px */
 export const LOGO_HEIGHT: Record<LogoSize, number> = {
-  xs: 28,
-  sm: 36,
-  md: 44,
-  lg: 72,
-  xl: 120,
+  xs: 32,
+  sm: 40,
+  md: 48,
+  lg: 56,
+  xl: 64,
 };
 
-/** Resolve hero/store image: Firestore settings URL → local file → Unsplash fallback */
+/** Resolve hero/store image: Firestore settings URL → local file */
 export function getStoreImageSrc(settingsUrl?: string | null): string {
   if (settingsUrl?.trim()) return settingsUrl.trim();
   return BRAND.store;
 }
 
-/** Resolve logo: Firestore settings URL → local fallback */
-export function getLogoSrc(settingsUrl?: string | null): string {
-  if (settingsUrl?.trim()) return settingsUrl.trim();
+/** Official logo — always the local transparent asset */
+export function getLogoSrc(_settingsUrl?: string | null): string {
   return BRAND.logo;
 }

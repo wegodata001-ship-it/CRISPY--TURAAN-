@@ -28,12 +28,11 @@ export default function AccountPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 flex flex-col items-center rounded-2xl bg-warm-white p-8 text-center shadow-soft sm:flex-row sm:items-center sm:gap-6 sm:text-start"
         >
-          <Logo size="xl" href={null} className="justify-center" />
+          <Logo size="xl" href={null} className="h-16 w-auto shrink-0" />
           <div>
             <h2 className="font-display text-xl font-bold text-dark-brown md:text-2xl">
               {BRAND.name}
             </h2>
-            <p className="mt-1 text-sm text-turquoise">{t("brand.tagline")}</p>
             <p className="mt-2 text-sm text-coffee/60">{t("account.welcome")}</p>
           </div>
         </motion.div>

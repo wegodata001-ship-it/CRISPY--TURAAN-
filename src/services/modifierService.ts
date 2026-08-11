@@ -6,6 +6,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   onSnapshot,
   query,
   where,
@@ -352,14 +353,17 @@ export async function getProductModifierGroups(productId?: string): Promise<Prod
   const q = productId
     ? query(
         collection(db, COLLECTIONS.productModifierGroups),
-        where("productId", "==", productId),
-        orderBy("sortOrder", "asc")
+        where("productId", "==", productId)
       )
     : query(collection(db, COLLECTIONS.productModifierGroups), orderBy("sortOrder", "asc"));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) =>
+  const items = snapshot.docs.map((d) =>
     mapProductModifierGroup(docTo<FirestoreProductModifierGroup>(d.id, d.data()))
   );
+  if (productId) {
+    return items.sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+  return items;
 }
 
 export function subscribeToProductModifierGroups(
@@ -371,14 +375,17 @@ export function subscribeToProductModifierGroups(
   return onSnapshot(
     query(
       collection(db, COLLECTIONS.productModifierGroups),
-      where("productId", "==", productId),
-      orderBy("sortOrder", "asc")
+      where("productId", "==", productId)
     ),
     (snap) => {
       onData(
-        snap.docs.map((d) =>
-          mapProductModifierGroup(docTo<FirestoreProductModifierGroup>(d.id, d.data()))
-        )
+        snap.docs
+          .map((d) =>
+            mapProductModifierGroup(
+              docTo<FirestoreProductModifierGroup>(d.id, d.data())
+            )
+          )
+          .sort((a, b) => a.sortOrder - b.sortOrder)
       );
     },
     (err) => onError(err.message)
@@ -431,6 +438,69 @@ export async function unlinkProductModifierGroup(id: string): Promise<ServiceRes
     return success(undefined);
   } catch (error) {
     return failure(error, "Failed to unlink modifier group");
+  }
+}
+
+/** Batch-sync product ↔ modifier group links (1 read + 1 batch commit max) */
+export async function syncProductModifierLinks(
+  productId: string,
+  desiredGroupIds: string[]
+): Promise<ServiceResult<void>> {
+  try {
+    const db = getDb();
+    const existingSnap = await getDocs(
+      query(
+        collection(db, COLLECTIONS.productModifierGroups),
+        where("productId", "==", productId)
+      )
+    );
+
+    const existing = existingSnap.docs.map((d) =>
+      mapProductModifierGroup(docTo<FirestoreProductModifierGroup>(d.id, d.data()))
+    );
+    const existingByGroupId = new Map(existing.map((l) => [l.groupId, l]));
+    const desiredSet = new Set(desiredGroupIds);
+
+    const batch = writeBatch(db);
+    let writes = 0;
+
+    for (const link of existing) {
+      if (!desiredSet.has(link.groupId)) {
+        batch.delete(doc(db, COLLECTIONS.productModifierGroups, link.id));
+        writes += 1;
+      }
+    }
+
+    desiredGroupIds.forEach((groupId, index) => {
+      const sortOrder = index + 1;
+      const link = existingByGroupId.get(groupId);
+      if (link) {
+        if (link.sortOrder !== sortOrder) {
+          batch.update(doc(db, COLLECTIONS.productModifierGroups, link.id), { sortOrder });
+          writes += 1;
+        }
+      } else {
+        const ref = doc(collection(db, COLLECTIONS.productModifierGroups));
+        batch.set(
+          ref,
+          sanitizeFirestoreData({
+            productId,
+            groupId,
+            sortOrder,
+            active: true,
+          })
+        );
+        writes += 1;
+      }
+    });
+
+    if (writes > 0) {
+      await batch.commit();
+    }
+
+    return success(undefined);
+  } catch (error) {
+    return failure(error, "Failed to sync product modifier links");
   }
 }
 
@@ -678,8 +748,7 @@ export async function loadProductBuilderConfig(productId: string): Promise<Produ
     getDocs(
       query(
         collection(db, COLLECTIONS.productModifierGroups),
-        where("productId", "==", productId),
-        orderBy("sortOrder", "asc")
+        where("productId", "==", productId)
       )
     ),
     getDocs(
@@ -707,9 +776,13 @@ export async function loadProductBuilderConfig(productId: string): Promise<Produ
     options: optionsSnap.docs.map((d) =>
       mapModifierOption(docTo<FirestoreModifierOption>(d.id, d.data()))
     ),
-    productGroups: productGroupsSnap.docs.map((d) =>
-      mapProductModifierGroup(docTo<FirestoreProductModifierGroup>(d.id, d.data()))
-    ),
+    productGroups: productGroupsSnap.docs
+      .map((d) =>
+        mapProductModifierGroup(
+          docTo<FirestoreProductModifierGroup>(d.id, d.data())
+        )
+      )
+      .sort((a, b) => a.sortOrder - b.sortOrder),
     productOptions: productOptionsSnap.docs.map((d) =>
       mapProductModifierOption(docTo<FirestoreProductModifierOption>(d.id, d.data()))
     ),
@@ -769,9 +842,11 @@ export function subscribeToProductBuilderConfig(
       emit();
     }, (e) => onError(e.message)),
     onSnapshot(
-      query(collection(db, COLLECTIONS.productModifierGroups), where("productId", "==", productId), orderBy("sortOrder", "asc")),
+      query(collection(db, COLLECTIONS.productModifierGroups), where("productId", "==", productId)),
       (s) => {
-        cache.productGroups = s.docs.map((d) => mapProductModifierGroup(docTo<FirestoreProductModifierGroup>(d.id, d.data())));
+        cache.productGroups = s.docs
+          .map((d) => mapProductModifierGroup(docTo<FirestoreProductModifierGroup>(d.id, d.data())))
+          .sort((a, b) => a.sortOrder - b.sortOrder);
         emit();
       },
       (e) => onError(e.message)

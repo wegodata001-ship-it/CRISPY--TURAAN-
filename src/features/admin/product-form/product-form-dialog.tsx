@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -11,19 +10,13 @@ import {
   ImageIcon,
   Layers,
   Settings2,
-  Plus,
-  Trash2,
-  GripVertical,
 } from "lucide-react";
 import { productSchema, type ProductInput } from "@/lib/validation/schemas";
 import { translateProductFields } from "@/lib/admin/translate-text";
 import {
-  createProduct,
-  updateProduct,
   subscribeToModifierGroups,
   getProductModifierGroups,
-  linkProductModifierGroup,
-  unlinkProductModifierGroup,
+  saveProductEditorChanges,
 } from "@/services";
 import { uploadProductImage, deleteImageByUrl } from "@/services/storageService";
 import { Button } from "@/components/ui/button";
@@ -39,7 +32,12 @@ import {
 import { useT } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 import { CategorySearchSelect } from "./category-search-select";
-import { ProductModifiersPanel } from "./product-modifiers-panel";
+import {
+  ProductModifiersPanel,
+  type ProductModifiersPanelHandle,
+} from "./product-modifiers-panel";
+import { ProductImageSection } from "./product-image-section";
+import { AdminToastStack, createToast, type AdminToast } from "@/features/admin/components/admin-toast";
 import { getRootCategoriesForAdmin, getSubcategories } from "@/lib/menu/category-tree";
 import {
   calcProfitMetrics,
@@ -52,6 +50,10 @@ import {
 } from "./product-form-types";
 import type { Category, Product } from "@/types";
 import type { ModifierGroup, ProductModifierGroup } from "@/types/modifiers";
+import {
+  createSavePerfTimer,
+  pickChangedProductFields,
+} from "./product-save-perf";
 
 interface ProductFormDialogProps {
   open: boolean;
@@ -88,9 +90,17 @@ export function ProductFormDialog({
   const [linkedGroupIds, setLinkedGroupIds] = useState<string[]>([]);
   const [allGroups, setAllGroups] = useState<ModifierGroup[]>([]);
   const [savedProductId, setSavedProductId] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [toasts, setToasts] = useState<AdminToast[]>([]);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTranslatedName = useRef("");
   const lastTranslatedDesc = useRef("");
+  const initialFormSnapshotRef = useRef<ProductInput | null>(null);
+  const initialLinkedGroupIdsRef = useRef<string[]>([]);
+  const initialModifierLinksRef = useRef<ProductModifierGroup[]>([]);
+  const modifiersPanelRef = useRef<ProductModifiersPanelHandle>(null);
+  const saveInFlightRef = useRef(false);
 
   const form = useForm<ProductInput>({
     resolver: zodResolver(productSchema) as Resolver<ProductInput>,
@@ -130,6 +140,9 @@ export function ProductFormDialog({
         });
         setGalleryUrls([]);
         setLinkedGroupIds([]);
+        initialLinkedGroupIdsRef.current = [];
+        initialModifierLinksRef.current = [];
+        initialFormSnapshotRef.current = form.getValues();
         setSavedProductId(null);
         return;
       }
@@ -155,6 +168,7 @@ export function ProductFormDialog({
       });
       setGalleryUrls(product.image ? [product.image] : []);
       setSavedProductId(product.id);
+      initialFormSnapshotRef.current = form.getValues();
     },
     [categories, form, rootCategories]
   );
@@ -165,11 +179,17 @@ export function ProductFormDialog({
     setError(null);
     setTranslateError(null);
     setManualFields(new Set());
+    setIsDirty(false);
+    setSaveState("idle");
+    initialModifierLinksRef.current = [];
 
     if (editing) {
       resetFormFromProduct(editing, editing.sortOrder);
-      getProductModifierGroups(editing.id).then((links: ProductModifierGroup[]) => {
-        setLinkedGroupIds(links.map((l) => l.groupId));
+      getProductModifierGroups(editing.id).then((links) => {
+        const ids = links.sort((a, b) => a.sortOrder - b.sortOrder).map((l) => l.groupId);
+        setLinkedGroupIds(ids);
+        initialLinkedGroupIdsRef.current = ids;
+        initialModifierLinksRef.current = links;
       });
       return;
     }
@@ -181,6 +201,9 @@ export function ProductFormDialog({
         form.reset(draft.values);
         setGalleryUrls(draft.galleryUrls);
         setLinkedGroupIds(draft.linkedGroupIds);
+        initialLinkedGroupIdsRef.current = [...draft.linkedGroupIds];
+        initialModifierLinksRef.current = [];
+        initialFormSnapshotRef.current = draft.values;
         setManualFields(new Set(draft.manualFields));
         return;
       }
@@ -189,6 +212,34 @@ export function ProductFormDialog({
 
     resetFormFromProduct(null, productsCount + 1);
   }, [open, editing, form, productsCount, resetFormFromProduct, t]);
+
+  useEffect(() => {
+    if (!open) return;
+    const sub = form.watch(() => setIsDirty(true));
+    return () => sub.unsubscribe();
+  }, [open, form]);
+
+  const pushToast = useCallback((toast: AdminToast) => {
+    setToasts((prev) => [...prev, toast]);
+  }, []);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const handleLinkedChange = useCallback((ids: string[]) => {
+    setLinkedGroupIds(ids);
+    setIsDirty(true);
+  }, []);
+
+  const handleCloseRequest = (nextOpen: boolean) => {
+    if (nextOpen) {
+      onOpenChange(true);
+      return;
+    }
+    if (isDirty && !confirm(t("admin.productForm.unsavedConfirm"))) return;
+    onOpenChange(false);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -273,108 +324,123 @@ export function ProductFormDialog({
     });
   };
 
-  const syncModifierLinks = async (pid: string) => {
-    const existing = await getProductModifierGroups(pid);
-    const existingIds = new Set(existing.map((l: ProductModifierGroup) => l.groupId));
-    const desired = new Set(linkedGroupIds);
+  const submit = async () => {
+    if (saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
 
-    for (const link of existing) {
-      if (!desired.has(link.groupId)) {
-        await unlinkProductModifierGroup(link.id);
+    const perf = createSavePerfTimer();
+    perf.mark("SAVE START");
+
+    try {
+      perf.mark("Validation");
+      const valid = await form.trigger();
+      if (!valid) {
+        setError(t("admin.productForm.validationError"));
+        setTab("details");
+        return;
       }
-    }
 
-    let order = 1;
-    for (const groupId of linkedGroupIds) {
-      if (!existingIds.has(groupId)) {
-        await linkProductModifierGroup({
-          productId: pid,
-          groupId,
-          sortOrder: order,
-          active: true,
-        });
+      setSaving(true);
+      setSaveState("saving");
+      setError(null);
+
+      const formValues = { ...form.getValues(), profit };
+      const primaryImage = form.watch("imageUrl") || galleryUrls[0];
+      if (primaryImage) formValues.imageUrl = primaryImage;
+
+      const productPatch = pickChangedProductFields(
+        formValues,
+        initialFormSnapshotRef.current
+      );
+      const persistId = editing?.id ?? savedProductId;
+      const modifierChanges =
+        modifiersPanelRef.current?.collectPendingChanges() ?? {
+          groupUpdates: [],
+          optionUpdates: [],
+          optionCreates: [],
+          groupCreates: [],
+        };
+
+      perf.mark("Image processing");
+      perf.mark("Atomic Firestore commit");
+      const result = await saveProductEditorChanges({
+        productId: persistId,
+        productValues: formValues,
+        productPatch,
+        existingLinks: initialModifierLinksRef.current,
+        desiredGroupIds: linkedGroupIds,
+        modifiers: modifierChanges,
+      });
+      if (!result.success) {
+        setSaveState("idle");
+        setError(result.error);
+        pushToast(createToast(result.error, "error"));
+        return;
       }
-      order += 1;
-    }
-  };
 
-  const submit = async (mode: "close" | "continue") => {
-    const valid = await form.trigger();
-    if (!valid) {
-      setError(t("admin.productForm.validationError"));
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    const data = { ...form.getValues(), profit };
-    if (galleryUrls[0]) data.imageUrl = galleryUrls[0];
-
-    const persistId = editing?.id ?? savedProductId;
-
-    const result = persistId
-      ? await updateProduct(persistId, data)
-      : await createProduct(data);
-
-    if (!result.success) {
+      clearProductDraft();
+      setSavedProductId(result.data.productId);
+      const savedGroupIds = [
+        ...linkedGroupIds,
+        ...result.data.createdGroupIds,
+      ];
+      setLinkedGroupIds(savedGroupIds);
+      initialFormSnapshotRef.current = formValues;
+      initialLinkedGroupIdsRef.current = savedGroupIds;
+      initialModifierLinksRef.current = result.data.links;
+      modifiersPanelRef.current?.markSaved();
+      setSaveState("saved");
+      setIsDirty(false);
+      pushToast(createToast(t("admin.productForm.saveSuccess")));
+      setTimeout(() => setSaveState("idle"), 2000);
+      perf.mark("SAVE END");
+    } catch (err) {
+      console.error("[PRODUCT_SAVE_FAILED]", err);
+      setSaveState("idle");
+      const message =
+        err instanceof Error ? err.message : t("admin.productForm.validationError");
+      setError(message);
+      pushToast(createToast(message, "error"));
+    } finally {
+      saveInFlightRef.current = false;
       setSaving(false);
-      setError(result.error);
-      return;
-    }
-
-    if (!persistId) {
-      setSavedProductId(result.data.id);
-    }
-
-    await syncModifierLinks(result.data.id);
-    clearProductDraft();
-    setSaving(false);
-
-    if (mode === "close") {
-      onOpenChange(false);
     }
   };
 
-  const handleUploadImage = async (file: File) => {
+  const handleUploadProductImage = async (file: File, onProgress: (pct: number) => void) => {
     const id = productId ?? `new-${Date.now()}`;
-    const result = await uploadProductImage(file, id, () => {});
+    const result = await uploadProductImage(file, id, onProgress);
     if (result.success && result.data) {
-      setGalleryUrls((prev) => [...prev, result.data!]);
-      if (!form.getValues("imageUrl")) form.setValue("imageUrl", result.data);
+      setIsDirty(true);
     }
+    return result;
   };
 
-  const removeImage = async (url: string, index: number) => {
-    if (!confirm(t("admin.productForm.deleteImageConfirm"))) return;
-    await deleteImageByUrl(url);
-    setGalleryUrls((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      form.setValue("imageUrl", next[0] ?? "");
-      return next;
-    });
-  };
-
-  const setPrimaryImage = (index: number) => {
-    setGalleryUrls((prev) => {
-      if (index <= 0 || index >= prev.length) return prev;
-      const next = [...prev];
-      const [img] = next.splice(index, 1);
-      next.unshift(img);
-      form.setValue("imageUrl", next[0]);
-      return next;
-    });
+  const handleImageChange = (url: string) => {
+    form.setValue("imageUrl", url);
+    setGalleryUrls(url ? [url] : []);
+    setIsDirty(true);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[90vh] w-[85vw] max-w-6xl flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="shrink-0 border-b border-beige-dark/20 px-6 py-4 dark:border-white/10">
-          <DialogTitle className="text-start font-display text-xl">
+    <Dialog open={open} onOpenChange={handleCloseRequest}>
+      <DialogContent className="flex h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:h-[92vh] sm:max-w-3xl sm:rounded-2xl sm:border">
+        <DialogHeader className="shrink-0 border-b border-beige-dark/20 px-4 py-3 sm:px-6 sm:py-4 dark:border-white/10">
+          <DialogTitle className="flex items-center gap-2 text-start font-display text-lg sm:text-xl">
             {editing ? t("admin.products.edit") : t("admin.products.new")}
+            {isDirty && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                {t("admin.productForm.unsavedChanges")}
+              </span>
+            )}
+            {saveState === "saved" && (
+              <span className="text-xs font-medium text-emerald-600">{t("admin.productForm.savedLabel")}</span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-beige-dark/20 px-4 py-2 dark:border-white/10">
+        <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-beige-dark/20 px-3 py-2 sm:px-4 dark:border-white/10">
           {TABS.map(({ id, icon: Icon, labelKey }) => (
             <button
               key={id}
@@ -393,7 +459,7 @@ export function ProductFormDialog({
           ))}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-5">
           {translateError && (
             <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
               {translateError}
@@ -581,76 +647,24 @@ export function ProductFormDialog({
           )}
 
           {tab === "images" && (
-            <div className="space-y-4">
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-beige-dark/40 py-8 transition-colors hover:border-turquoise/50 hover:bg-beige/20 dark:border-white/10">
-                <Plus className="h-5 w-5 text-coffee/40" />
-                <span className="text-sm text-coffee/60">{t("admin.upload.clickToUpload")}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void handleUploadImage(file);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-
-              {galleryUrls.length === 0 ? (
-                <p className="text-center text-sm text-coffee/50">{t("admin.productForm.noImages")}</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {galleryUrls.map((url, i) => (
-                    <div
-                      key={url}
-                      className={cn(
-                        "group relative overflow-hidden rounded-xl border bg-warm-white shadow-soft dark:bg-[#1a1412]",
-                        i === 0 ? "border-turquoise ring-2 ring-turquoise/20" : "border-beige-dark/20 dark:border-white/10"
-                      )}
-                    >
-                      <div className="relative aspect-square">
-                        <Image src={url} alt="" fill className="object-cover" sizes="120px" />
-                        {i === 0 && (
-                          <span className="absolute start-1.5 top-1.5 rounded bg-turquoise px-1.5 py-0.5 text-[9px] text-white">
-                            {t("admin.productForm.primaryImage")}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-center gap-1 p-2">
-                        {i > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setPrimaryImage(i)}
-                            className="rounded-lg p-1.5 text-[10px] hover:bg-beige/40"
-                            title={t("admin.productForm.setPrimary")}
-                          >
-                            <GripVertical className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => void removeImage(url, i)}
-                          className="rounded-lg p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <ProductImageSection
+              imageUrl={form.watch("imageUrl") || galleryUrls[0] || ""}
+              onChange={handleImageChange}
+              onUpload={handleUploadProductImage}
+              onDelete={deleteImageByUrl}
+            />
           )}
 
-          {tab === "modifiers" && (
+          <div className={tab === "modifiers" ? undefined : "hidden"}>
             <ProductModifiersPanel
+              ref={modifiersPanelRef}
               productId={productId}
               allGroups={allGroups}
               linkedGroupIds={linkedGroupIds}
-              onLinkedChange={setLinkedGroupIds}
+              onLinkedChange={handleLinkedChange}
+              onDirty={() => setIsDirty(true)}
             />
-          )}
+          </div>
 
           {tab === "settings" && (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -685,41 +699,36 @@ export function ProductFormDialog({
           {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-beige-dark/20 px-6 py-4 dark:border-white/10">
-          <Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
+        <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-3 border-t border-beige-dark/20 bg-warm-white px-4 py-3 sm:px-6 sm:py-4 dark:border-white/10 dark:bg-[#1a1412]">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 min-w-[96px] rounded-xl"
+            disabled={saving}
+            onClick={() => handleCloseRequest(false)}
+          >
             {t("admin.action.cancel")}
           </Button>
-          <div className="flex flex-wrap gap-2">
-            {editing && onDuplicate && (
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl"
-                onClick={() => onDuplicate(editing)}
-              >
-                {t("admin.action.duplicate")}
-              </Button>
+          <Button
+            type="button"
+            className="h-11 min-w-[140px] flex-1 rounded-xl sm:flex-none"
+            disabled={saving}
+            onClick={() => void submit()}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("admin.productForm.saving")}
+              </>
+            ) : saveState === "saved" ? (
+              t("admin.productForm.savedLabel")
+            ) : (
+              t("admin.productForm.saveChanges")
             )}
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-xl"
-              disabled={saving}
-              onClick={() => void submit("continue")}
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.productForm.saveContinue")}
-            </Button>
-            <Button
-              type="button"
-              className="rounded-xl"
-              disabled={saving}
-              onClick={() => void submit("close")}
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.action.save")}
-            </Button>
-          </div>
+          </Button>
         </div>
       </DialogContent>
+      <AdminToastStack toasts={toasts} onDismiss={dismissToast} />
     </Dialog>
   );
 }

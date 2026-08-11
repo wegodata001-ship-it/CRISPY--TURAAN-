@@ -161,7 +161,11 @@ export function subscribeToProducts(
         );
         onData(applyFilters(products, filters));
       },
-      (error) => onError(error.message)
+      (error) => {
+        const message = error instanceof Error ? error.message : "Failed to subscribe to products";
+        console.error("[Products] subscribeToProducts failed:", message);
+        onError(message);
+      }
     );
   } catch (error) {
     onError(error instanceof Error ? error.message : "Failed to subscribe to products");
@@ -180,8 +184,16 @@ export async function createProduct(input: ProductInput): Promise<ServiceResult<
       createdAt: now,
       updatedAt: now,
     }));
-    const snap = await getDoc(ref);
-    return success(mapProduct(docToProduct(snap.id, snap.data()!)));
+    return success(
+      mapProduct(
+        docToProduct(ref.id, {
+          ...parsed,
+          subcategoryId: parsed.subcategoryId || null,
+          createdAt: now,
+          updatedAt: now,
+        })
+      )
+    );
   } catch (error) {
     return failure(error, "Failed to create product");
   }
@@ -199,11 +211,7 @@ export async function updateProduct(
       ...(input.subcategoryId === "" ? { subcategoryId: null } : {}),
       updatedAt: nowTimestamp(),
     }));
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      return failure(new ServiceError("Product not found", "NOT_FOUND"));
-    }
-    return success(mapProduct(docToProduct(snap.id, snap.data())));
+    return success({ id } as Product);
   } catch (error) {
     return failure(error, "Failed to update product");
   }

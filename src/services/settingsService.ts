@@ -51,7 +51,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   seo: { title: BRAND.name, description: BRAND.taglineAlt },
   social: { instagram: "", facebook: "", whatsapp: "" },
   mapsUrl: "",
-  faviconUrl: "/logo.png",
+  faviconUrl: BRAND.logo,
 };
 
 function mapSettings(data: FirestoreSettings | undefined): AppSettings {

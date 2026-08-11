@@ -82,7 +82,7 @@ export function AdminLoginForm() {
           className="w-full max-w-md"
         >
           <div className="mb-8 flex flex-col items-center lg:items-start">
-            <Logo size="lg" href={null} />
+            <Logo size="lg" href={null} className="h-14 w-auto" />
             <h2 className="mt-4 font-display text-2xl font-bold text-dark-brown">
               {t("admin.welcome")}
             </h2>

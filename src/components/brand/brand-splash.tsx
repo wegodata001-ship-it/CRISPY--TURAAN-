@@ -1,25 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { BRAND, BLUR, getLogoSrc } from "@/lib/brand";
-import { useSettings } from "@/hooks/useSettings";
+import { AppLogo } from "@/components/brand/app-logo";
 
 export function BrandSplash() {
   const pathname = usePathname();
-  const { settings } = useSettings();
   const [visible, setVisible] = useState(true);
-  const [src, setSrc] = useState(() => getLogoSrc(settings?.logoUrl));
-
-  useEffect(() => {
-    setSrc(getLogoSrc(settings?.logoUrl));
-  }, [settings?.logoUrl]);
-
-  const handleError = useCallback(() => {
-    setSrc((current) => (current === BRAND.logo ? current : BRAND.logo));
-  }, []);
 
   useEffect(() => {
     if (pathname.startsWith("/admin")) {
@@ -47,20 +35,7 @@ export function BrandSplash() {
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col items-center"
           >
-            <Image
-              src={src}
-              alt={settings?.storeName ?? BRAND.name}
-              width={160}
-              height={180}
-              priority
-              placeholder="blur"
-              blurDataURL={BLUR.logo}
-              onError={handleError}
-              className="h-auto w-32 object-contain md:w-36"
-            />
-            <p className="mt-4 font-display text-sm tracking-[0.25em] text-coffee/50 uppercase">
-              {settings?.storeName ?? BRAND.name}
-            </p>
+            <AppLogo size="xl" priority href={null} />
           </motion.div>
 
           <motion.div

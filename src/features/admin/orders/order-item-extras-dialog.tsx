@@ -59,7 +59,7 @@ export function OrderItemExtrasDialog({
 
   const initialState = useMemo(
     () => modifiersToSelectionState(item?.modifiers ?? []),
-    [item?.modifiers, item?.productId]
+    [item?.modifiers]
   );
 
   useEffect(() => {

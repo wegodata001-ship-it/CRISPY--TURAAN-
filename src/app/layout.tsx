@@ -77,20 +77,20 @@ export const metadata: Metadata = {
   title: BRAND.name,
   description: `${BRAND.taglineAlt} — ${BRAND.tagline}`,
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: BRAND.logo,
+    apple: BRAND.logo,
   },
   openGraph: {
     title: BRAND.name,
     description: BRAND.taglineAlt,
-    images: [{ url: "/logo.png", width: 512, height: 512, alt: BRAND.name }],
+    images: [{ url: BRAND.logo, width: 1059, height: 931, alt: BRAND.name }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: BRAND.name,
     description: BRAND.taglineAlt,
-    images: ["/logo.png"],
+    images: [BRAND.logo],
   },
 };
 

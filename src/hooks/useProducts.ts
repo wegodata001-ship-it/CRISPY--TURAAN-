@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import type { Product, ProductFilters, Category, BannerSlide } from "@/types";
 import { subscribeToProducts } from "@/services/productService";
 import { subscribeToCategories } from "@/services/categoryService";
@@ -11,20 +11,30 @@ import {
   applyProductFilters,
 } from "@/lib/menu/map-master-menu";
 
+function isIndexError(message: string): boolean {
+  return message.includes("requires an index") || message.includes("FAILED_PRECONDITION");
+}
+
 function useMasterMenuFallback() {
   const categories = useMemo(() => mapMasterMenuCategories(), []);
   const products = useMemo(() => mapMasterMenuProducts(), []);
   return { categories, products };
 }
 
-export function useProducts(filters?: ProductFilters) {
+export function useProducts(filters?: ProductFilters, options?: { admin?: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const { products: fallbackProducts } = useMasterMenuFallback();
+  const adminMode = options?.admin ?? false;
 
   const filterKey = useMemo(() => JSON.stringify(filters ?? {}), [filters]);
+
+  const retry = useCallback(() => {
+    setRetryKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -37,26 +47,39 @@ export function useProducts(filters?: ProductFilters) {
     const unsubscribe = subscribeToProducts(
       parsedFilters,
       (data) => {
-        if (data.length === 0) {
+        if (data.length === 0 && !adminMode) {
           setUsingFallback(true);
           setProducts(applyProductFilters(fallbackProducts, parsedFilters));
         } else {
           setProducts(data);
         }
         setLoading(false);
+        setError(null);
       },
       (err) => {
+        console.error("[Products] Failed to load products:", err);
         setError(err);
-        setUsingFallback(true);
-        setProducts(applyProductFilters(fallbackProducts, parsedFilters));
+        if (!adminMode) {
+          setUsingFallback(true);
+          setProducts(applyProductFilters(fallbackProducts, parsedFilters));
+        } else {
+          setProducts([]);
+        }
         setLoading(false);
       }
     );
 
     return unsubscribe;
-  }, [filterKey, fallbackProducts]);
+  }, [filterKey, fallbackProducts, adminMode, retryKey]);
 
-  return { products, loading, error, usingFallback };
+  return {
+    products,
+    loading,
+    error,
+    usingFallback,
+    isIndexError: error ? isIndexError(error) : false,
+    retry,
+  };
 }
 
 export function useCategories() {
@@ -89,16 +112,24 @@ export function useAllCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const { categories: fallbackCategories } = useMasterMenuFallback();
+
+  const retry = useCallback(() => {
+    setRetryKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     const unsubscribe = subscribeToCategories(
       (data) => {
         setCategories(data.length > 0 ? data : fallbackCategories);
         setLoading(false);
+        setError(null);
       },
       (err) => {
+        console.error("[Categories] Failed to load categories:", err);
         setError(err);
         setCategories(fallbackCategories);
         setLoading(false);
@@ -106,9 +137,9 @@ export function useAllCategories() {
       { includeInactive: true }
     );
     return unsubscribe;
-  }, [fallbackCategories]);
+  }, [fallbackCategories, retryKey]);
 
-  return { categories, loading, error };
+  return { categories, loading, error, retry };
 }
 
 export function useAllProducts() {

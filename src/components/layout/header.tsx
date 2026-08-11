@@ -47,9 +47,8 @@ export function SiteHeader() {
           <Logo
             size="sm"
             href="/"
-            showTagline
             priority
-            className="flex-col !items-start gap-0.5 md:flex-row md:items-center md:gap-2.5"
+            className="h-10 w-auto md:h-12"
           />
         </div>
 

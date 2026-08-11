@@ -34,8 +34,8 @@ type ViewMode = "grid" | "table" | "reorder";
 
 export function ProductsAdmin() {
   const t = useT();
-  const { products, loading } = useProducts();
-  const { categories } = useAllCategories();
+  const { products, loading, error, isIndexError, retry } = useProducts(undefined, { admin: true });
+  const { categories, error: categoriesError, retry: retryCategories } = useAllCategories();
   const [view, setView] = useState<ViewMode>("grid");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -150,6 +150,30 @@ export function ProductsAdmin() {
 
   return (
     <div className="space-y-6">
+      {(error || categoriesError) && !loading && (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200"
+        >
+          <p className="font-medium">{t("admin.products.loadError")}</p>
+          {isIndexError && (
+            <p className="mt-1 text-xs opacity-80">{t("admin.products.indexErrorHint")}</p>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3 rounded-xl"
+            onClick={() => {
+              retry();
+              retryCategories();
+            }}
+          >
+            {t("admin.action.retry")}
+          </Button>
+        </div>
+      )}
+
       <AdminPageHeader
         title={t("admin.products.title")}
         subtitle={t("admin.products.subtitle")}

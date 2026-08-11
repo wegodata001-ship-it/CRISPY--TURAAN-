@@ -147,7 +147,7 @@ export function CartPanel({ compact, onCheckout, className }: CartPanelProps) {
               animate={{ opacity: 1 }}
               className="flex flex-col items-center py-10 text-center"
             >
-              <Logo size="sm" href={null} />
+              <Logo size="md" href={null} className="h-12 w-auto opacity-80" />
               <p className="text-body mt-3">{t("cart.empty")}</p>
               <p className="text-caption mt-1">{t("cart.emptyHint")}</p>
             </motion.div>

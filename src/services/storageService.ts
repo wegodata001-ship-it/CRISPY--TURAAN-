@@ -90,6 +90,20 @@ export async function uploadBannerImage(
   );
 }
 
+export async function uploadModifierOptionImage(
+  file: File,
+  groupId: string,
+  optionId: string,
+  onProgress?: (percent: number) => void
+): Promise<ServiceResult<string>> {
+  const ext = file.name.split(".").pop() ?? "jpg";
+  return uploadImageWithProgress(
+    file,
+    `${STORAGE_PATHS.modifiers}/${groupId}/${optionId}-${Date.now()}.${ext}`,
+    onProgress
+  );
+}
+
 export async function uploadSettingsImage(
   file: File,
   type: "logo" | "store",
