@@ -23,11 +23,11 @@ export function useLocalizedProduct(product: Product) {
   );
 }
 
-export function useLocalizedCategory(category: Category) {
+export function useLocalizedCategory(category: Category | null) {
   const { locale } = useLocale();
   return useMemo(
     () => ({
-      name: getCategoryDisplayName(category, locale),
+      name: category ? getCategoryDisplayName(category, locale) : "",
       dir: textDir(locale),
       locale,
     }),

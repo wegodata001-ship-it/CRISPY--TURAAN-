@@ -184,6 +184,7 @@ export function ProductBuilder({
   onUnitPriceChange,
   onValidChange,
   onSelectionsChange,
+  initialState,
 }: {
   product: Product;
   config: ProductBuilderConfig;
@@ -194,11 +195,16 @@ export function ProductBuilder({
   onUnitPriceChange: (price: number) => void;
   onValidChange: (valid: boolean) => void;
   onSelectionsChange?: (selections: import("@/types/modifiers").SelectedModifier[]) => void;
+  initialState?: SelectionState;
 }) {
   const t = useT();
   const { locale } = useLocale();
   const localized = useLocalizedProduct(product);
-  const [state, setState] = useState<SelectionState>({});
+  const [state, setState] = useState<SelectionState>(() => initialState ?? {});
+
+  useEffect(() => {
+    setState(initialState ?? {});
+  }, [product.id, initialState]);
 
   const visibleConfig = useMemo(
     () => applyBusinessRules(config, state),

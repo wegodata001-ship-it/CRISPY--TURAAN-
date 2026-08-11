@@ -34,10 +34,10 @@ function SubChip({
       whileTap={{ scale: 0.96 }}
       onClick={() => onSelect(cat.id)}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+        "inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-200",
         selected
-          ? "bg-turquoise text-warm-white shadow-soft"
-          : "bg-beige/50 text-coffee hover:bg-beige dark:bg-white/10 dark:text-warm-white/90"
+          ? "border-2 border-turquoise bg-turquoise/8 text-dark-brown"
+          : "border border-beige-dark/25 bg-warm-white text-coffee/75 hover:border-turquoise/35"
       )}
     >
       <span dir={localized.dir}>{localized.name}</span>
@@ -63,14 +63,14 @@ export function SubcategoryChips({ parentId, selectedSubId, onSelect }: Subcateg
   const subs = getSubcategories(categories, parentId);
 
   return (
-    <div className="border-b border-beige-dark/15 px-4 pb-4 md:px-6">
+    <div className="border-b border-beige-dark/10 px-4 pb-3 md:px-6">
       <AnimatePresence mode="popLayout">
         <motion.div
           key={parentId}
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
-          className="flex flex-wrap gap-2"
+          className="hide-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto md:flex-wrap md:overflow-visible"
         >
           {subs.map((sub) => (
             <SubChip

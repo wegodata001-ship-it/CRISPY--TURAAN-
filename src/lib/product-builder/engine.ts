@@ -285,3 +285,14 @@ export function getSuggestedProducts(
     })
     .filter(Boolean) as { product: Product; message?: string }[];
 }
+
+/** Restore ProductBuilder selection state from saved order/cart modifiers */
+export function modifiersToSelectionState(modifiers: SelectedModifier[]): SelectionState {
+  const state: SelectionState = {};
+  for (const mod of modifiers) {
+    const entries = state[mod.groupId] ?? [];
+    entries.push({ optionId: mod.optionId, quantity: mod.quantity || 1 });
+    state[mod.groupId] = entries;
+  }
+  return state;
+}

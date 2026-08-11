@@ -1,5 +1,6 @@
 import {
   collection,
+  addDoc,
   doc,
   getDoc,
   getDocs,
@@ -8,7 +9,6 @@ import {
   onSnapshot,
   query,
   orderBy,
-  runTransaction,
   type Unsubscribe,
   type DocumentData,
   type Timestamp,
@@ -107,10 +107,8 @@ function filterOrders(
 
 async function generateOrderNumber(): Promise<string> {
   const year = new Date().getFullYear();
-  const db = getDb();
-  const snapshot = await getDocs(collection(db, COLLECTIONS.orders));
-  const nextNum = snapshot.size + 1;
-  return `MC-${year}-${String(nextNum).padStart(4, "0")}`;
+  const tail = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+  return `MC-${year}-${tail.slice(-8)}`;
 }
 
 export async function getOrders(filters?: {
@@ -229,34 +227,11 @@ export async function createOrder(input: OrderInput): Promise<ServiceResult<Orde
     }
 
     const orderData = sanitizeFirestoreData(rawOrder);
-    console.log("[createOrder] sanitized order payload:", orderData);
 
-    const result = await runTransaction(db, async (transaction) => {
-      const customerRef = doc(db, COLLECTIONS.customers, parsed.customerId);
-      const customerSnap = await transaction.get(customerRef);
-
-      if (!customerSnap.exists()) {
-        throw new ServiceError("Customer not found", "CUSTOMER_NOT_FOUND");
-      }
-
-      const orderRef = doc(collection(db, COLLECTIONS.orders));
-      transaction.set(orderRef, orderData);
-
-      const customerData = customerSnap.data() as { ordersCount?: number };
-      transaction.update(customerRef, {
-        ordersCount: (customerData.ordersCount ?? 0) + 1,
-        lastOrder: now,
-      });
-
-      return { id: orderRef.id, ...orderData };
-    });
-
-    return success(mapOrder(result as FirestoreDoc<FirestoreOrder>));
+    const ref = await addDoc(collection(db, COLLECTIONS.orders), orderData);
+    return success(mapOrder({ id: ref.id, ...orderData } as FirestoreDoc<FirestoreOrder>));
   } catch (error) {
     console.error("[createOrder] failed:", error);
-    if (error instanceof ServiceError && error.code === "CUSTOMER_NOT_FOUND") {
-      return failure(error);
-    }
     return failure(new ServiceError("Order save failed", ORDER_SAVE_FAILED_CODE));
   }
 }
@@ -348,4 +323,51 @@ export async function deleteOrder(id: string): Promise<ServiceResult<void>> {
   } catch (error) {
     return failure(error, "Failed to delete order");
   }
+}
+
+export async function updateOrderItemExtras(
+  orderId: string,
+  itemIndex: number,
+  update: {
+    price: number;
+    modifiers?: OrderItem["modifiers"];
+    notes?: string;
+    kitchenNotes?: string[];
+  }
+): Promise<ServiceResult<Order>> {
+  const order = await getOrderById(orderId);
+  if (!order) {
+    return failure(new ServiceError("Order not found", "NOT_FOUND"));
+  }
+  if (itemIndex < 0 || itemIndex >= order.items.length) {
+    return failure(new ServiceError("Invalid item index", "INVALID_ITEM"));
+  }
+
+  const items = order.items.map((item, i) => {
+    if (i !== itemIndex) return item;
+    const next: OrderItem = {
+      ...item,
+      price: update.price,
+    };
+    if (update.modifiers?.length) {
+      next.modifiers = update.modifiers;
+    } else {
+      delete next.modifiers;
+    }
+    const note = update.notes?.trim();
+    if (note) next.notes = note;
+    else delete next.notes;
+    if (update.kitchenNotes?.length) next.kitchenNotes = update.kitchenNotes;
+    else delete next.kitchenNotes;
+    return next;
+  });
+
+  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const total = subtotal + (order.delivery ?? 0) - (order.discount ?? 0);
+
+  return updateOrder(orderId, {
+    items,
+    subtotal,
+    total: Math.max(total, 0.01),
+  });
 }

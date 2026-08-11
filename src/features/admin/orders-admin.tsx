@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Download, Printer, Search, FileText, ChevronDown } from "lucide-react";
+import { Loader2, Download, Printer, Search, FileText, ChevronDown, Layers } from "lucide-react";
 import { useOrders } from "@/hooks/useOrders";
 import { updateOrder, deleteOrder } from "@/services";
+import { OrderItemExtrasDialog } from "@/features/admin/orders/order-item-extras-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,6 +81,10 @@ export function OrdersAdmin() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [extrasDialog, setExtrasDialog] = useState<{
+    order: Order;
+    itemIndex: number;
+  } | null>(null);
 
   const statusLabel = (status: OrderStatus) => t(`admin.status.${status}`);
 
@@ -225,17 +230,36 @@ export function OrdersAdmin() {
                   </button>
                   <p className="mt-1 text-sm text-coffee/60">{order.customerName}</p>
                   <p className="text-xs text-coffee/40">{formatDate(order.createdAt)}</p>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {order.items.map((item) => (
-                      <div key={`${item.productId}-${item.productName}`} className="text-xs text-coffee/60">
-                        <span>{item.quantity}× {item.productName}</span>
-                        {item.modifiers?.map((m) => (
-                          <p key={m.optionId} className="ps-3 text-[10px] text-coffee/45">
-                            + {m.optionName}
-                            {m.kitchenNote ? ` (${m.kitchenNote})` : ""}
-                          </p>
-                        ))}
-                        {item.notes && <p className="ps-3 text-[10px] italic">{item.notes}</p>}
+                  <div className="mt-2 space-y-2">
+                    {order.items.map((item, itemIndex) => (
+                      <div
+                        key={`${order.id}-${itemIndex}-${item.productId}`}
+                        className="flex flex-wrap items-start justify-between gap-2 rounded-xl bg-cream/40 px-3 py-2 dark:bg-white/5"
+                      >
+                        <div className="min-w-0 flex-1 text-xs text-coffee/60">
+                          <span className="font-medium text-coffee/80">
+                            {item.quantity}× {item.productName}
+                          </span>
+                          {item.modifiers?.map((m) => (
+                            <p key={m.optionId} className="ps-3 text-[10px] text-coffee/45">
+                              + {m.optionName}
+                              {m.kitchenNote ? ` (${m.kitchenNote})` : ""}
+                            </p>
+                          ))}
+                          {item.notes && <p className="ps-3 text-[10px] italic">{item.notes}</p>}
+                        </div>
+                        {order.status !== "delivered" && order.status !== "cancelled" && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 shrink-0 rounded-lg px-2 text-[11px]"
+                            onClick={() => setExtrasDialog({ order, itemIndex })}
+                          >
+                            <Layers className="h-3 w-3" />
+                            {t("admin.orders.editExtras")}
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -280,6 +304,13 @@ export function OrdersAdmin() {
           ))}
         </div>
       )}
+
+      <OrderItemExtrasDialog
+        order={extrasDialog?.order ?? null}
+        itemIndex={extrasDialog?.itemIndex ?? null}
+        open={extrasDialog != null}
+        onOpenChange={(open) => !open && setExtrasDialog(null)}
+      />
     </div>
   );
 }

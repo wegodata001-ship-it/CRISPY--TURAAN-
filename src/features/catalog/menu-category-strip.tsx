@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   Coffee,
@@ -18,14 +17,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedCategory } from "@/hooks/useLocalizedContent";
 import { useCategories, useAllProducts } from "@/hooks/useProducts";
 import {
   countProductsInCategory,
   getRootCategories,
 } from "@/lib/menu/category-tree";
-import { getCategoryPlaceholder } from "@/lib/menu/placeholders";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/types";
 
@@ -45,7 +42,7 @@ const iconMap: Record<string, LucideIcon> = {
   "ice-cream": IceCream,
 };
 
-function CategoryCard({
+function CategoryPill({
   cat,
   count,
   selected,
@@ -58,62 +55,35 @@ function CategoryCard({
   index: number;
   onSelect: (id: string) => void;
 }) {
-  const t = useT();
   const localized = useLocalizedCategory(cat);
   const Icon = iconMap[cat.icon] ?? Coffee;
-  const imageSrc = cat.image || getCategoryPlaceholder(cat.id);
 
   return (
     <motion.button
       type="button"
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04 }}
-      whileHover={{ y: -2 }}
+      transition={{ delay: index * 0.025, duration: 0.22 }}
+      whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.97 }}
       onClick={() => onSelect(cat.id)}
       className={cn(
-        "group relative flex h-[7.5rem] w-[6.5rem] shrink-0 snap-start flex-col overflow-hidden rounded-2xl bg-warm-white shadow-soft ring-1 ring-beige-dark/15 transition-all duration-200 sm:h-32 sm:w-28",
+        "inline-flex shrink-0 snap-start items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-all duration-200",
         selected
-          ? "ring-2 ring-turquoise bg-turquoise/5 shadow-elevated"
-          : "hover:ring-turquoise/30 hover:shadow-elevated"
+          ? "border-2 border-turquoise bg-turquoise/8 text-dark-brown shadow-soft"
+          : "border border-beige-dark/25 bg-warm-white text-coffee/75 hover:border-turquoise/35 hover:bg-cream"
       )}
     >
-      <div className="relative h-[3.75rem] w-full overflow-hidden sm:h-[4.25rem]">
-        <Image
-          src={imageSrc}
-          alt={localized.name}
-          fill
-          className={cn(
-            "object-cover transition-transform duration-500 group-hover:scale-105",
-            selected && "scale-105"
-          )}
-          sizes="120px"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-brown/50 to-transparent" />
-        <span
-          className={cn(
-            "absolute end-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg backdrop-blur-sm transition-colors",
-            selected ? "bg-turquoise text-white" : "bg-white/85 text-coffee"
-          )}
-        >
-          <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col justify-center px-2.5 py-2 text-start">
-        <p
-          className={cn(
-            "line-clamp-2 text-xs font-bold leading-tight sm:text-[13px]",
-            selected ? "text-turquoise" : "text-dark-brown dark:text-warm-white"
-          )}
-          dir={localized.dir}
-        >
-          {localized.name}
-        </p>
-        <p className="mt-0.5 text-[10px] text-coffee/45 sm:text-xs">
-          {count} {t("catalog.productsCount")}
-        </p>
-      </div>
+      <Icon
+        className={cn("h-4 w-4 shrink-0", selected ? "text-turquoise" : "text-coffee/45")}
+        strokeWidth={1.75}
+      />
+      <span dir={localized.dir} className="whitespace-nowrap font-medium">
+        {localized.name}
+      </span>
+      <span className="text-caption tabular-nums">
+        {count}
+      </span>
     </motion.button>
   );
 }
@@ -130,9 +100,9 @@ export function MenuCategoryStrip({ selectedId, onSelect }: MenuCategoryStripPro
 
   if (loading) {
     return (
-      <div className="hide-scrollbar flex gap-3 overflow-x-auto px-4 py-4 md:px-6">
+      <div className="hide-scrollbar flex gap-2 overflow-x-auto py-1">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-32 w-28 shrink-0 rounded-2xl" />
+          <Skeleton key={i} className="h-9 w-24 shrink-0 rounded-full" />
         ))}
       </div>
     );
@@ -141,9 +111,9 @@ export function MenuCategoryStrip({ selectedId, onSelect }: MenuCategoryStripPro
   if (rootCategories.length === 0) return null;
 
   return (
-    <div className="hide-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 py-4 md:gap-4 md:px-6">
+    <div className="hide-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto py-1 md:flex-wrap md:overflow-visible">
       {rootCategories.map((cat, index) => (
-        <CategoryCard
+        <CategoryPill
           key={cat.id}
           cat={cat}
           count={countProductsInCategory(products, cat.id, categories)}

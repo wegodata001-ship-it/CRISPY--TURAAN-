@@ -14,7 +14,7 @@ export function BottomNav() {
   const t = useT();
 
   const navItems = [
-    { href: "/", labelKey: "nav.home", icon: Home },
+    { href: "/", labelKey: "nav.home", icon: Home, exact: true },
     { href: "/catalog", labelKey: "nav.catalog", icon: LayoutGrid },
     { href: "/cart", labelKey: "nav.cart", icon: ShoppingBag, isCart: true },
     { href: "/orders", labelKey: "nav.orders", icon: ClipboardList },
@@ -24,78 +24,78 @@ export function BottomNav() {
   if (pathname.startsWith("/admin")) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-      <div className="glass border-t border-beige-dark/20 px-2 pb-[env(safe-area-inset-bottom)]">
-        <div className="flex items-center justify-around py-2">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(item.href);
-            const Icon = item.icon;
-            const label = t(item.labelKey);
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-beige-dark/15 bg-warm-white lg:hidden">
+      <div className="flex items-stretch justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
+        {navItems.map((item) => {
+          const isActive = item.exact
+            ? pathname === item.href
+            : pathname.startsWith(item.href);
+          const Icon = item.icon;
+          const label = t(item.labelKey);
 
-            if (item.isCart) {
-              return (
-                <button
-                  key={item.href}
-                  onClick={openCart}
-                  className="relative flex flex-col items-center gap-0.5 px-3 py-1"
-                >
-                  <Icon
-                    className={cn(
-                      "h-5 w-5 transition-colors",
-                      isActive ? "text-turquoise" : "text-coffee/50"
-                    )}
-                  />
-                  {itemCount > 0 && (
-                    <span className="absolute -top-0.5 end-1 flex h-4 w-4 items-center justify-center rounded-full bg-turquoise text-[9px] font-bold text-warm-white">
-                      {itemCount}
-                    </span>
-                  )}
-                  <span
-                    className={cn(
-                      "text-[10px] font-medium",
-                      isActive ? "text-turquoise" : "text-coffee/50"
-                    )}
-                  >
-                    {label}
-                  </span>
-                </button>
-              );
-            }
-
+          if (item.isCart) {
             return (
-              <Link
+              <button
                 key={item.href}
-                href={item.href}
-                className="relative flex flex-col items-center gap-0.5 px-3 py-1"
+                type="button"
+                onClick={openCart}
+                className="relative flex flex-1 flex-col items-center gap-0.5 py-2"
               >
-                {isActive && (
-                  <motion.div
-                    layoutId="bottom-nav-indicator"
-                    className="absolute -top-2 h-0.5 w-8 rounded-full bg-turquoise"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
                 <Icon
                   className={cn(
                     "h-5 w-5 transition-colors",
-                    isActive ? "text-turquoise" : "text-coffee/50"
+                    isActive ? "text-turquoise" : "text-coffee/45"
                   )}
+                  strokeWidth={1.75}
                 />
+                {itemCount > 0 && (
+                  <span className="absolute top-1 end-[calc(50%-18px)] flex h-4 min-w-4 items-center justify-center rounded-full bg-turquoise px-1 text-[9px] font-bold text-warm-white">
+                    {itemCount}
+                  </span>
+                )}
                 <span
                   className={cn(
                     "text-[10px] font-medium",
-                    isActive ? "text-turquoise" : "text-coffee/50"
+                    isActive ? "text-turquoise" : "text-coffee/45"
                   )}
                 >
                   {label}
                 </span>
-              </Link>
+              </button>
             );
-          })}
-        </div>
+          }
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="relative flex flex-1 flex-col items-center gap-0.5 py-2"
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="bottom-nav-dot"
+                  className="absolute top-0 h-0.5 w-8 rounded-full bg-turquoise"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <Icon
+                className={cn(
+                  "h-5 w-5 transition-colors",
+                  isActive ? "text-turquoise" : "text-coffee/45"
+                )}
+                strokeWidth={1.75}
+              />
+              <span
+                className={cn(
+                  "text-[10px] font-medium",
+                  isActive ? "text-turquoise" : "text-coffee/45"
+                )}
+              >
+                {label}
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );

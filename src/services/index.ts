@@ -61,6 +61,7 @@ export {
   updateCustomer,
   deleteCustomer,
   getOrCreateGuestCustomer,
+  GUEST_CUSTOMER_ID,
 } from "./customerService";
 
 export {
@@ -72,6 +73,7 @@ export {
   createOrder,
   createOrderFromCart,
   updateOrder,
+  updateOrderItemExtras,
   deleteOrder,
 } from "./orderService";
 

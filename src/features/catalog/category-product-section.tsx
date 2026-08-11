@@ -20,7 +20,7 @@ import {
 import { ProductCard } from "@/features/catalog/product-card";
 import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedCategory } from "@/hooks/useLocalizedContent";
-import { MOBILE_CATALOG_PAGE_SIZE, useIsMobile } from "@/hooks/useIsMobile";
+import { MOBILE_CATALOG_PAGE_SIZE } from "@/hooks/useIsMobile";
 import type { Category, Product } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +40,7 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const GRID_CLASS =
-  "grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 sm:gap-4 md:gap-6 md:px-6 lg:grid-cols-4 xl:grid-cols-5";
+  "overflow-hidden rounded-2xl bg-warm-white ring-1 ring-beige-dark/10";
 
 interface CategoryProductSectionProps {
   category: Category;
@@ -57,35 +57,33 @@ export function CategoryProductSection({
 }: CategoryProductSectionProps) {
   const t = useT();
   const localized = useLocalizedCategory(category);
-  const isMobile = useIsMobile();
-  const [visibleCount, setVisibleCount] = useState(
-    defaultExpanded ? products.length : MOBILE_CATALOG_PAGE_SIZE
-  );
-  const prevCountRef = useRef(visibleCount);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const prevCountRef = useRef(MOBILE_CATALOG_PAGE_SIZE);
 
   useEffect(() => {
-    setVisibleCount(
-      isMobile && !defaultExpanded ? MOBILE_CATALOG_PAGE_SIZE : products.length
-    );
-    prevCountRef.current = isMobile ? MOBILE_CATALOG_PAGE_SIZE : products.length;
-  }, [products.length, isMobile, defaultExpanded, category.id]);
+    setExpanded(defaultExpanded);
+    prevCountRef.current = MOBILE_CATALOG_PAGE_SIZE;
+  }, [products.length, defaultExpanded, category.id]);
 
   if (products.length === 0) return null;
 
-  const displayed = isMobile && !defaultExpanded ? products.slice(0, visibleCount) : products;
-  const hasMore = isMobile && !defaultExpanded && visibleCount < products.length;
+  const shouldPaginate = !defaultExpanded && products.length > MOBILE_CATALOG_PAGE_SIZE;
+  const displayed =
+    shouldPaginate && !expanded ? products.slice(0, MOBILE_CATALOG_PAGE_SIZE) : products;
   const animateFrom = prevCountRef.current;
 
-  const loadMore = () => {
-    prevCountRef.current = visibleCount;
-    setVisibleCount((c) => Math.min(c + MOBILE_CATALOG_PAGE_SIZE, products.length));
+  const toggleExpanded = () => {
+    if (!expanded) {
+      prevCountRef.current = MOBILE_CATALOG_PAGE_SIZE;
+    }
+    setExpanded((v) => !v);
   };
 
   const Icon = iconMap[category.icon] ?? Coffee;
 
   return (
-    <section id={`category-${category.id}`} className="scroll-mt-36 py-6 md:py-8">
-      <div className="mb-4 px-4 md:mb-5 md:px-6">
+    <section id={`category-${category.id}`} className="scroll-mt-36 py-4 md:py-5">
+      <div className="mb-3 px-4 md:px-6">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-turquoise/10 text-turquoise">
             <Icon className="h-5 w-5" strokeWidth={1.75} />
@@ -104,7 +102,7 @@ export function CategoryProductSection({
       <div className={GRID_CLASS}>
         <AnimatePresence mode="popLayout">
           {displayed.map((product, index) => {
-            const isNewBatch = index >= animateFrom;
+            const isNewBatch = expanded && index >= animateFrom;
             return (
               <motion.div
                 key={product.id}
@@ -128,18 +126,18 @@ export function CategoryProductSection({
         </AnimatePresence>
       </div>
 
-      {hasMore && (
-        <div className="mt-5 flex justify-center px-4 md:mt-6">
+      {shouldPaginate && (
+        <div className="mt-4 flex justify-center px-4">
           <button
             type="button"
-            onClick={loadMore}
+            onClick={toggleExpanded}
             className={cn(
-              "rounded-full border-2 border-coffee/15 bg-warm-white px-8 py-3 text-sm font-semibold text-coffee",
-              "shadow-soft transition-all hover:border-turquoise hover:text-turquoise hover:shadow-elevated",
+              "rounded-full border border-coffee/15 bg-warm-white px-6 py-2.5 text-sm font-semibold text-coffee",
+              "shadow-soft transition-all hover:border-turquoise hover:text-turquoise",
               "active:scale-[0.98]"
             )}
           >
-            {t("catalog.showMore")}
+            {expanded ? t("catalog.showLess") : t("catalog.showMore")}
           </button>
         </div>
       )}

@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
-import { createOrderFromCart, getOrCreateGuestCustomer } from "@/services";
+import { createOrderFromCart, getOrCreateGuestCustomer, GUEST_CUSTOMER_ID } from "@/services";
 import { formatPrice } from "@/lib/utils";
 import { ShoppingBag } from "lucide-react";
 import type { Product } from "@/types";
@@ -79,16 +79,26 @@ export default function CheckoutPage() {
     setLoading(true);
     setError(null);
     try {
-      const guest = await getOrCreateGuestCustomer();
-      if (!guest.success) { setError(guest.error); return; }
+      void getOrCreateGuestCustomer();
 
-      const result = await createOrderFromCart(items, guest.data.id, name, {
+      const orderNotes = [
+        notes.trim(),
+        phone.trim() ? `${t("checkout.phone")}: ${phone.trim()}` : "",
+        orderType === "delivery" && address.trim()
+          ? `${t("checkout.address")}: ${address.trim()}`
+          : "",
+        orderType === "pickup" ? t("checkout.pickup") : t("checkout.delivery"),
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const result = await createOrderFromCart(items, GUEST_CUSTOMER_ID, name, {
         subtotal,
         discount,
         delivery: deliveryFee,
         total,
         paymentMethod: payment,
-        notes: notes.trim() || undefined,
+        notes: orderNotes || undefined,
       });
       if (!result.success) {
         console.error("[checkout] order failed:", result.error, result.code);

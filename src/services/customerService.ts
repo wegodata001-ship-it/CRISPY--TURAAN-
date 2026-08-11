@@ -4,12 +4,12 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   onSnapshot,
   query,
   orderBy,
-  where,
   type Unsubscribe,
   type DocumentData,
 } from "firebase/firestore";
@@ -25,6 +25,18 @@ import type { FirestoreCustomer, FirestoreDoc } from "@/types/firestore";
 function docToCustomer(id: string, data: DocumentData): FirestoreDoc<FirestoreCustomer> {
   return { id, ...(data as FirestoreCustomer) };
 }
+
+/** Shared guest profile used for storefront checkout (Firestore rules allow public access to this doc only). */
+export const GUEST_CUSTOMER_ID = "guest-checkout";
+
+const GUEST_CUSTOMER_INPUT: CustomerInput = {
+  name: "Guest Customer",
+  phone: "guest@mishkat.local",
+  email: "guest@mishkat.local",
+  address: "Walk-in",
+  favoriteProducts: [],
+  notes: "",
+};
 
 function filterCustomers(customers: Customer[], search?: string): Customer[] {
   let result = [...customers];
@@ -112,14 +124,15 @@ export async function createCustomer(input: CustomerInput): Promise<ServiceResul
   try {
     const parsed = customerSchema.parse(input);
     const db = getDb();
-    const ref = await addDoc(collection(db, COLLECTIONS.customers), {
+    const now = nowTimestamp();
+    const data: FirestoreCustomer = {
       ...parsed,
       ordersCount: 0,
       lastOrder: null,
-      createdAt: nowTimestamp(),
-    });
-    const snap = await getDoc(ref);
-    return success(mapCustomer(docToCustomer(snap.id, snap.data()!)));
+      createdAt: now,
+    };
+    const ref = await addDoc(collection(db, COLLECTIONS.customers), data);
+    return success(mapCustomer(docToCustomer(ref.id, data)));
   } catch (error) {
     return failure(error, "Failed to create customer");
   }
@@ -155,25 +168,26 @@ export async function deleteCustomer(id: string): Promise<ServiceResult<void>> {
 
 export async function getOrCreateGuestCustomer(): Promise<ServiceResult<Customer>> {
   try {
-    const db = getDb();
-    const q = query(
-      collection(db, COLLECTIONS.customers),
-      where("phone", "==", "guest@mishkat.local")
-    );
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      const d = snapshot.docs[0]!;
-      return success(mapCustomer(docToCustomer(d.id, d.data())));
+    const parsed = customerSchema.parse(GUEST_CUSTOMER_INPUT);
+    const now = nowTimestamp();
+    const data: FirestoreCustomer = {
+      ...parsed,
+      ordersCount: 0,
+      lastOrder: null,
+      createdAt: now,
+    };
+
+    // Best-effort — must not block checkout if rules deny read/update
+    try {
+      const db = getDb();
+      await setDoc(doc(db, COLLECTIONS.customers, GUEST_CUSTOMER_ID), data, { merge: true });
+    } catch (seedError) {
+      console.warn("[getOrCreateGuestCustomer] seed skipped:", seedError);
     }
-    return createCustomer({
-      name: "Guest Customer",
-      phone: "guest@mishkat.local",
-      email: "guest@mishkat.local",
-      address: "Walk-in",
-      favoriteProducts: [],
-      notes: "",
-    });
+
+    return success(mapCustomer(docToCustomer(GUEST_CUSTOMER_ID, data)));
   } catch (error) {
+    console.error("[getOrCreateGuestCustomer] failed:", error);
     return failure(error, "Failed to get guest customer");
   }
 }

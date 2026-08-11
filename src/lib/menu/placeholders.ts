@@ -35,6 +35,35 @@ export function isAllowedProductImageUrl(url: string): boolean {
   return false;
 }
 
+/** True when the product has a real uploaded image worth showing as a thumbnail */
+export function hasRealProductImage(image: string | undefined | null): boolean {
+  if (!image || !isAllowedProductImageUrl(image)) return false;
+  const trimmed = image.trim();
+  if (!trimmed || trimmed.includes("placeholder")) return false;
+  if (trimmed === LOCAL_DEFAULT || trimmed === BRAND.store) return false;
+  return true;
+}
+
+/** True when a category has a dedicated hero image (not the generic store fallback) */
+export function hasRealCategoryImage(image: string | undefined | null, categoryId: string): boolean {
+  if (!image || !isAllowedProductImageUrl(image)) return false;
+  const trimmed = image.trim();
+  if (!trimmed || trimmed.includes("placeholder")) return false;
+  if (trimmed === LOCAL_DEFAULT || trimmed === BRAND.store) return false;
+  const placeholder = getCategoryPlaceholder(categoryId);
+  if (trimmed === placeholder) return false;
+  return true;
+}
+
+/** Returns category hero image URL or null when no dedicated image exists */
+export function getCategoryHeroImage(
+  image: string | undefined | null,
+  categoryId: string
+): string | null {
+  if (!hasRealCategoryImage(image, categoryId)) return null;
+  return image!.trim();
+}
+
 /** Returns product image or a local category placeholder — never empty, never external fallback */
 export function getProductImage(image: string | undefined | null, categoryId: string): string {
   if (image && isAllowedProductImageUrl(image) && !image.includes("placeholder")) {

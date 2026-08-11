@@ -1,163 +1,136 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Heart, Plus, ShoppingBag, Eye } from "lucide-react";
+import { Heart, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice, cn } from "@/lib/utils";
-import { useT } from "@/components/providers/locale-provider";
+import { useT, useLocale } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
+import { useSettings } from "@/hooks/useSettings";
 import { useFavorites } from "@/hooks/useFavorites";
 import { ProductImage } from "@/components/catalog/product-image";
+import { hasRealProductImage } from "@/lib/menu/placeholders";
 import type { Product } from "@/types";
 
 interface ProductCardProps {
   product: Product;
   index?: number;
-  compact?: boolean;
   onClick?: () => void;
 }
 
-export function ProductCard({
-  product,
-  index = 0,
-  compact = false,
-  onClick,
-}: ProductCardProps) {
+export function ProductCard({ product, index = 0, onClick }: ProductCardProps) {
   const t = useT();
+  const { dir } = useLocale();
   const localized = useLocalizedProduct(product);
+  const { settings } = useSettings();
   const { addItem, openCart } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const showThumbnails = settings?.showProductThumbnails !== false;
+  const showThumbnail = showThumbnails && hasRealProductImage(product.image);
+  const isRtl = dir === "rtl";
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!product.available) return;
     addItem(product);
-    openCart();
+    if (window.innerWidth < 1024) openCart();
+  };
+
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFavorite(product.id);
   };
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 8 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ delay: (index % 8) * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -6 }}
+      viewport={{ once: true, margin: "-20px" }}
+      transition={{ delay: (index % 8) * 0.03, duration: 0.28 }}
+      whileHover={{ backgroundColor: "rgba(248, 243, 237, 0.5)" }}
       onClick={onClick}
+      dir={dir}
       className={cn(
-        "group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-warm-white shadow-soft ring-1 ring-beige-dark/15 transition-all duration-300 hover:shadow-elevated",
-        !product.available && "opacity-60",
-        compact && "rounded-xl"
+        "group grid cursor-pointer grid-cols-[72px_1fr_60px] items-center gap-3 border-b border-beige-dark/12 px-1 py-4 transition-colors last:border-b-0 sm:grid-cols-[88px_1fr_72px] sm:gap-4",
+        !product.available && "opacity-55",
+        isRtl ? "" : ""
       )}
     >
-      <div className={cn("relative overflow-hidden", compact ? "aspect-square" : "aspect-[4/5]")}>
-        <ProductImage
-          image={product.image}
-          categoryId={product.categoryId}
-          alt={localized.name}
-          compact={compact}
-          className="transition-transform duration-700 ease-out group-hover:scale-105"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-brown/55 via-dark-brown/5 to-transparent pointer-events-none" />
-
-        <div className="absolute top-3 start-3 flex flex-col gap-1.5">
-          {product.isNew && (
-            <Badge variant="new" className="shadow-soft backdrop-blur-sm">
-              {t("catalog.newBadge")}
-            </Badge>
-          )}
-          {product.isPopular && (
-            <Badge variant="popular" className="shadow-soft backdrop-blur-sm">
-              {t("catalog.popularBadge")}
-            </Badge>
-          )}
-        </div>
-
-        {!product.available && (
-          <div className="absolute inset-0 flex items-center justify-center bg-dark-brown/55 backdrop-blur-[2px]">
-            <span className="rounded-full bg-warm-white px-4 py-1.5 text-xs font-bold text-dark-brown">
-              {t("catalog.unavailable")}
-            </span>
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFavorite(product.id);
-          }}
-          aria-label={t("catalog.favorite")}
-          className="absolute top-3 end-3 flex h-10 w-10 items-center justify-center rounded-full bg-warm-white/95 shadow-soft backdrop-blur-sm transition-transform hover:scale-105"
-        >
-          <Heart
-            className={cn(
-              "h-4 w-4 transition-colors",
-              isFavorite(product.id) ? "fill-gold text-gold" : "text-coffee/45"
-            )}
-            strokeWidth={1.75}
-          />
-        </button>
-
-        {!compact && onClick && (
-          <div className="absolute inset-x-0 bottom-14 flex justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-dark-brown/75 px-3 py-1.5 text-xs font-medium text-warm-white backdrop-blur-sm">
-              <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />
-              {t("catalog.quickView")}
-            </span>
-          </div>
-        )}
-
+      {/* Price + add — visual left in RTL */}
+      <div className={cn("flex flex-col items-center gap-2", isRtl ? "order-3" : "order-1")}>
+        <span className="text-price text-lg sm:text-xl">{formatPrice(product.price)}</span>
         <button
           type="button"
           onClick={handleAdd}
           disabled={!product.available}
           aria-label={t("catalog.addToCart")}
-          className="absolute bottom-3 end-3 flex h-12 w-12 items-center justify-center rounded-full bg-turquoise text-warm-white shadow-elevated transition-all hover:scale-105 hover:bg-turquoise-light disabled:opacity-50"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-turquoise text-warm-white shadow-soft transition-transform hover:scale-105 active:scale-95 disabled:opacity-40"
         >
-          <Plus className="h-5 w-5" strokeWidth={1.75} />
+          <Plus className="h-4 w-4" strokeWidth={2} />
         </button>
       </div>
 
-      <div
-        className={cn(
-          "flex flex-1 flex-col border-t border-beige-dark/10 bg-warm-white/95",
-          compact ? "p-3" : "p-4"
-        )}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <h3
-              className={cn(
-                "font-bold leading-snug text-dark-brown",
-                compact ? "text-sm" : "text-base md:text-lg"
-              )}
-              dir={localized.dir}
-            >
-              {localized.name}
-            </h3>
-          </div>
-          <span
-            className={cn(
-              "shrink-0 font-display font-bold text-turquoise",
-              compact ? "text-base" : "text-lg md:text-xl"
-            )}
+      {/* Name + description — center */}
+      <div className={cn("min-w-0 px-1", isRtl ? "order-2" : "order-2")}>
+        <div className="flex items-start gap-2">
+          <h3 className="heading-product flex-1" dir={localized.dir}>
+            {localized.name}
+          </h3>
+          <button
+            type="button"
+            onClick={handleFavorite}
+            aria-label={t("catalog.favorite")}
+            className="shrink-0 p-0.5 text-coffee/30 transition-colors hover:text-gold"
           >
-            {formatPrice(product.price)}
-          </span>
+            <Heart
+              className={cn(
+                "h-3.5 w-3.5",
+                isFavorite(product.id) && "fill-gold text-gold"
+              )}
+              strokeWidth={1.75}
+            />
+          </button>
         </div>
-
-        {!compact && (
-          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-coffee/60" dir={localized.dir}>
+        {(product.isNew || product.isPopular) && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {product.isNew && (
+              <Badge variant="new" className="px-1.5 py-0 text-[10px]">
+                {t("catalog.newBadge")}
+              </Badge>
+            )}
+            {product.isPopular && (
+              <Badge variant="popular" className="px-1.5 py-0 text-[10px]">
+                {t("catalog.popularBadge")}
+              </Badge>
+            )}
+          </div>
+        )}
+        {localized.description && (
+          <p className="text-description mt-1 line-clamp-2" dir={localized.dir}>
             {localized.description}
           </p>
         )}
+        {!product.available && (
+          <p className="text-caption mt-1">{t("catalog.unavailable")}</p>
+        )}
+      </div>
 
-        {!compact && (
-          <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-coffee/45 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-            <ShoppingBag className="h-3.5 w-3.5" strokeWidth={1.75} />
-            {t("catalog.addToCart")}
+      {/* Thumbnail — visual right in RTL */}
+      <div className={cn("flex justify-center", isRtl ? "order-1" : "order-3")}>
+        {showThumbnail ? (
+          <div className="relative h-[60px] w-[60px] overflow-hidden rounded-xl bg-beige/30 ring-1 ring-beige-dark/15">
+            <ProductImage
+              image={product.image}
+              categoryId={product.categoryId}
+              alt=""
+              thumbnail
+              sizes="60px"
+              className="rounded-xl"
+            />
           </div>
+        ) : (
+          <div className="h-[60px] w-[60px] rounded-xl bg-cream ring-1 ring-beige-dark/10" aria-hidden />
         )}
       </div>
     </motion.article>

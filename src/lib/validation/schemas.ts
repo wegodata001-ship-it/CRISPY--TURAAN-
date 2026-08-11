@@ -60,7 +60,7 @@ export const orderItemSchema = z.object({
   productId: z.string().min(1),
   productName: z.string().min(1),
   quantity: z.number().int().positive(),
-  price: z.number().positive(),
+  price: z.number().min(0),
   basePrice: z.number().min(0).optional(),
   modifiers: z
     .array(

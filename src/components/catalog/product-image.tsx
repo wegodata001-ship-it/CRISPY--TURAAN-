@@ -11,6 +11,7 @@ interface ProductImageProps {
   categoryId: string;
   alt: string;
   compact?: boolean;
+  thumbnail?: boolean;
   sizes?: string;
   priority?: boolean;
   className?: string;
@@ -21,6 +22,7 @@ export function ProductImage({
   categoryId,
   alt,
   compact,
+  thumbnail,
   sizes,
   priority,
   className,
@@ -58,6 +60,10 @@ export function ProductImage({
     );
   }
 
+  const resolvedSizes =
+    sizes ??
+    (thumbnail ? "56px" : compact ? "220px" : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px");
+
   return (
     <>
       {!loaded && <Skeleton className={cn("absolute inset-0 rounded-none", className)} />}
@@ -68,11 +74,11 @@ export function ProductImage({
         fill
         priority={priority}
         loading={priority ? undefined : "lazy"}
-        sizes={sizes ?? (compact ? "220px" : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px")}
+        sizes={resolvedSizes}
         onLoad={() => setLoaded(true)}
         onError={handleError}
         className={cn(
-          "object-cover transition-opacity duration-500",
+          "object-cover transition-opacity duration-300",
           loaded ? "opacity-100" : "opacity-0",
           className
         )}

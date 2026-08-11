@@ -29,9 +29,10 @@ service cloud.firestore {
     }
 
     match /customers/{id} {
-      allow read: if isStaff();
-      allow create: if true;
-      allow update, delete: if isStaff();
+      allow read: if isStaff() || id == 'guest-checkout';
+      allow create: if isStaff() || id == 'guest-checkout';
+      allow update: if isStaff() || id == 'guest-checkout';
+      allow delete: if isStaff();
     }
 
     match /orders/{id} {

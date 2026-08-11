@@ -43,3 +43,9 @@ export function getStoreImageSrc(settingsUrl?: string | null): string {
   if (settingsUrl?.trim()) return settingsUrl.trim();
   return BRAND.store;
 }
+
+/** Resolve logo: Firestore settings URL → local fallback */
+export function getLogoSrc(settingsUrl?: string | null): string {
+  if (settingsUrl?.trim()) return settingsUrl.trim();
+  return BRAND.logo;
+}

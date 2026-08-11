@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import { COLLECTIONS } from "@/lib/firebase/collections";
+import { sanitizeFirestoreData } from "@/lib/firebase/sanitize-firestore-data";
 import { ServiceError, type ServiceResult, success, failure } from "@/lib/errors";
 import {
   mapModifierGroup,
@@ -108,7 +109,7 @@ export async function createModifierGroup(input: ModifierGroupInput): Promise<Se
     const db = getDb();
     const now = nowTimestamp();
     const data: FirestoreModifierGroup = { ...parsed, createdAt: now, updatedAt: now };
-    const ref = await addDoc(collection(db, COLLECTIONS.modifierGroups), data);
+    const ref = await addDoc(collection(db, COLLECTIONS.modifierGroups), sanitizeFirestoreData(data));
     return success(mapModifierGroup({ id: ref.id, ...data }));
   } catch (error) {
     return failure(error, "Failed to create modifier group");
@@ -144,7 +145,7 @@ export async function updateModifierGroup(
       })
     );
 
-    await updateDoc(ref, { ...parsed, updatedAt: nowTimestamp() });
+    await updateDoc(ref, sanitizeFirestoreData({ ...parsed, updatedAt: nowTimestamp() }));
     const updated = await getDoc(ref);
     return success(mapModifierGroup(docTo<FirestoreModifierGroup>(updated.id, updated.data()!)));
   } catch (error) {
@@ -182,7 +183,7 @@ export async function duplicateModifierGroup(id: string): Promise<ServiceResult<
       createdAt: now,
       updatedAt: now,
     };
-    const groupRef = await addDoc(collection(db, COLLECTIONS.modifierGroups), groupData);
+    const groupRef = await addDoc(collection(db, COLLECTIONS.modifierGroups), sanitizeFirestoreData(groupData));
 
     const optionsSnap = await getDocs(
       query(collection(db, COLLECTIONS.modifierOptions), where("groupId", "==", id))
@@ -190,12 +191,15 @@ export async function duplicateModifierGroup(id: string): Promise<ServiceResult<
     for (const optDoc of optionsSnap.docs) {
       const opt = optDoc.data() as FirestoreModifierOption;
       const { createdAt: _oc, updatedAt: _ou, ...optRest } = opt;
-      await addDoc(collection(db, COLLECTIONS.modifierOptions), {
-        ...optRest,
-        groupId: groupRef.id,
-        createdAt: now,
-        updatedAt: now,
-      });
+      await addDoc(
+        collection(db, COLLECTIONS.modifierOptions),
+        sanitizeFirestoreData({
+          ...optRest,
+          groupId: groupRef.id,
+          createdAt: now,
+          updatedAt: now,
+        })
+      );
     }
 
     return success(mapModifierGroup({ id: groupRef.id, ...groupData }));
@@ -266,7 +270,7 @@ export async function createModifierOption(input: ModifierOptionInput): Promise<
     const db = getDb();
     const now = nowTimestamp();
     const data: FirestoreModifierOption = { ...parsed, createdAt: now, updatedAt: now };
-    const ref = await addDoc(collection(db, COLLECTIONS.modifierOptions), data);
+    const ref = await addDoc(collection(db, COLLECTIONS.modifierOptions), sanitizeFirestoreData(data));
     return success(mapModifierOption({ id: ref.id, ...data }));
   } catch (error) {
     return failure(error, "Failed to create modifier option");
@@ -302,7 +306,7 @@ export async function updateModifierOption(
       })
     );
 
-    await updateDoc(ref, { ...parsed, updatedAt: nowTimestamp() });
+    await updateDoc(ref, sanitizeFirestoreData({ ...parsed, updatedAt: nowTimestamp() }));
     const updated = await getDoc(ref);
     return success(mapModifierOption(docTo<FirestoreModifierOption>(updated.id, updated.data()!)));
   } catch (error) {

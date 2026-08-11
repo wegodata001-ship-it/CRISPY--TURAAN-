@@ -20,7 +20,7 @@ import { translateProductFields } from "@/lib/admin/translate-text";
 import {
   createProduct,
   updateProduct,
-  getModifierGroups,
+  subscribeToModifierGroups,
   getProductModifierGroups,
   linkProductModifierGroup,
   unlinkProductModifierGroup,
@@ -39,6 +39,7 @@ import {
 import { useT } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 import { CategorySearchSelect } from "./category-search-select";
+import { ProductModifiersPanel } from "./product-modifiers-panel";
 import { getRootCategoriesForAdmin, getSubcategories } from "@/lib/menu/category-tree";
 import {
   calcProfitMetrics,
@@ -191,7 +192,8 @@ export function ProductFormDialog({
 
   useEffect(() => {
     if (!open) return;
-    getModifierGroups().then(setAllGroups);
+    const unsub = subscribeToModifierGroups(setAllGroups, () => {});
+    return () => unsub();
   }, [open]);
 
   const persistDraft = useCallback(() => {
@@ -361,12 +363,6 @@ export function ProductFormDialog({
       form.setValue("imageUrl", next[0]);
       return next;
     });
-  };
-
-  const toggleGroup = (groupId: string) => {
-    setLinkedGroupIds((prev) =>
-      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
-    );
   };
 
   return (
@@ -648,41 +644,12 @@ export function ProductFormDialog({
           )}
 
           {tab === "modifiers" && (
-            <div className="space-y-3">
-              {!productId && (
-                <p className="rounded-xl bg-beige/30 px-4 py-3 text-sm text-coffee/70 dark:bg-white/5">
-                  {t("admin.productForm.modifiersAfterSave")}
-                </p>
-              )}
-              {allGroups.length === 0 ? (
-                <p className="text-sm text-coffee/50">{t("admin.table.empty")}</p>
-              ) : (
-                allGroups.map((group) => {
-                  const checked = linkedGroupIds.includes(group.id);
-                  return (
-                    <label
-                      key={group.id}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors",
-                        checked
-                          ? "border-turquoise/40 bg-turquoise/5"
-                          : "border-beige-dark/20 hover:bg-beige/20 dark:border-white/10"
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleGroup(group.id)}
-                        className="rounded"
-                      />
-                      <span className="text-sm font-medium dark:text-warm-white" dir="rtl">
-                        {group.name_he || group.name_ar}
-                      </span>
-                    </label>
-                  );
-                })
-              )}
-            </div>
+            <ProductModifiersPanel
+              productId={productId}
+              allGroups={allGroups}
+              linkedGroupIds={linkedGroupIds}
+              onLinkedChange={setLinkedGroupIds}
+            />
           )}
 
           {tab === "settings" && (

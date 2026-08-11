@@ -127,6 +127,7 @@ export interface FirestoreSettings {
   social?: { instagram: string; facebook: string; whatsapp: string };
   mapsUrl?: string;
   faviconUrl?: string;
+  showProductThumbnails?: boolean;
   updatedAt: Timestamp;
 }
 

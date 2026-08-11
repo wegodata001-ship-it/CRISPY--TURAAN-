@@ -18,6 +18,7 @@ export interface AppSettings {
   storeName: string;
   logoUrl: string;
   storeImageUrl: string;
+  showProductThumbnails: boolean;
   phone: string;
   address: string;
   hours: string;
@@ -37,6 +38,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   storeName: BRAND.name,
   logoUrl: BRAND.logo,
   storeImageUrl: BRAND.store,
+  showProductThumbnails: true,
   phone: "",
   address: "",
   hours: "Sun–Thu 7:00–22:00",
@@ -58,6 +60,7 @@ function mapSettings(data: FirestoreSettings | undefined): AppSettings {
     storeName: data.storeName ?? DEFAULT_SETTINGS.storeName,
     logoUrl: data.logoUrl ?? DEFAULT_SETTINGS.logoUrl,
     storeImageUrl: data.storeImageUrl ?? DEFAULT_SETTINGS.storeImageUrl,
+    showProductThumbnails: data.showProductThumbnails ?? DEFAULT_SETTINGS.showProductThumbnails,
     phone: data.phone ?? "",
     address: data.address ?? "",
     hours: data.hours ?? DEFAULT_SETTINGS.hours,

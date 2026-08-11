@@ -121,6 +121,19 @@ export function SettingsAdmin() {
               onUpload={(file, onProgress) => uploadSettingsImage(file, "store", onProgress)}
               onDelete={deleteImageByUrl}
             />
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-beige-dark/20 px-4 py-3 dark:border-white/10">
+              <input
+                type="checkbox"
+                checked={settings.showProductThumbnails}
+                onChange={(e) =>
+                  setSettings({ ...settings, showProductThumbnails: e.target.checked })
+                }
+                className="h-4 w-4 rounded border-beige-dark text-turquoise focus:ring-turquoise"
+              />
+              <span className="text-sm text-coffee dark:text-warm-white/90">
+                {t("admin.settings.showProductThumbnails")}
+              </span>
+            </label>
           </div>
         </AdminCard>
 

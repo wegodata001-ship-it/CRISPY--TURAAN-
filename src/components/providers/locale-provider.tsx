@@ -18,6 +18,9 @@ import {
 } from "@/lib/i18n/types";
 import { fetchAllLocaleStrings } from "@/services/translationService";
 import { ADMIN_TRANSLATIONS } from "@/data/admin-translations";
+import { UI_TRANSLATIONS_SEED } from "@/data/ui-translations-seed";
+import { LocaleHtmlSync } from "@/components/providers/locale-html-sync";
+import { applyLocaleFonts } from "@/lib/typography/locale-fonts";
 
 const STORAGE_KEY = "mishkat-locale";
 
@@ -48,12 +51,14 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLocaleState(readStoredLocale());
+    const initial = readStoredLocale();
+    setLocaleState(initial);
+    applyLocaleFonts(initial);
     fetchAllLocaleStrings().then((all) => {
       setStrings({
-        he: { ...ADMIN_TRANSLATIONS.he, ...all.he },
-        ar: { ...ADMIN_TRANSLATIONS.ar, ...all.ar },
-        en: { ...ADMIN_TRANSLATIONS.en, ...all.en },
+        he: { ...UI_TRANSLATIONS_SEED.he, ...ADMIN_TRANSLATIONS.he, ...all.he },
+        ar: { ...UI_TRANSLATIONS_SEED.ar, ...ADMIN_TRANSLATIONS.ar, ...all.ar },
+        en: { ...UI_TRANSLATIONS_SEED.en, ...ADMIN_TRANSLATIONS.en, ...all.en },
       });
       setLoading(false);
     });
@@ -64,11 +69,13 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, next);
     document.documentElement.lang = next;
     document.documentElement.dir = LOCALE_META[next].dir;
+    applyLocaleFonts(next);
   }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale;
     document.documentElement.dir = LOCALE_META[locale].dir;
+    applyLocaleFonts(locale);
   }, [locale]);
 
   const t = useCallback(
@@ -95,7 +102,12 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     [locale, setLocale, t, loading]
   );
 
-  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
+  return (
+    <LocaleContext.Provider value={value}>
+      <LocaleHtmlSync locale={locale} />
+      {children}
+    </LocaleContext.Provider>
+  );
 }
 
 export function useLocale() {

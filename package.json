@@ -18,7 +18,8 @@
     "seed:modifiers": "tsx scripts/seed-modifiers.ts",
     "menu:audit": "tsx scripts/menu-audit.ts",
     "firebase:audit": "tsx scripts/firebase-audit.ts",
-    "firebase:full-audit": "tsx scripts/full-audit.ts"
+    "firebase:full-audit": "tsx scripts/full-audit.ts",
+    "firebase:deploy-rules": "firebase deploy --only firestore:rules --project mshkah"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
