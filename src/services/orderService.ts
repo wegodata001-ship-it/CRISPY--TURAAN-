@@ -21,7 +21,10 @@ import { mapOrder } from "@/lib/mappers";
 import { selectedModifierToFirestore } from "@/lib/mappers/modifier-mappers";
 import { orderSchema, type OrderInput } from "@/lib/validation/schemas";
 import { nowTimestamp } from "@/types/firestore";
-import { collectKitchenNotes } from "@/lib/product-builder/engine";
+import {
+  calculateLineTotal,
+  collectKitchenNotes,
+} from "@/lib/product-builder/engine";
 import type { Order, OrderStatus, OrderItem, CartItem } from "@/types";
 import type { FirestoreOrder, FirestoreOrderItem, FirestoreDoc } from "@/types/firestore";
 
@@ -277,7 +280,10 @@ export async function createOrderFromCart(
 
   const subtotal =
     checkout?.subtotal ??
-    items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    items.reduce(
+      (sum, item) => sum + calculateLineTotal(item.price, item.quantity),
+      0
+    );
 
   const total = checkout?.total ?? subtotal + (checkout?.delivery ?? 0) - (checkout?.discount ?? 0);
 
@@ -362,7 +368,10 @@ export async function updateOrderItemExtras(
     return next;
   });
 
-  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const subtotal = items.reduce(
+    (sum, item) => sum + calculateLineTotal(item.price, item.quantity),
+    0
+  );
   const total = subtotal + (order.delivery ?? 0) - (order.discount ?? 0);
 
   return updateOrder(orderId, {

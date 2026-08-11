@@ -16,6 +16,7 @@ import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
 import { createOrderFromCart, getOrCreateGuestCustomer, GUEST_CUSTOMER_ID } from "@/services";
 import { formatPrice } from "@/lib/utils";
+import { calculateLineTotal } from "@/lib/product-builder/engine";
 import { ShoppingBag } from "lucide-react";
 import type { Product } from "@/types";
 
@@ -27,7 +28,7 @@ function OrderLineItem({ item }: { item: import("@/types").CartItem }) {
         <span className="text-coffee/70">
           {item.quantity}× {localized.name}
         </span>
-        <span>{formatPrice(item.unitPrice * item.quantity)}</span>
+        <span>{formatPrice(calculateLineTotal(item.unitPrice, item.quantity))}</span>
       </div>
       {item.selections.map((s) => (
         <p key={`${s.groupId}-${s.optionId}`} className="ps-3 text-xs text-coffee/45">

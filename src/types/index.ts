@@ -91,6 +91,7 @@ export interface CartItem {
   selections: import("@/types/modifiers").SelectedModifier[];
   unitPrice: number;
   notes?: string;
+  configurable?: boolean;
 }
 
 export interface ProductFilters {

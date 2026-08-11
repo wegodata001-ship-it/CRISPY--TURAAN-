@@ -21,6 +21,8 @@ import type {
   ProductModifierGroup,
 } from "@/types/modifiers";
 
+const productBuilderConfigCache = new Map<string, ProductBuilderConfig>();
+
 export function useModifierGroups(includeArchived = false) {
   const [groups, setGroups] = useState<ModifierGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,8 +66,12 @@ export function useModifierOptions(groupId?: string) {
 }
 
 export function useProductBuilderConfig(productId: string | null) {
-  const [config, setConfig] = useState<ProductBuilderConfig | null>(null);
-  const [loading, setLoading] = useState(Boolean(productId));
+  const [config, setConfig] = useState<ProductBuilderConfig | null>(() =>
+    productId ? productBuilderConfigCache.get(productId) ?? null : null
+  );
+  const [loading, setLoading] = useState(
+    Boolean(productId && !productBuilderConfigCache.has(productId))
+  );
 
   useEffect(() => {
     if (!productId) {
@@ -73,10 +79,18 @@ export function useProductBuilderConfig(productId: string | null) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    const cached = productBuilderConfigCache.get(productId);
+    if (cached) {
+      setConfig(cached);
+      setLoading(false);
+    } else {
+      setConfig(null);
+      setLoading(true);
+    }
     const unsub = subscribeToProductBuilderConfig(
       productId,
       (data) => {
+        productBuilderConfigCache.set(productId, data);
         setConfig(data);
         setLoading(false);
       },

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Plus, Minus, Trash2, ShoppingBag, X, Star, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatPrice, cn } from "@/lib/utils";
+import { calculateLineTotal } from "@/lib/product-builder/engine";
 import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useAssistantCart } from "@/features/assistant/assistant-context";
@@ -195,7 +196,9 @@ function CartLine({ item }: { item: import("@/types").CartItem }) {
         <p className="truncate text-sm font-semibold" dir={localized.dir}>
           {localized.name}
         </p>
-        <p className="text-xs text-turquoise">{formatPrice(item.unitPrice * item.quantity)}</p>
+        <p className="text-xs text-turquoise">
+          {formatPrice(calculateLineTotal(item.unitPrice, item.quantity))}
+        </p>
         {item.selections.length > 0 && (
           <p className="truncate text-[10px] text-coffee/45">
             {item.selections.map((s) => s.optionName).join(", ")}

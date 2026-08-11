@@ -33,6 +33,10 @@ export function ProductCard({ product, index = 0, onClick }: ProductCardProps) {
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!product.available) return;
+    if (onClick) {
+      onClick();
+      return;
+    }
     addItem(product);
     if (window.innerWidth < 1024) openCart();
   };

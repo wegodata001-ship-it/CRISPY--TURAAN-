@@ -818,8 +818,18 @@ export function subscribeToProductBuilderConfig(
     suggestions: [],
     inventory: [],
   };
+  const ready = {
+    groups: false,
+    options: false,
+    productGroups: false,
+    productOptions: false,
+    rules: false,
+    suggestions: false,
+    inventory: false,
+  };
 
   const emit = () => {
+    if (!Object.values(ready).every(Boolean)) return;
     onData(
       buildProductBuilderConfig({
         productId,
@@ -835,10 +845,12 @@ export function subscribeToProductBuilderConfig(
   const unsubs = [
     onSnapshot(query(collection(db, COLLECTIONS.modifierGroups), orderBy("sortOrder", "asc")), (s) => {
       cache.groups = s.docs.map((d) => mapModifierGroup(docTo<FirestoreModifierGroup>(d.id, d.data())));
+      ready.groups = true;
       emit();
     }, (e) => onError(e.message)),
     onSnapshot(query(collection(db, COLLECTIONS.modifierOptions), orderBy("sortOrder", "asc")), (s) => {
       cache.options = s.docs.map((d) => mapModifierOption(docTo<FirestoreModifierOption>(d.id, d.data())));
+      ready.options = true;
       emit();
     }, (e) => onError(e.message)),
     onSnapshot(
@@ -847,6 +859,7 @@ export function subscribeToProductBuilderConfig(
         cache.productGroups = s.docs
           .map((d) => mapProductModifierGroup(docTo<FirestoreProductModifierGroup>(d.id, d.data())))
           .sort((a, b) => a.sortOrder - b.sortOrder);
+        ready.productGroups = true;
         emit();
       },
       (e) => onError(e.message)
@@ -855,24 +868,28 @@ export function subscribeToProductBuilderConfig(
       query(collection(db, COLLECTIONS.productModifierOptions), where("productId", "==", productId)),
       (s) => {
         cache.productOptions = s.docs.map((d) => mapProductModifierOption(docTo<FirestoreProductModifierOption>(d.id, d.data())));
+        ready.productOptions = true;
         emit();
       },
       (e) => onError(e.message)
     ),
     onSnapshot(query(collection(db, COLLECTIONS.businessRules), orderBy("priority", "asc")), (s) => {
       cache.rules = s.docs.map((d) => mapBusinessRule(docTo<FirestoreBusinessRule>(d.id, d.data())));
+      ready.rules = true;
       emit();
     }, (e) => onError(e.message)),
     onSnapshot(
       query(collection(db, COLLECTIONS.suggestions), where("triggerProductId", "==", productId), orderBy("sortOrder", "asc")),
       (s) => {
         cache.suggestions = s.docs.map((d) => mapProductSuggestion(docTo<FirestoreProductSuggestion>(d.id, d.data())));
+        ready.suggestions = true;
         emit();
       },
       (e) => onError(e.message)
     ),
     onSnapshot(collection(db, COLLECTIONS.inventoryLinks), (s) => {
       cache.inventory = s.docs.map((d) => mapInventoryLink(docTo<FirestoreInventoryLink>(d.id, d.data())));
+      ready.inventory = true;
       emit();
     }, (e) => onError(e.message)),
   ];

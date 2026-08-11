@@ -5,12 +5,15 @@ import {
   useContext,
   useReducer,
   useCallback,
+  useEffect,
+  useState,
   type ReactNode,
 } from "react";
 import type { Product, CartItem } from "@/types";
 import type { SelectedModifier } from "@/types/modifiers";
 import {
   calculateUnitPrice,
+  calculateLineTotal,
   selectionsFingerprint,
 } from "@/lib/product-builder/engine";
 
@@ -31,9 +34,19 @@ type CartAction =
       unitPrice: number;
       quantity: number;
       notes?: string;
+      configurable?: boolean;
     }
   | { type: "REMOVE_ITEM"; lineId: string }
   | { type: "UPDATE_QUANTITY"; lineId: string; quantity: number }
+  | {
+      type: "UPDATE_CONFIGURED_ITEM";
+      lineId: string;
+      selections: SelectedModifier[];
+      unitPrice: number;
+      quantity: number;
+      notes?: string;
+    }
+  | { type: "HYDRATE"; state: Partial<CartState> }
   | { type: "CLEAR_CART" }
   | { type: "OPEN_CART" }
   | { type: "CLOSE_CART" }
@@ -47,6 +60,7 @@ interface AddItemOptions {
   unitPrice?: number;
   notes?: string;
   quantity?: number;
+  configurable?: boolean;
 }
 
 interface CartContextValue {
@@ -62,6 +76,11 @@ interface CartContextValue {
   addItem: (product: Product, options?: AddItemOptions) => void;
   removeItem: (lineId: string) => void;
   updateQuantity: (lineId: string, quantity: number) => void;
+  updateConfiguredItem: (
+    lineId: string,
+    options: Required<Pick<AddItemOptions, "selections" | "unitPrice" | "quantity">> &
+      Pick<AddItemOptions, "notes">
+  ) => void;
   applyCoupon: (code: string) => boolean;
   setOrderType: (type: "pickup" | "delivery") => void;
   clearCart: () => void;
@@ -71,6 +90,7 @@ interface CartContextValue {
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
+const CART_STORAGE_KEY = "mishkat-cart-v2";
 
 function newLineId(
   product: Product,
@@ -116,6 +136,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
             selections: action.selections,
             unitPrice: action.unitPrice,
             notes: action.notes,
+            configurable: action.configurable,
           },
         ],
       };
@@ -139,6 +160,27 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         ),
       };
     }
+    case "UPDATE_CONFIGURED_ITEM":
+      return {
+        ...state,
+        items: state.items.map((item) =>
+          item.lineId === action.lineId
+            ? {
+                ...item,
+                selections: action.selections,
+                unitPrice: action.unitPrice,
+                quantity: action.quantity,
+                notes: action.notes,
+              }
+            : item
+        ),
+      };
+    case "HYDRATE":
+      return {
+        ...state,
+        ...action.state,
+        isOpen: false,
+      };
     case "CLEAR_CART":
       return { ...state, items: [] };
     case "OPEN_CART":
@@ -171,6 +213,44 @@ export function CartProvider({ children }: { children: ReactNode }) {
     deliveryFee: 0,
     orderType: "pickup",
   });
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CART_STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<CartState>;
+        if (Array.isArray(saved.items)) {
+          dispatch({ type: "HYDRATE", state: saved });
+        }
+      }
+    } catch {
+      localStorage.removeItem(CART_STORAGE_KEY);
+    } finally {
+      setHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({
+        items: state.items,
+        couponCode: state.couponCode,
+        couponDiscount: state.couponDiscount,
+        deliveryFee: state.deliveryFee,
+        orderType: state.orderType,
+      })
+    );
+  }, [
+    hydrated,
+    state.couponCode,
+    state.couponDiscount,
+    state.deliveryFee,
+    state.items,
+    state.orderType,
+  ]);
 
   const addItem = useCallback((product: Product, options?: AddItemOptions) => {
     const selections = options?.selections ?? [];
@@ -183,6 +263,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       unitPrice,
       quantity: options?.quantity ?? 1,
       notes: options?.notes,
+      configurable: options?.configurable,
     });
   }, []);
 
@@ -193,6 +274,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const updateQuantity = useCallback((lineId: string, quantity: number) => {
     dispatch({ type: "UPDATE_QUANTITY", lineId, quantity });
   }, []);
+
+  const updateConfiguredItem = useCallback(
+    (
+      lineId: string,
+      options: Required<
+        Pick<AddItemOptions, "selections" | "unitPrice" | "quantity">
+      > &
+        Pick<AddItemOptions, "notes">
+    ) => {
+      dispatch({
+        type: "UPDATE_CONFIGURED_ITEM",
+        lineId,
+        selections: options.selections,
+        unitPrice: options.unitPrice,
+        quantity: options.quantity,
+        notes: options.notes,
+      });
+    },
+    []
+  );
 
   const clearCart = useCallback(() => dispatch({ type: "CLEAR_CART" }), []);
   const openCart = useCallback(() => dispatch({ type: "OPEN_CART" }), []);
@@ -217,7 +318,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const itemCount = state.items.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal = state.items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+  const subtotal = state.items.reduce(
+    (sum, item) =>
+      sum + calculateLineTotal(item.unitPrice, item.quantity),
+    0
+  );
   const discount = subtotal * state.couponDiscount;
   const total = subtotal - discount + state.deliveryFee;
 
@@ -236,6 +341,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         addItem,
         removeItem,
         updateQuantity,
+        updateConfiguredItem,
         applyCoupon,
         setOrderType,
         clearCart,

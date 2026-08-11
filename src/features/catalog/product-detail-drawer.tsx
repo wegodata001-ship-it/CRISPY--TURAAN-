@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { Heart, ShoppingBag, X, Share2, Sparkles } from "lucide-react";
+import { Heart, Minus, Plus, ShoppingBag, X, Share2, Sparkles } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { formatPrice, cn } from "@/lib/utils";
 import { useT, useLocale } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
@@ -13,13 +22,16 @@ import { useCart } from "@/features/cart/cart-context";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useProducts } from "@/hooks/useProducts";
 import { useProductBuilderConfig } from "@/hooks/useModifiers";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { getProductImage } from "@/lib/menu/placeholders";
-import { ProductBuilder } from "@/features/catalog/product-builder";
-import { productHasBuilder, getSuggestedProducts } from "@/lib/product-builder/engine";
+import {
+  calculateLineTotal,
+  productHasBuilder,
+  getSuggestedProducts,
+} from "@/lib/product-builder/engine";
+import { AddonsWizard } from "@/features/catalog/addons-wizard";
 import { ProductCard } from "./product-card";
 import type { Product } from "@/types";
-import type { SelectedModifier } from "@/types/modifiers";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProductDetailDrawerProps {
   product: Product | null;
@@ -46,9 +58,7 @@ function ProductDetailContent({
   const { config, loading: configLoading } = useProductBuilderConfig(product.id);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
-  const [unitPrice, setUnitPrice] = useState(product.price);
-  const [valid, setValid] = useState(true);
-  const [selections, setSelections] = useState<SelectedModifier[]>([]);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
 
   const hasBuilder = config ? productHasBuilder(config) : false;
@@ -56,13 +66,38 @@ function ProductDetailContent({
   const imageSrc = getProductImage(product.image, product.categoryId);
 
   const handleAdd = () => {
-    if (!product.available || (hasBuilder && !valid)) return;
+    if (!product.available || configLoading) return;
+    if (hasBuilder && config) {
+      setWizardOpen(true);
+      return;
+    }
     addItem(product, {
-      selections: hasBuilder ? selections : [],
-      unitPrice,
+      selections: [],
+      unitPrice: product.price,
       notes: notes.trim() || undefined,
       quantity,
     });
+    openCart();
+    onOpenChange(false);
+    setQuantity(1);
+    setNotes("");
+  };
+
+  const handleConfiguredAdd = ({
+    selections,
+    unitPrice,
+  }: {
+    selections: import("@/types/modifiers").SelectedModifier[];
+    unitPrice: number;
+  }) => {
+    addItem(product, {
+      selections,
+      unitPrice,
+      notes: notes.trim() || undefined,
+      quantity,
+      configurable: true,
+    });
+    setWizardOpen(false);
     openCart();
     onOpenChange(false);
     setQuantity(1);
@@ -80,12 +115,10 @@ function ProductDetailContent({
   };
 
   return (
-    <div className="overflow-y-auto pb-8">
+    <>
+    <div className="min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[42%_58%] lg:overflow-hidden">
       <div
-        className={cn(
-          "relative w-full overflow-hidden transition-all",
-          zoomed ? "aspect-square" : "aspect-[16/10]"
-        )}
+        className="relative h-[clamp(200px,32vh,280px)] w-full overflow-hidden bg-beige/20 lg:h-full lg:max-h-[88dvh] lg:min-h-[460px]"
         onClick={() => setZoomed(!zoomed)}
       >
         <Image
@@ -93,18 +126,10 @@ function ProductDetailContent({
           alt={localized.name}
           fill
           className={cn("object-cover transition-transform", zoomed && "scale-110")}
-          sizes="100vw"
+          sizes="(min-width: 1024px) 380px, 100vw"
           priority
         />
         <div className="absolute inset-0 bg-gradient-to-t from-dark-brown/60 via-transparent to-transparent" />
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          aria-label={t("common.close")}
-          className="absolute top-4 end-4 flex h-9 w-9 items-center justify-center rounded-full bg-warm-white/90 shadow-soft"
-        >
-          <X className="h-4 w-4" strokeWidth={1.75} />
-        </button>
         <div className="absolute top-4 start-4 flex gap-2">
           <button
             type="button"
@@ -141,79 +166,69 @@ function ProductDetailContent({
         </div>
       </div>
 
-      <div className="px-5 pt-5">
-        <div className="flex items-start justify-between gap-4">
+      <div className="flex min-h-0 flex-col px-5 py-5 lg:overflow-y-auto lg:px-7 lg:py-7">
+        <div className="space-y-1.5">
           <h2 className="font-display text-2xl font-bold" dir={localized.dir}>
             {localized.name}
           </h2>
-          {!hasBuilder && (
-            <p className="text-2xl font-bold text-turquoise">{formatPrice(product.price)}</p>
-          )}
+          <p className="text-2xl font-bold text-turquoise">{formatPrice(product.price)}</p>
         </div>
 
-        {configLoading && hasBuilder === false && (
-          <Skeleton className="mt-4 h-24 w-full rounded-xl" />
+        {localized.description && (
+          <p className="mt-4 text-sm leading-relaxed text-coffee/70" dir={localized.dir}>
+            {localized.description}
+          </p>
         )}
 
-        {hasBuilder && config ? (
-          <div className="mt-4">
-            <ProductBuilder
-              product={product}
-              config={config}
-              quantity={quantity}
-              onQuantityChange={setQuantity}
-              notes={notes}
-              onNotesChange={setNotes}
-              onUnitPriceChange={setUnitPrice}
-              onValidChange={setValid}
-              onSelectionsChange={setSelections}
-            />
+        <div className="mt-5 space-y-2">
+          <Label className="text-sm font-medium">{t("cart.quantity")}</Label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              aria-label={t("cart.decreaseQuantity")}
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-beige-dark/30"
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <span className="w-8 text-center text-lg font-bold">{quantity}</span>
+            <button
+              type="button"
+              onClick={() => setQuantity(quantity + 1)}
+              aria-label={t("cart.increaseQuantity")}
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-beige-dark/30"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           </div>
-        ) : (
-          !configLoading && (
-            <>
-              {localized.description && (
-                <p className="mt-4 text-sm leading-relaxed text-coffee/70" dir={localized.dir}>
-                  {localized.description}
-                </p>
-              )}
-              <div className="mt-4 flex items-center gap-4">
-                <p className="text-sm font-medium">{t("cart.quantity")}</p>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl border"
-                  >
-                    −
-                  </button>
-                  <span className="w-8 text-center text-lg font-bold">{quantity}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl border"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </>
-          )
-        )}
+        </div>
+
+        <div className="mt-5">
+          <Label htmlFor={`product-notes-${product.id}`} className="text-sm">
+            {t("builder.notes")}
+          </Label>
+          <Textarea
+            id={`product-notes-${product.id}`}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            placeholder={t("builder.notesPlaceholder")}
+            className="mt-1.5 min-h-[70px] max-h-[100px] resize-none rounded-xl"
+          />
+        </div>
 
         <Button
           variant="turquoise"
           size="lg"
-          className="mt-6 w-full"
+          className="sticky bottom-0 z-10 mt-5 h-12 w-full rounded-xl shadow-soft lg:static lg:max-w-sm"
           onClick={handleAdd}
-          disabled={!product.available || (hasBuilder && !valid)}
+          disabled={!product.available || configLoading}
         >
           <ShoppingBag className="h-4 w-4" strokeWidth={1.75} />
-          {t("catalog.addToCart")} · {formatPrice(unitPrice * quantity)}
+          {t("catalog.addToCart")} · {formatPrice(calculateLineTotal(product.price, quantity))}
         </Button>
 
         {suggestions.length > 0 && (
-          <div className="mt-8 rounded-2xl border border-turquoise/20 bg-turquoise/5 p-4">
+          <div className="mt-6 rounded-2xl border border-turquoise/20 bg-turquoise/5 p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-turquoise">
               <Sparkles className="h-4 w-4" />
               {t("builder.suggestions")}
@@ -230,7 +245,20 @@ function ProductDetailContent({
           </div>
         )}
       </div>
+
     </div>
+
+      {hasBuilder && config && (
+        <AddonsWizard
+          open={wizardOpen}
+          onOpenChange={setWizardOpen}
+          product={product}
+          config={config}
+          quantity={quantity}
+          onConfirm={handleConfiguredAdd}
+        />
+      )}
+    </>
   );
 }
 
@@ -240,14 +268,54 @@ export function ProductDetailDrawer({
   onOpenChange,
   onSelectProduct,
 }: ProductDetailDrawerProps) {
+  const isMobile = useIsMobile(1024);
+  const t = useT();
+  const closeButton = (
+    <button
+      type="button"
+      onClick={() => onOpenChange(false)}
+      aria-label={t("common.close")}
+      className="absolute top-4 end-4 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-warm-white/95 shadow-soft"
+    >
+      <X className="h-4 w-4" strokeWidth={1.75} />
+    </button>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="max-h-[90dvh] overflow-hidden">
+          {closeButton}
+          {product && (
+            <>
+              <DrawerHeader className="sr-only">
+                <DrawerTitle>{product.name_he || product.name_en}</DrawerTitle>
+              </DrawerHeader>
+              <ProductDetailContent
+                key={product.id}
+                product={product}
+                onOpenChange={onOpenChange}
+                onSelectProduct={onSelectProduct}
+              />
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[95vh]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex h-[min(620px,88dvh)] max-h-[88dvh] w-[min(900px,92vw)] max-w-[900px] gap-0 overflow-hidden p-0 [&>button]:hidden">
+        {closeButton}
         {product && (
           <>
-            <DrawerHeader className="sr-only">
-              <DrawerTitle>{product.name_he || product.name_en}</DrawerTitle>
-            </DrawerHeader>
+            <DialogHeader className="sr-only">
+              <DialogTitle>{product.name_he || product.name_en}</DialogTitle>
+              <DialogDescription>
+                {product.description_he || product.description_en}
+              </DialogDescription>
+            </DialogHeader>
             <ProductDetailContent
               key={product.id}
               product={product}
@@ -256,7 +324,7 @@ export function ProductDetailDrawer({
             />
           </>
         )}
-      </DrawerContent>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   );
 }

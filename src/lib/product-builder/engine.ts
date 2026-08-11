@@ -178,6 +178,13 @@ export function calculateUnitPrice(
   return basePrice + extras;
 }
 
+export function calculateLineTotal(
+  unitPrice: number,
+  quantity: number
+): number {
+  return unitPrice * Math.max(0, quantity);
+}
+
 export function validateSelections(
   config: ProductBuilderConfig,
   state: SelectionState
