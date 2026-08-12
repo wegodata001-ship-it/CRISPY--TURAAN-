@@ -41,7 +41,7 @@ export function KitchenView({
   if (!mounted || !open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex h-[100dvh] flex-col overflow-hidden bg-cream dark:bg-[#120e0c]">
+    <div className="fixed inset-0 z-[900] flex h-[100dvh] flex-col overflow-hidden bg-cream dark:bg-[#120e0c]">
       <header className="flex shrink-0 items-center justify-between border-b border-beige-dark/20 bg-warm-white px-4 py-3 sm:px-6 dark:bg-[#1a1412]">
         <div>
           <h1 className="font-display text-xl font-bold sm:text-2xl">{t("admin.orders.kitchenTitle")}</h1>

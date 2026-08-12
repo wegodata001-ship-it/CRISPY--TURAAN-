@@ -17,6 +17,8 @@ interface ImageUploadProps {
   onDelete?: (url: string) => Promise<void | unknown>;
   label?: string;
   className?: string;
+  /** Smaller upload zone for dialogs (e.g. category create). */
+  compact?: boolean;
 }
 
 export function ImageUpload({
@@ -26,6 +28,7 @@ export function ImageUpload({
   onDelete,
   label,
   className,
+  compact = false,
 }: ImageUploadProps) {
   const t = useT();
   const resolvedLabel = label ?? t("admin.upload.image");
@@ -72,7 +75,12 @@ export function ImageUpload({
       <p className="text-sm font-medium text-dark-brown dark:text-warm-white">{resolvedLabel}</p>
 
       {value ? (
-        <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-beige-dark/30 dark:border-white/10">
+        <div
+          className={cn(
+            "relative w-full overflow-hidden rounded-xl border border-beige-dark/30 dark:border-white/10",
+            compact ? "h-28" : "aspect-video"
+          )}
+        >
           <Image src={value} alt={t("admin.upload.preview")} fill className="object-cover" sizes="400px" />
           {!uploading && (
             <button
@@ -102,19 +110,20 @@ export function ImageUpload({
             if (file) void handleFile(file);
           }}
           className={cn(
-            "flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-beige-dark/50 bg-beige/20 transition-colors hover:border-turquoise/50 hover:bg-beige/40 dark:border-white/10 dark:bg-white/5",
+            "flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-beige-dark/50 bg-beige/20 transition-colors hover:border-turquoise/50 hover:bg-beige/40 dark:border-white/10 dark:bg-white/5",
+            compact ? "h-28 py-3" : "aspect-video",
             dragging && "border-turquoise bg-turquoise/10"
           )}
         >
           {uploading ? (
-            <Loader2 className="h-8 w-8 animate-spin text-turquoise" />
+            <Loader2 className={cn("animate-spin text-turquoise", compact ? "h-5 w-5" : "h-8 w-8")} />
           ) : (
-            <Upload className="h-8 w-8 text-coffee/40" />
+            <Upload className={cn("text-coffee/40", compact ? "h-5 w-5" : "h-8 w-8")} />
           )}
           <span className="text-sm text-coffee/60 dark:text-warm-white/60">
             {uploading ? t("admin.upload.uploading") : t("admin.upload.clickToUpload")}
           </span>
-          {!uploading && <span className="text-xs text-coffee/40">JPG / PNG / WEBP</span>}
+          {!uploading && !compact && <span className="text-xs text-coffee/40">JPG / PNG / WEBP</span>}
         </button>
       )}
 

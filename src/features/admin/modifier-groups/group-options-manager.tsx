@@ -13,7 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   AdminDialog,
+  AdminDialogBody,
   AdminDialogContent,
+  AdminDialogFooter,
   AdminDialogHeader,
   AdminDialogTitle,
 } from "@/features/admin/components/admin-dialog";
@@ -204,7 +206,6 @@ export function GroupOptionsManager({
       <AdminDialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <AdminDialogContent
           size="sm"
-          className="gap-4 overflow-y-auto p-6"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -212,12 +213,12 @@ export function GroupOptionsManager({
             }
           }}
         >
-          <AdminDialogHeader className="border-0 p-0 pe-8">
+          <AdminDialogHeader>
             <AdminDialogTitle>
               {editing ? t("admin.modifiers.editOption") : t("admin.modifiers.newOption")}
             </AdminDialogTitle>
           </AdminDialogHeader>
-          <div className="space-y-4">
+          <AdminDialogBody className="space-y-4">
             <div>
               <Label>{t("admin.modifiers.nameHeRequired")}</Label>
               <Input
@@ -240,15 +241,26 @@ export function GroupOptionsManager({
               />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
+          </AdminDialogBody>
+          <AdminDialogFooter>
             <Button
               type="button"
-              className="w-full rounded-xl"
+              variant="outline"
+              className="rounded-xl"
+              disabled={saving}
+              onClick={() => setDialogOpen(false)}
+            >
+              {t("admin.action.cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="rounded-xl"
               disabled={saving}
               onClick={() => void handleSave()}
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.action.save")}
             </Button>
-          </div>
+          </AdminDialogFooter>
         </AdminDialogContent>
       </AdminDialog>
     </section>

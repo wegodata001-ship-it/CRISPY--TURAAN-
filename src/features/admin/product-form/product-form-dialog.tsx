@@ -449,7 +449,7 @@ export function ProductFormDialog({
       <AdminDialogContent
         size="product"
         className={cn(
-          "h-[calc(100dvh-24px)] max-h-[calc(100dvh-24px)] w-[calc(100vw-24px)] rounded-2xl sm:h-[min(85dvh,900px)] sm:max-h-[min(85dvh,900px)] sm:w-[min(900px,calc(100vw-48px))]",
+          "max-h-[calc(100dvh-48px)] w-[min(900px,calc(100vw-24px))] rounded-[20px] sm:max-h-[min(85dvh,900px)]",
           dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto [&>button]:end-auto"
         )}
       >

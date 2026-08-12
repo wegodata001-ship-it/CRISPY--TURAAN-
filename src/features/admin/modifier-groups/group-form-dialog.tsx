@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   AdminDialog,
+  AdminDialogBody,
   AdminDialogContent,
   AdminDialogFooter,
   AdminDialogHeader,
@@ -222,9 +223,10 @@ export function GroupFormDialog({
           </AdminDialogTitle>
         </AdminDialogHeader>
 
+        <AdminDialogBody className="px-6 py-5">
         <form
           onSubmit={(e) => void handleSubmit(e)}
-          className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-5"
+          className="space-y-6"
         >
           <div className="space-y-6">
             {/* Step 1 — Names */}
@@ -360,11 +362,12 @@ export function GroupFormDialog({
           </div>
 
           {error && (
-            <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/30">
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/30">
               {error}
             </p>
           )}
         </form>
+        </AdminDialogBody>
 
         <AdminDialogFooter>
           <Button

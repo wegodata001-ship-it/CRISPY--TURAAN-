@@ -433,66 +433,79 @@ export function CategoriesAdmin() {
               {editing ? t("admin.categories.edit") : t("admin.categories.new")}
             </AdminDialogTitle>
           </AdminDialogHeader>
-          <AdminDialogBody className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label htmlFor="nameHe">{t("admin.categoryNameHe")}</Label>
-                <Input id="nameHe" dir="rtl" {...form.register("nameHe")} className="mt-1" />
+          <AdminDialogBody className="space-y-5">
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-coffee/45">
+                {t("admin.categories.namesSection")}
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <Label htmlFor="nameHe">{t("admin.categoryNameHe")}</Label>
+                  <Input id="nameHe" dir="rtl" {...form.register("nameHe")} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="nameAr">{t("admin.categoryNameAr")}</Label>
+                  <Input id="nameAr" dir="rtl" {...form.register("nameAr")} className="mt-1" />
+                </div>
+                <div>
+                  <Label htmlFor="nameEn">{t("admin.categoryNameEn")}</Label>
+                  <Input id="nameEn" {...form.register("nameEn")} className="mt-1" />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="nameAr">{t("admin.categoryNameAr")}</Label>
-                <Input id="nameAr" dir="rtl" {...form.register("nameAr")} className="mt-1" />
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-coffee/45">
+                {t("admin.categories.settingsSection")}
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <Label htmlFor="parentId">{t("admin.categories.parentCategory")}</Label>
+                  <select
+                    id="parentId"
+                    {...form.register("parentId")}
+                    className="mt-1 h-10 w-full rounded-xl border border-beige-dark/30 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/5"
+                  >
+                    <option value="">{t("admin.categories.rootCategory")}</option>
+                    {parentOptions.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name_he || c.name_en}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="icon">{t("admin.categories.icon")}</Label>
+                  <select
+                    id="icon"
+                    {...form.register("icon")}
+                    className="mt-1 h-10 w-full rounded-xl border border-beige-dark/30 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/5"
+                  >
+                    {ICONS.map((ic) => (
+                      <option key={ic} value={ic}>
+                        {ic}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="color">{t("admin.categories.color")}</Label>
+                  <Input id="color" type="color" {...form.register("color")} className="mt-1 h-10 p-1" />
+                </div>
+                <div>
+                  <Label htmlFor="sortOrder">{t("admin.categories.sortOrder")}</Label>
+                  <Input
+                    id="sortOrder"
+                    type="number"
+                    {...form.register("sortOrder", { valueAsNumber: true })}
+                    className="mt-1"
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="nameEn">{t("admin.categoryNameEn")}</Label>
-                <Input id="nameEn" {...form.register("nameEn")} className="mt-1" />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label htmlFor="parentId">{t("admin.categories.parentCategory")}</Label>
-                <select
-                  id="parentId"
-                  {...form.register("parentId")}
-                  className="mt-1 h-10 w-full rounded-xl border border-beige-dark/30 bg-warm-white px-3 text-sm dark:border-white/10 dark:bg-white/5"
-                >
-                  <option value="">{t("admin.categories.rootCategory")}</option>
-                  {parentOptions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name_he || c.name_en}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="icon">{t("admin.categories.icon")}</Label>
-                <select
-                  id="icon"
-                  {...form.register("icon")}
-                  className="mt-1 h-10 w-full rounded-xl border border-beige-dark/30 bg-warm-white px-3 text-sm dark:border-white/10 dark:bg-white/5"
-                >
-                  {ICONS.map((ic) => (
-                    <option key={ic} value={ic}>
-                      {ic}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="color">{t("admin.categories.color")}</Label>
-                <Input id="color" type="color" {...form.register("color")} className="mt-1 h-10 p-1" />
-              </div>
-              <div>
-                <Label htmlFor="sortOrder">{t("admin.categories.sortOrder")}</Label>
-                <Input
-                  id="sortOrder"
-                  type="number"
-                  {...form.register("sortOrder", { valueAsNumber: true })}
-                  className="mt-1"
-                />
-              </div>
-            </div>
+            </section>
+
             <ImageUpload
+              compact
               label={t("admin.categories.coverImage")}
               value={form.watch("imageUrl") ?? ""}
               onChange={(url) => form.setValue("imageUrl", url)}

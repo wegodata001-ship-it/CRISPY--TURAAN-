@@ -13,15 +13,15 @@ import { cn } from "@/lib/utils";
 type AdminDialogSize = "sm" | "md" | "lg" | "xl" | "product";
 
 /**
- * Explicit width via min() so the modal never collapses to a side strip.
- * Positioning comes from Dialog layout="center" (fixed + translate).
+ * Width tokens — positioning is ALWAYS viewport-centered via Dialog layout="center"
+ * (fixed flex shell). Never rely on translate or page-relative absolute.
  */
 const SIZE_CLASS: Record<AdminDialogSize, string> = {
-  sm: "w-[min(520px,calc(100vw-1.5rem))] max-w-[min(520px,calc(100vw-1.5rem))]",
-  md: "w-[min(680px,calc(100vw-1.5rem))] max-w-[min(680px,calc(100vw-1.5rem))]",
-  lg: "w-[min(780px,calc(100vw-1.5rem))] max-w-[min(780px,calc(100vw-1.5rem))]",
-  xl: "w-[min(900px,calc(100vw-1.5rem))] max-w-[min(900px,calc(100vw-1.5rem))]",
-  product: "w-[min(900px,calc(100vw-1.5rem))] max-w-[min(900px,calc(100vw-1.5rem))]",
+  sm: "w-[min(520px,calc(100vw-24px))] max-w-[min(520px,calc(100vw-24px))]",
+  md: "w-[min(680px,calc(100vw-48px))] max-w-[min(680px,calc(100vw-48px))]",
+  lg: "w-[min(820px,calc(100vw-48px))] max-w-[min(820px,calc(100vw-48px))]",
+  xl: "w-[min(900px,calc(100vw-48px))] max-w-[min(900px,calc(100vw-48px))]",
+  product: "w-[min(900px,calc(100vw-48px))] max-w-[min(900px,calc(100vw-48px))]",
 };
 
 const AdminDialog = Dialog;
@@ -40,7 +40,8 @@ const AdminDialogContent = React.forwardRef<
       ref={ref}
       dir={dir}
       className={cn(
-        "max-h-[calc(100dvh-1.5rem)] gap-0 overflow-hidden rounded-2xl border border-beige-dark/30 bg-warm-white p-0 sm:max-h-[min(85dvh,900px)]",
+        // Opaque white panel — overflow hidden; ONLY AdminDialogBody scrolls
+        "flex max-h-[calc(100dvh-48px)] flex-col gap-0 overflow-hidden rounded-[20px] border border-black/[0.06] bg-white p-0 opacity-100 shadow-elevated",
         SIZE_CLASS[size],
         dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto [&>button]:end-auto",
         className
@@ -59,7 +60,7 @@ function AdminDialogHeader({
   return (
     <DialogHeader
       className={cn(
-        "shrink-0 border-b border-beige-dark/20 bg-warm-white px-5 py-4 pe-12 text-start sm:px-6 dark:border-white/10 dark:bg-[#1a1412]",
+        "shrink-0 border-b border-beige-dark/20 bg-white px-5 py-4 pe-12 text-start sm:px-6 dark:border-white/10 dark:bg-[#1a1412]",
         className
       )}
       {...props}
@@ -89,7 +90,7 @@ function AdminDialogFooter({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-end gap-3 border-t border-beige-dark/20 bg-warm-white px-5 py-4 sm:px-6 dark:border-white/10 dark:bg-[#1a1412]",
+        "flex shrink-0 items-center justify-end gap-3 border-t border-beige-dark/20 bg-white px-5 py-4 sm:px-6 dark:border-white/10 dark:bg-[#1a1412]",
         className
       )}
       {...props}

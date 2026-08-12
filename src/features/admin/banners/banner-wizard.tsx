@@ -150,7 +150,7 @@ export function BannerWizard({
 
   return (
     <AdminDialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <AdminDialogContent size="product" className="h-[calc(100dvh-24px)] sm:h-[min(820px,min(85dvh,900px))]">
+      <AdminDialogContent size="product" className="max-h-[calc(100dvh-48px)] sm:max-h-[min(820px,min(85dvh,900px))]">
         <AdminDialogHeader>
           <AdminDialogTitle>
             {editing ? t("admin.banners.edit") : t("admin.banners.createTitle")}
