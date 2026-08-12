@@ -145,15 +145,13 @@ async function importMasterMenu() {
   }
 
   if (forceImport) {
-    process.stdout.write("Clearing existing catalog data...\n");
+    process.stdout.write("Clearing existing product catalog data (preserving banners, orders, customers)...\n");
     if (useAdmin) {
       await clearCollectionAdmin(COLLECTIONS.products);
       await clearCollectionAdmin(COLLECTIONS.categories);
-      await clearCollectionAdmin(COLLECTIONS.banners);
     } else {
       await clearCollectionClient(COLLECTIONS.products);
       await clearCollectionClient(COLLECTIONS.categories);
-      await clearCollectionClient(COLLECTIONS.banners);
     }
   }
 
@@ -179,7 +177,7 @@ async function importMasterMenu() {
     let count = 0;
     for (const product of masterMenuProducts) {
       const ref = db.collection(COLLECTIONS.products).doc(product.id);
-      batch.set(ref, {
+      const doc: Record<string, unknown> = {
         nameHe: product.nameHe,
         nameAr: product.nameAr,
         nameEn: product.nameEn,
@@ -193,13 +191,17 @@ async function importMasterMenu() {
         businessType: product.businessType,
         imageUrl: product.image,
         available: product.available,
+        hidden: product.hidden,
         popular: product.popular,
         newProduct: false,
         active: product.active,
         sortOrder: product.sortOrder,
         createdAt: now,
         updatedAt: now,
-      });
+      };
+      if (product.menuCode) doc.menuCode = product.menuCode;
+      if (product.productType) doc.productType = product.productType;
+      batch.set(ref, doc);
       count++;
       if (count % 400 === 0) {
         await batch.commit();
@@ -208,28 +210,14 @@ async function importMasterMenu() {
     }
     await batch.commit();
 
-    process.stdout.write("Creating default banners...\n");
-    const banners = defaultBanners();
-    for (const banner of banners) {
-      await db.collection(COLLECTIONS.banners).doc(banner.id).set({
-        title: banner.title,
-        subtitle: banner.subtitle,
-        imageUrl: banner.imageUrl,
-        mobileImageUrl: banner.mobileImageUrl ?? banner.imageUrl,
-        cta: banner.cta,
-        active: true,
-        sortOrder: banner.sortOrder,
-      });
-    }
-
     await db.collection(COLLECTIONS.settings).doc("app").set({
       storeName: "MISHKAT CAFÉ",
       currency: "ILS",
-      menuVersion: "master-menu-v1",
+      menuVersion: "catalog-reset-2026-08",
       categoriesCount: MASTER_MENU_STATS.categories,
       productsCount: MASTER_MENU_STATS.products,
       updatedAt: now,
-    });
+    }, { merge: true });
   } else {
     const db = await getClientDb();
 
@@ -251,7 +239,7 @@ async function importMasterMenu() {
     let count = 0;
     for (const product of masterMenuProducts) {
       const ref = doc(db, COLLECTIONS.products, product.id);
-      batch.set(ref, {
+      const data: Record<string, unknown> = {
         nameHe: product.nameHe,
         nameAr: product.nameAr,
         nameEn: product.nameEn,
@@ -265,13 +253,17 @@ async function importMasterMenu() {
         businessType: product.businessType,
         imageUrl: product.image,
         available: product.available,
+        hidden: product.hidden,
         popular: product.popular,
         newProduct: false,
         active: product.active,
         sortOrder: product.sortOrder,
         createdAt: now,
         updatedAt: now,
-      });
+      };
+      if (product.menuCode) data.menuCode = product.menuCode;
+      if (product.productType) data.productType = product.productType;
+      batch.set(ref, data);
       count++;
       if (count % 400 === 0) {
         await batch.commit();
@@ -280,23 +272,10 @@ async function importMasterMenu() {
     }
     await batch.commit();
 
-    process.stdout.write("Creating default banners...\n");
-    for (const banner of defaultBanners()) {
-      await setDoc(doc(db, COLLECTIONS.banners, banner.id), {
-        title: banner.title,
-        subtitle: banner.subtitle,
-        imageUrl: banner.imageUrl,
-        mobileImageUrl: banner.mobileImageUrl ?? banner.imageUrl,
-        cta: banner.cta,
-        active: true,
-        sortOrder: banner.sortOrder,
-      });
-    }
-
     await setDoc(doc(db, COLLECTIONS.settings, "app"), {
       storeName: "MISHKAT CAFÉ",
       currency: "ILS",
-      menuVersion: "master-menu-v1",
+      menuVersion: "catalog-reset-2026-08",
       categoriesCount: MASTER_MENU_STATS.categories,
       productsCount: MASTER_MENU_STATS.products,
       updatedAt: now,
@@ -309,38 +288,6 @@ async function importMasterMenu() {
   process.stdout.write(`  Popular:    ${MASTER_MENU_STATS.popular}\n`);
 }
 
-function defaultBanners() {
-  const storePhoto = "/store.jpg";
-  return [
-    {
-      id: "promo-shakshuka",
-      title: "ארוחת בוקר מיוחדת",
-      subtitle: "שקשוקה טרייה מהמטבח — מומלץ!",
-      imageUrl: storePhoto,
-      mobileImageUrl: storePhoto,
-      cta: "Order Now",
-      sortOrder: 1,
-    },
-    {
-      id: "promo-shakes",
-      title: "שייקים ביתיים",
-      subtitle: "קינדר · אוראו · פיסטוק — הפופולריים ביותר",
-      imageUrl: storePhoto,
-      mobileImageUrl: storePhoto,
-      cta: "Try Now",
-      sortOrder: 2,
-    },
-    {
-      id: "promo-coffee",
-      title: "קפה איכותי",
-      subtitle: "אייס ספאניש לאטה · קפוצ'ינו · אמריקאנו",
-      imageUrl: storePhoto,
-      mobileImageUrl: storePhoto,
-      cta: "Explore Menu",
-      sortOrder: 3,
-    },
-  ];
-}
 
 importMasterMenu().catch((err) => {
   process.stderr.write(`Import failed: ${err instanceof Error ? err.message : String(err)}\n`);

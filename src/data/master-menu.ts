@@ -16,9 +16,12 @@ export interface MasterMenuProduct {
   businessType: BusinessType;
   popular: boolean;
   available: boolean;
+  hidden: boolean;
   image: string;
   sortOrder: number;
   active: boolean;
+  menuCode?: string;
+  productType?: string;
 }
 
 export interface MasterMenuCategory {
@@ -33,13 +36,18 @@ export interface MasterMenuCategory {
 }
 
 type RawProduct = {
+  id: string;
   nameHe: string;
-  nameAr?: string;
+  nameAr: string;
   nameEn: string;
+  descriptionHe: string;
+  descriptionAr: string;
+  descriptionEn: string;
   price: number;
-  cost?: number;
-  popular?: boolean;
-  description?: string;
+  hidden: boolean;
+  menuCode?: string;
+  productType?: string;
+  sortOrder: number;
 };
 
 type RawCategory = {
@@ -48,193 +56,160 @@ type RawCategory = {
 };
 
 /**
- * MISHKAT CAFÉ — Master Menu (PDF source of truth)
- * Prices, costs, profit, popularity & business type per official menu document.
+ * MISHKAT CAFÉ — Master Menu (Owner import 2026-08-12)
+ * Source: scripts/data/mishkat-products-2026-08.json
+ * Numbers in original names are menuCode references, not prices.
+ * Prices set to 0 where not provided — to be updated via Admin.
  */
 const RAW_MENU: RawCategory[] = [
   {
-    categoryId: "soft-drinks",
-    products: [
-      { nameHe: "מים מינרליים", nameEn: "Mineral Water", price: 8 },
-      { nameHe: "סודה", nameEn: "Soda Water", price: 10 },
-      { nameHe: "קולה / זירו", nameEn: "Cola / Zero", price: 13, popular: true },
-      { nameHe: "פאנטה", nameEn: "Fanta", price: 13 },
-      { nameHe: "ספרייט", nameEn: "Sprite", price: 13 },
-      { nameHe: "XL", nameEn: "XL Energy Drink", price: 12 },
-      { nameHe: "XL Teen (Ten)", nameEn: "XL Teen", price: 12 },
-    ],
-  },
-  {
-    categoryId: "fresh-juices",
-    products: [
-      { nameHe: "מיץ תפוזים סחוט", nameEn: "Fresh Orange Juice", price: 18, popular: true },
-      { nameHe: "מיץ גזר סחוט", nameEn: "Fresh Carrot Juice", price: 18 },
-      { nameHe: "תפוגזר", nameEn: "Apple-Carrot-Orange Mix", price: 20, popular: true },
-      { nameHe: "מיץ תפוחים", nameEn: "Apple Juice", price: 20 },
-      { nameHe: "לימונדה טבעית", nameEn: "Natural Lemonade", price: 16, popular: true },
-      { nameHe: "לימונענע גרוס", nameEn: "Lemon Mint (Crushed)", price: 20 },
-    ],
-  },
-  {
-    categoryId: "shakes",
-    products: [
-      { nameHe: "שייק קינדר", nameEn: "Kinder Shake", price: 28, popular: true },
-      { nameHe: "שייק אוראו", nameEn: "Oreo Shake", price: 28, popular: true },
-      { nameHe: "שייק אלפחורס", nameEn: "Alphonso Mango Shake", price: 28 },
-      { nameHe: "שייק פיסטוק", nameEn: "Pistachio Shake", price: 30, popular: true },
-      { nameHe: "שייק שוקולד", nameEn: "Chocolate Shake", price: 25 },
-      { nameHe: "שייק וניל", nameEn: "Vanilla Shake", price: 25 },
-      { nameHe: "שייק תות", nameEn: "Strawberry Shake", price: 26 },
-      { nameHe: "שייק פסיפלורה", nameEn: "Passion Fruit Shake", price: 26 },
-      { nameHe: "שייק מנגו", nameEn: "Mango Shake", price: 26 },
-      { nameHe: "שייק אננס / אפרסק", nameEn: "Pineapple / Peach Shake", price: 28 },
-      { nameHe: "שייק פירות יער", nameEn: "Mixed Berries Shake", price: 28 },
-      { nameHe: "פיניה קולדה", nameEn: "Piña Colada Shake", price: 28 },
-      { nameHe: "שייק ספיישל", nameEn: "Special Shake", price: 30, popular: true },
-    ],
-  },
-  {
-    categoryId: "hot-drinks",
-    products: [
-      { nameHe: "אמריקאנו", nameEn: "Americano", price: 14, popular: true },
-      { nameHe: "אספרסו Single", nameEn: "Espresso Single", price: 10 },
-      { nameHe: "אספרסו Double", nameEn: "Espresso Double", price: 13, popular: true },
-      { nameHe: "מקיאטו", nameEn: "Macchiato", price: 11 },
-      { nameHe: "הפוך / קפוצ'ינו", nameEn: "Cappuccino / Latte", price: 16, popular: true },
-      { nameHe: "נס קפה", nameEn: "Instant Coffee", price: 14 },
-      { nameHe: "סחלב חם", nameEn: "Hot Sahlab", price: 22 },
-      { nameHe: "ספאניש לאטה חם", nameEn: "Hot Spanish Latte", price: 22, popular: true },
-      { nameHe: "שוקו חם", nameEn: "Hot Chocolate", price: 16, popular: true },
-      { nameHe: "שוקולד חם", nameEn: "Hot Drinking Chocolate", price: 20 },
-      { nameHe: "תה / תה צמחים", nameEn: "Tea / Herbal Tea", price: 12 },
-      { nameHe: "אפוגטו", nameEn: "Affogato", price: 20, popular: true },
-    ],
-  },
-  {
-    categoryId: "ice-drinks",
-    products: [
-      { nameHe: "אייס קפה", nameEn: "Iced Coffee", price: 18, popular: true },
-      { nameHe: "אייס ספאניש לאטה", nameEn: "Iced Spanish Latte", price: 26, popular: true },
-      { nameHe: "אייס טירמיסו", nameEn: "Iced Tiramisu", price: 26 },
-      { nameHe: "אייס פרפראצ'ינו", nameEn: "Iced Frappuccino", price: 26, popular: true },
-      { nameHe: "אייס תות", nameEn: "Iced Strawberry", price: 24 },
-      { nameHe: "אייס מנגו", nameEn: "Iced Mango", price: 24 },
-      { nameHe: "אייס סחלב", nameEn: "Iced Sahlab", price: 24 },
-      { nameHe: "אייס רוז", nameEn: "Iced Rose", price: 22 },
-    ],
-  },
-  {
     categoryId: "breakfast",
     products: [
-      { nameHe: "ארוחת בוקר לבחירה", nameEn: "Build Your Breakfast", price: 62, popular: true },
-      { nameHe: "שקשוקה", nameEn: "Shakshuka", price: 42, popular: true },
-      { nameHe: "פריטטה", nameEn: "Frittata", price: 36 },
-      { nameHe: "ביצת עין / חביתה", nameEn: "Fried Egg / Omelette", price: 15 },
-      { nameHe: "טוסט (בייגל)", nameEn: "Toast (Bagel)", price: 34 },
-      { nameHe: "פאן קייק", nameEn: "Pancakes", price: 32, popular: true },
+      { id: "breakfast-personal-breakfast", nameAr: "وجبة فطور شخصية", nameHe: "", nameEn: "", descriptionAr: "تشمل 8 صلصات + بيض عيون/ عجه/ بيض مخلط (مربئ التيلبن, طبات لبنه, لبنه, زبده و عسل, شوكلاته, جبنه فيتا, تونه, زيتون, سلطه عرببه, سلطه عليم לחם", descriptionHe: "", descriptionEn: "", price: 0, hidden: true, menuCode: "8.9.10", productType: "Meal", sortOrder: 1 },
+      { id: "breakfast-classic-pancake", nameAr: "بانكيك كلاسي", nameHe: "", nameEn: "", descriptionAr: "اختيار اضافات", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Meal", sortOrder: 2 },
+      { id: "breakfast-mini-pancake", nameAr: "ميني بانكيك", nameHe: "", nameEn: "", descriptionAr: "اختيار اضافات", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Meal", sortOrder: 3 },
+      { id: "breakfast-belgian-waffle", nameAr: "وافل بلجيكي", nameHe: "", nameEn: "", descriptionAr: "اختيار اضافات", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Meal", sortOrder: 4 },
+      { id: "breakfast-french-crepe", nameAr: "كريب فرنسي", nameHe: "", nameEn: "", descriptionAr: "اختيار اضافات", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Meal", sortOrder: 5 },
+      { id: "breakfast-shakshuka", nameAr: "", nameHe: "שקשוקה", nameEn: "", descriptionAr: "اضافات (زيتون, לחם)", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "7", sortOrder: 6 },
     ],
   },
   {
     categoryId: "sandwiches",
     products: [
-      { nameHe: "קוראסון חלומי", nameEn: "Halloumi Croissant", price: 38, popular: true },
-      { nameHe: "קוראסון סלמון", nameEn: "Salmon Croissant", price: 44 },
-      { nameHe: "קוראסון רוסטביף", nameEn: "Roast Beef Croissant", price: 46 },
-      { nameHe: "קוראסון טונה", nameEn: "Tuna Croissant", price: 36 },
-      { nameHe: "קוראסון גבינה צהובה", nameEn: "Yellow Cheese Croissant", price: 26 },
-      { nameHe: "טארט ממולא אבוקדו", nameEn: "Avocado Stuffed Tart", price: 38 },
+      { id: "sandwiches-omelette-sandwich", nameAr: "ساندويش عجة", nameHe: "", nameEn: "", descriptionAr: "جيبيتا (ابيض /اسود) اضافات سلطه عربي", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "15.16", productType: "Meal", sortOrder: 1 },
+      { id: "sandwiches-corned-beef", nameAr: "ساندويش كورنبيف", nameHe: "", nameEn: "", descriptionAr: "صلصة ألفاييم، خس، خيار مخلل وبندورة", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Meal", sortOrder: 2 },
+      { id: "sandwiches-smoked-salmon", nameAr: "ساندويش سلمون مدخن", nameHe: "", nameEn: "", descriptionAr: "تشمل شرائح افوكادو وبصل احمر (جيبيتا(ابيض / اسود) كوراسون) سلطه عليم صلصه ايولي شمير ليمون", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "17.18.19", productType: "Meal", sortOrder: 3 },
+      { id: "sandwiches-bulgarian-cheese", nameAr: "ساندويش جبنة بلغارية", nameHe: "", nameEn: "", descriptionAr: "صلصة بيستو، بندورة، ريحان وصلصة بلسمي", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Meal", sortOrder: 4 },
+      { id: "sandwiches-tuna", nameAr: "ساندويش تونه", nameHe: "", nameEn: "", descriptionAr: "تشمل خيار مكبوس, خسة ليلاك, سلطه عربيه / سلطه عليم جيبيتا (ابيض/ اسود)", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "20.21.22", sortOrder: 5 },
+      { id: "sandwiches-halloumi-sandwich", nameAr: "كريخ حلومي", nameHe: "", nameEn: "", descriptionAr: "حلومي, بندورة, جرجير, بيستو, جبنة, شمينت, דبس רימון (جبيتا ابيض/اسود)", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "24.25", sortOrder: 6 },
+      { id: "sandwiches-halloumi-croissant", nameAr: "كوراسون حلومي", nameHe: "", nameEn: "", descriptionAr: "حلومي, بندורة, جرجير, بيستو, جبنة, شمينת, דבס רימון", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "26", sortOrder: 7 },
+      { id: "sandwiches-classic-toast", nameAr: "توست كلاسي", nameHe: "", nameEn: "", descriptionAr: "صلصة بندورة, جبنة صفراء, زيتون, اضافة مقابل دفع(طونة, فقع, ذرة, فلفل ملون - 4 ش)", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "27", sortOrder: 8 },
+      { id: "sandwiches-chicken-tortilla", nameAr: "تورتيا صدر دجاج", nameHe: "", nameEn: "", descriptionAr: "صدر دجاج, طماطم, خس تقدم مع سلطة حسب الاختيار مفرومة/ اوراق, مع طحينة وعمبة", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "36", sortOrder: 9 },
     ],
   },
   {
     categoryId: "salads",
     products: [
-      { nameHe: "תבולה עם לאבנה", nameEn: "Tabbouleh with Labneh", price: 42 },
-      { nameHe: "סלט פתוש", nameEn: "Fatoush Salad", price: 44 },
-      { nameHe: "סלט חלומי", nameEn: "Halloumi Salad", price: 48, popular: true },
-      { nameHe: "סלט קיסר", nameEn: "Caesar Salad", price: 52, popular: true },
-      { nameHe: "סלט שרימפס", nameEn: "Shrimp Salad", price: 62 },
-      { nameHe: "סלט יווני / בולגרית", nameEn: "Greek / Bulgarian Salad", price: 44 },
-      { nameHe: "סלט אגסים / תערובת", nameEn: "Pear & Mix Salad", price: 48 },
-      { nameHe: "פרנץ' טוסט", nameEn: "French Toast", price: 38 },
+      { id: "salads-tabbouleh", nameAr: "تبوله", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "11", sortOrder: 1 },
+      { id: "salads-fatoush", nameAr: "فتوش", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "23", sortOrder: 2 },
+      { id: "salads-halloumi", nameAr: "سلطة حلومي", nameHe: "", nameEn: "", descriptionAr: "اوراق خضراء, خيار, بندورة شيري, بصل ليلكي, فقع مشوح بصوص ترياكي", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "29", sortOrder: 3 },
+      { id: "salads-caesar", nameAr: "سلطة قيصر", nameHe: "", nameEn: "", descriptionAr: "اوراق خس, خبز محمص, جرجير, بارميزان ولوز", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "30", sortOrder: 4 },
+      { id: "salads-shrimp", nameAr: "سلطة شريمس", nameHe: "", nameEn: "", descriptionAr: "لبنة, شيري, بصل احمر, واوراق خضراء, مع صوص فينغريت بالثوم والليمون", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "32", sortOrder: 5 },
     ],
   },
   {
     categoryId: "mains-pasta",
     products: [
-      { nameHe: "לאפה חזה עוף", nameEn: "Chicken Breast Laffa", price: 54, popular: true },
-      { nameHe: "לאפה פילה", nameEn: "Fillet Laffa", price: 68 },
-      { nameHe: "רביולי", nameEn: "Ravioli", price: 52 },
-      { nameHe: "פטוצ'יני", nameEn: "Fettuccine", price: 48 },
-      { nameHe: "לזניה בשר טחון", nameEn: "Ground Beef Lasagna", price: 58 },
-      { nameHe: "פטריות ממולאות", nameEn: "Stuffed Mushrooms", price: 46 },
-      { nameHe: "פסטה שמנת פטריות", nameEn: "Cream Mushroom Pasta", price: 48, popular: true },
-      { nameHe: "פסטה פסטו / עגבניות", nameEn: "Pesto / Tomato Pasta", price: 44 },
-      { nameHe: "פסטה 27", nameEn: "Pasta 27", price: 52, popular: true },
-      { nameHe: "פוקאצ'ה", nameEn: "Focaccia", price: 24 },
+      { id: "mains-pasta-stuffed-mushrooms", nameAr: "فقع محشو", nameHe: "", nameEn: "", descriptionAr: "محشو بالجبن و البيستو, ويقدم مع صوص كريمي", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "31", sortOrder: 1 },
+      { id: "mains-pasta-cheese-ravioli", nameAr: "رافيولي بالجبنة", nameHe: "", nameEn: "", descriptionAr: "يقدم مع صوص شمينت", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "33", sortOrder: 2 },
+      { id: "mains-pasta-cheese-ravioli-mushroom", nameAr: "رافيولي بالجبنة مع الفقع", nameHe: "", nameEn: "", descriptionAr: "يقدم مع صوص شمينت وفقع", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "34", sortOrder: 3 },
+      { id: "mains-pasta-rose-cheese-ravioli", nameAr: "رافيولي روزيه بالجبنة", nameHe: "", nameEn: "", descriptionAr: "يقدم مع صوص روزيه", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "35", sortOrder: 4 },
+      { id: "mains-pasta-fettuccine", nameAr: "فيتوشيني", nameHe: "", nameEn: "", descriptionAr: "تقدم مع صوص كريمة بالفطر (اضافات: بيستو)", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "37", sortOrder: 5 },
+      { id: "mains-pasta-fettuccine-rose", nameAr: "فيتوشيني روزيه", nameHe: "", nameEn: "", descriptionAr: "يقدم مع صوص روزيه (اضافات: بيستو)", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "38", sortOrder: 6 },
     ],
   },
   {
     categoryId: "bakery",
     products: [
-      { nameHe: "קוראסון חמאה", nameEn: "Butter Croissant", price: 18 },
-      { nameHe: "קוראסון שקדים", nameEn: "Almond Croissant", price: 22 },
-      { nameHe: "קוראסון שוקולד", nameEn: "Chocolate Croissant", price: 22, popular: true },
-      { nameHe: "קוראסון גבינה", nameEn: "Cheese Croissant", price: 22 },
-      { nameHe: "בורקס גבינה / תפוח", nameEn: "Cheese / Apple Boreka", price: 16 },
-      { nameHe: "מאפה קובייה", nameEn: "Cube Pastry", price: 28 },
-      { nameHe: "מאפה פטל", nameEn: "Raspberry Pastry", price: 28 },
-      { nameHe: "מאפה מרובע עם קרם", nameEn: "Square Cream Pastry", price: 30 },
-      { nameHe: "מאפה מעוין + פירות", nameEn: "Diamond Fruit Pastry", price: 28 },
-      { nameHe: "סינבון", nameEn: "Cinnamon Roll", price: 26, popular: true },
-      { nameHe: "מאפה שטרודל", nameEn: "Strudel Pastry", price: 26 },
-      { nameHe: "פאן וייס / פיסטוק", nameEn: "Funnel Cake / Pistachio", price: 30 },
-      { nameHe: "טארט פירות", nameEn: "Fruit Tart", price: 28, popular: true },
+      { id: "bakery-potato-boreka", nameAr: "بوريكس بطاطا", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 1 },
+      { id: "bakery-cheese-boreka", nameAr: "بوريكس جبنة", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 2 },
+      { id: "bakery-butter-croissant", nameAr: "كرواسون زبدة", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 3 },
+      { id: "bakery-chocolate-croissant", nameAr: "كرواسون شوكولاتة", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 4 },
+      { id: "bakery-almond-croissant", nameAr: "كرواسون لوز", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 5 },
+      { id: "bakery-pain-suisse-chocolate", nameAr: "بان سويس شوكولاتة", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 6 },
+      { id: "bakery-pain-suisse-vanilla", nameAr: "بان سويس فانيل", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 7 },
+      { id: "bakery-cinnamon-roll", nameAr: "سينابون قرفة", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 8 },
+      { id: "bakery-cheese-pastry", nameAr: "كيس جبنة", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 9 },
+      { id: "bakery-square-salad-pastry", nameAr: "", nameHe: "מאפה מרובע במילוי סלט", nameEn: "", descriptionAr: "محشو بندورة شيري وجبنة بלגarية", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "28", sortOrder: 10 },
+      { id: "bakery-square-cream-pastry", nameAr: "", nameHe: "מאפה מרובע במילוי קרם פסטיר", nameEn: "", descriptionAr: "محشو كريم باستيير", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "39", sortOrder: 11 },
+      { id: "bakery-diamond-pastry", nameAr: "", nameHe: "מאפה מועיין ממולא", nameEn: "", descriptionAr: "", descriptionHe: "מילוי לבחירה", descriptionEn: "", price: 0, hidden: false, menuCode: "40", sortOrder: 12 },
+      { id: "bakery-filled-butter-croissant", nameAr: "", nameHe: "קרואסון חמאה במילוי", nameEn: "", descriptionAr: "", descriptionHe: "קרם שקדים", descriptionEn: "", price: 0, hidden: false, menuCode: "41", sortOrder: 13 },
+      { id: "bakery-gluten-free-brownies", nameAr: "", nameHe: "בראוניז ללא גלוטין", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "43", sortOrder: 14 },
+      { id: "bakery-chocolate-croissant-he", nameAr: "", nameHe: "קרואסון שוקולד", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "42", sortOrder: 15 },
+      { id: "bakery-cookies", nameAr: "", nameHe: "עוגיות בראיות", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "44", sortOrder: 16 },
+      { id: "bakery-sugar-free-brownies", nameAr: "", nameHe: "בראוניז ללא סוכר", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "43", sortOrder: 17 },
+      { id: "bakery-brownies", nameAr: "", nameHe: "ברוניז", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "43", sortOrder: 18 },
     ],
   },
   {
     categoryId: "desserts",
     products: [
-      { nameHe: "רד וולווט", nameEn: "Red Velvet", price: 36, popular: true },
-      { nameHe: "מוס קינדר", nameEn: "Kinder Mousse", price: 32 },
-      { nameHe: "מוס אוראו", nameEn: "Oreo Mousse", price: 32, popular: true },
-      { nameHe: "עוגת גבינה אפויה", nameEn: "Baked Cheesecake", price: 38 },
-      { nameHe: "סאן סבסטיאן", nameEn: "San Sebastian Cheesecake", price: 40, popular: true },
-      { nameHe: "חלאוות אלג'בן", nameEn: "Al-Jabin Halawat", price: 34 },
-      { nameHe: "ליאלי ביירות", nameEn: "Layali Beirut", price: 32 },
-      { nameHe: "טירמיסו", nameEn: "Tiramisu", price: 36, popular: true },
-      { nameHe: "קערת וואפל / קרפ", nameEn: "Waffle / Crepe Bowl", price: 38 },
-      { nameHe: "בראוניז", nameEn: "Brownies", price: 18 },
-      { nameHe: "טרס לצ'ס", nameEn: "Tres Leches", price: 36 },
-      { nameHe: "כוסות קינוח אישיות", nameEn: "Personal Dessert Cups", price: 26 },
+      { id: "desserts-crunchy-chocolate-cake", nameAr: "كعكة كرانشي شوكولاتة", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 1 },
+      { id: "desserts-english-cake", nameAr: "انجلش كيك", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 2 },
+      { id: "desserts-san-sebastian", nameAr: "سان سيباستيان", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 3 },
+      { id: "desserts-cheese-crumble-cake", nameAr: "كعكة فتات جبنة", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 4 },
+      { id: "desserts-blueberry-cheesecake", nameAr: "كعكة جبنة توت ازرق", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 5 },
+      { id: "desserts-sacher-cake", nameAr: "كعكة زاخر", nameHe: "", nameEn: "", descriptionAr: "كعكة شوكولاتة، مع طبقات من المربى، مغطاه بطبقة من الشوكولاتة.", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 6 },
+      { id: "desserts-apple-cake", nameAr: "كعكة تفاح", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 7 },
+      { id: "desserts-house-cake", nameAr: "كعكة البيت", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 8 },
+      { id: "desserts-layali-beirut", nameAr: "ليالي بيروت", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 9 },
+      { id: "desserts-tres-leches", nameAr: "تريليتشي", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 10 },
+      { id: "desserts-tiramisu", nameAr: "تيراميسو", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 11 },
+      { id: "desserts-creme-brulee-classic", nameAr: "كريم بروليه كلاسي", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 12 },
+      { id: "desserts-creme-brulee-pistachio", nameAr: "كريم بروليه فستق", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 13 },
+      { id: "desserts-creme-brulee-pannacotta", nameAr: "كريم بروليه باناكوتا", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 14 },
+      { id: "desserts-red-velvet", nameAr: "ريد فيلفيت", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 15 },
+      { id: "desserts-ferrero-rocher-cake", nameAr: "كعكة فيريرو روشيه", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 16 },
+      { id: "desserts-souffle", nameAr: "سوفليه", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 17 },
+      { id: "desserts-chocolate-earthquake", nameAr: "", nameHe: "רעידת שוקולד", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "45", sortOrder: 18 },
+      { id: "desserts-alfajores", nameAr: "", nameHe: "אלפאחורס", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "46", sortOrder: 19 },
+      { id: "desserts-cedar-cake", nameAr: "", nameHe: "עוגת קידר", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "47", sortOrder: 20 },
+      { id: "desserts-lotus-cake", nameAr: "", nameHe: "עוגת לוטוס", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "48", sortOrder: 21 },
+      { id: "desserts-salty-bagel-cake", nameAr: "", nameHe: "עוגת ביגל מלוח", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "48", sortOrder: 22 },
+      { id: "desserts-tricolor-cake", nameAr: "", nameHe: "עוגת טריקולד", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "49", sortOrder: 23 },
+      { id: "desserts-red-pipette", nameAr: "", nameHe: "רד פיפית", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "50", sortOrder: 24 },
+      { id: "desserts-ferrero-cake-he", nameAr: "", nameHe: "עוגת פירירו", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "51", sortOrder: 25 },
+      { id: "desserts-raffaello-cake", nameAr: "", nameHe: "עוגת רפאילו", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "52", sortOrder: 26 },
+    ],
+  },
+  {
+    categoryId: "hot-drinks",
+    products: [
+      { id: "hot-drinks-nes-cafe", nameAr: "", nameHe: "נס קפה", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "2", sortOrder: 1 },
+      { id: "hot-drinks-hafuch", nameAr: "", nameHe: "הפוך", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "1", sortOrder: 2 },
+      { id: "hot-drinks-ilan", nameAr: "", nameHe: "אילן", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "3", sortOrder: 3 },
+      { id: "hot-drinks-macchiato", nameAr: "", nameHe: "מקיאטו", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "4", sortOrder: 4 },
+      { id: "hot-drinks-hot-chocolate", nameAr: "", nameHe: "שוקו חם", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "6", sortOrder: 5 },
+    ],
+  },
+  {
+    categoryId: "ice-drinks",
+    products: [
+      { id: "ice-drinks-mojito", nameAr: "موهيتو", nameHe: "", nameEn: "", descriptionAr: "اختيار اساس", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Meal", sortOrder: 1 },
+      { id: "ice-drinks-iced-coffee", nameAr: "", nameHe: "קפה קר", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "5", sortOrder: 2 },
+      { id: "ice-drinks-cold-chocolate", nameAr: "شوكو بارد", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "14", sortOrder: 3 },
+      { id: "ice-drinks-mojito-watermelon", nameAr: "", nameHe: "מוחיטו אבטיח", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "53", sortOrder: 4 },
+      { id: "ice-drinks-mojito-blue-curacao", nameAr: "", nameHe: "מוחיטו בלו קראסאן", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "54", sortOrder: 5 },
+      { id: "ice-drinks-mojito-blueberry", nameAr: "", nameHe: "מוחיטו בלו בירי", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "55", sortOrder: 6 },
+      { id: "ice-drinks-mojito-strawberry", nameAr: "", nameHe: "מוחיטו תות", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "56", sortOrder: 7 },
+      { id: "ice-drinks-mojito-classic", nameAr: "", nameHe: "מוחיטו", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "57", sortOrder: 8 },
+    ],
+  },
+  {
+    categoryId: "fresh-juices",
+    products: [
+      { id: "fresh-juices-mix-juice", nameAr: "عصير ميكس", nameHe: "", nameEn: "", descriptionAr: "اختيار الميكس", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Meal", sortOrder: 1 },
+      { id: "fresh-juices-lemonade", nameAr: "ليمونادة", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "12", productType: "Item", sortOrder: 2 },
+      { id: "fresh-juices-ice-lemon-mint", nameAr: "ايس ليمون نعنع", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 3 },
+      { id: "fresh-juices-orange", nameAr: "عصير برتقال", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, menuCode: "13", productType: "Item", sortOrder: 4 },
+      { id: "fresh-juices-carrot", nameAr: "عصير جزر", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 5 },
+      { id: "fresh-juices-apple", nameAr: "عصير تفاح", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 6 },
+      { id: "fresh-juices-apple-carrot", nameAr: "عصير تفاح وجزر", nameHe: "", nameEn: "", descriptionAr: "", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Item", sortOrder: 7 },
+    ],
+  },
+  {
+    categoryId: "shakes",
+    products: [
+      { id: "shakes-milkshake", nameAr: "ميلك شيك", nameHe: "", nameEn: "", descriptionAr: "اختيار طعم", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Meal", sortOrder: 1 },
     ],
   },
   {
     categoryId: "ice-cream-yogurt",
     products: [
-      { nameHe: "גלידה אמריקאית", nameEn: "American Ice Cream", price: 15, popular: true },
-      { nameHe: "גלידה (ג'לאטו)", nameEn: "Gelato Ice Cream", price: 18 },
-      { nameHe: "יוגורט טבעי", nameEn: "Natural Yogurt", price: 22 },
-      { nameHe: "תוספות ליוגורט", nameEn: "Yogurt Toppings", price: 12 },
+      { id: "ice-cream-2-scoops", nameAr: "2 كرات بوظة", nameHe: "", nameEn: "", descriptionAr: "اختيار طعم", descriptionHe: "", descriptionEn: "", price: 0, hidden: false, productType: "Meal", sortOrder: 1 },
     ],
   },
 ];
-
-/** Food-cost ratio from PDF business model (cost ≈ 38% of menu price) */
-const DEFAULT_COST_RATIO = 0.38;
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 48);
-}
-
-function calcCost(price: number, explicit?: number): number {
-  if (explicit !== undefined) return explicit;
-  return Math.round(price * DEFAULT_COST_RATIO * 100) / 100;
-}
 
 function buildProducts(): MasterMenuProduct[] {
   const products: MasterMenuProduct[] = [];
@@ -243,35 +218,30 @@ function buildProducts(): MasterMenuProduct[] {
     const meta = CATEGORY_META.find((c) => c.id === group.categoryId);
     if (!meta) continue;
 
-    group.products.forEach((raw, index) => {
-      const price = raw.price;
-      const cost = calcCost(price, raw.cost);
-      const id = `${group.categoryId}-${slugify(raw.nameEn || raw.nameHe)}`;
-
-      const nameAr = raw.nameAr ?? raw.nameEn;
-      const descHe =
-        raw.description ?? `${raw.nameHe} — ${meta.nameHe} · MISHKAT CAFÉ`;
-
+    for (const raw of group.products) {
       products.push({
-        id,
+        id: raw.id,
         categoryId: group.categoryId,
         nameHe: raw.nameHe,
-        nameAr,
+        nameAr: raw.nameAr,
         nameEn: raw.nameEn,
-        descriptionHe: descHe,
-        descriptionAr: `${nameAr} — ${meta.nameAr} · MISHKAT CAFÉ`,
-        descriptionEn: `${raw.nameEn} — ${meta.nameEn} · MISHKAT CAFÉ`,
-        price,
-        cost,
-        profit: Math.round((price - cost) * 100) / 100,
+        descriptionHe: raw.descriptionHe,
+        descriptionAr: raw.descriptionAr,
+        descriptionEn: raw.descriptionEn,
+        price: raw.price,
+        cost: 0,
+        profit: 0,
         businessType: meta.businessType,
-        popular: raw.popular ?? false,
+        popular: false,
         available: true,
+        hidden: raw.hidden,
         image: getCategoryPlaceholder(group.categoryId),
-        sortOrder: index + 1,
-        active: true,
+        sortOrder: raw.sortOrder,
+        active: !raw.hidden,
+        menuCode: raw.menuCode,
+        productType: raw.productType,
       });
-    });
+    }
   }
 
   return products;
