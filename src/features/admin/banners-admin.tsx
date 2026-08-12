@@ -27,6 +27,7 @@ import {
   pickChangedBannerFields,
 } from "@/lib/banners/manager";
 import { formatDate, cn } from "@/lib/utils";
+import { isAllowedProductImageUrl } from "@/lib/menu/placeholders";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
 import { AdminEmptyState } from "./components/admin-empty-state";
@@ -173,7 +174,11 @@ export function BannersAdmin() {
   const renderCard = (banner: BannerSlide, dragHandle?: React.ReactNode) => (
     <article className={cn("overflow-hidden rounded-2xl border border-beige-dark/15 bg-warm-white shadow-soft", !banner.active && "opacity-80")}>
       <div className="relative aspect-[16/9] bg-beige/30">
-        <Image src={banner.image} alt={banner.title} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+        {banner.image && isAllowedProductImageUrl(banner.image) ? (
+          <Image src={banner.image} alt={banner.title} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-coffee/15 via-beige/40 to-turquoise/10" aria-hidden />
+        )}
         <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
           <Badge
             variant="outline"
@@ -281,8 +286,12 @@ export function BannersAdmin() {
           className="space-y-3"
           renderItem={(banner, dragHandle) => (
             <div className="grid grid-cols-[140px_1fr_auto] items-center gap-3 rounded-2xl border border-beige-dark/15 bg-warm-white p-3 shadow-soft">
-              <div className="relative aspect-video overflow-hidden rounded-xl">
-                <Image src={banner.image} alt="" fill className="object-cover" sizes="140px" />
+              <div className="relative aspect-video overflow-hidden rounded-xl bg-beige/30">
+                {banner.image && isAllowedProductImageUrl(banner.image) ? (
+                  <Image src={banner.image} alt="" fill className="object-cover" sizes="140px" />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-coffee/15 via-beige/40 to-turquoise/10" aria-hidden />
+                )}
               </div>
               <div className="min-w-0"><p className="truncate font-semibold">{banner.title}</p><p className="text-xs text-coffee/50">{visibilityLabel(banner)}</p></div>
               {dragHandle}

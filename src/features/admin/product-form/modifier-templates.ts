@@ -20,9 +20,9 @@ export const MODIFIER_TEMPLATES: ModifierTemplate[] = [
     selectionType: "single",
     required: false,
     options: [
-      { nameHe: "ללא קרח" },
+      { nameHe: "עם קרח" },
+      { nameHe: "בלי קרח" },
       { nameHe: "מעט קרח" },
-      { nameHe: "רגיל" },
       { nameHe: "הרבה קרח" },
     ],
   },
@@ -35,7 +35,7 @@ export const MODIFIER_TEMPLATES: ModifierTemplate[] = [
     options: [
       { nameHe: "חלב רגיל" },
       { nameHe: "חלב 1%" },
-      { nameHe: "חלב סויה", priceDelta: 3 },
+      { nameHe: "חלב סויה" },
     ],
   },
   {
@@ -44,7 +44,23 @@ export const MODIFIER_TEMPLATES: ModifierTemplate[] = [
     nameHe: "סוג כוס",
     selectionType: "single",
     required: false,
-    options: [{ nameHe: "זכוכית" }, { nameHe: "חד פעמי" }, { nameHe: "צבעוני" }],
+    options: [
+      { nameHe: "כוס זכוכית" },
+      { nameHe: "כוס צבעונית" },
+      { nameHe: "כוס חד פעמית" },
+    ],
+  },
+  {
+    id: "sauces",
+    labelKey: "admin.productForm.templateSauces",
+    nameHe: "רטבים",
+    selectionType: "multiple",
+    required: false,
+    options: [
+      { nameHe: "קטשופ" },
+      { nameHe: "מיונז" },
+      { nameHe: "חרדל" },
+    ],
   },
   {
     id: "size",

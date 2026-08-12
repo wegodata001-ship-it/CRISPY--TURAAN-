@@ -33,9 +33,10 @@ export function CartDrawer() {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && closeCart()}>
       <DialogContent
+        layout="custom"
         dir={dir}
         className={cn(
-          "top-0 flex h-[100dvh] w-[min(420px,92vw)] max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-y-0 bg-warm-white p-0",
+          "top-0 flex h-[100dvh] w-[min(420px,92vw)] max-w-none flex-col gap-0 rounded-none border-y-0 bg-warm-white p-0",
           dir === "rtl"
             ? "left-0 right-auto border-l"
             : "left-auto right-0 border-r"

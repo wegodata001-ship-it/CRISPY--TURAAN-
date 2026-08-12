@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useModifierOptions } from "@/hooks/useModifiers";
-import { updateModifierOption } from "@/services";
+import { getProductModifierOptions, updateModifierOption } from "@/services";
 import { uploadModifierOptionImage, deleteImageByUrl } from "@/services/storageService";
 import { useT } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
@@ -32,11 +32,18 @@ import {
   normalizeModifierGroupInput,
   normalizeModifierOptionInput,
 } from "@/lib/validation/modifier-normalize";
-import type { ModifierGroup, ModifierOption } from "@/types/modifiers";
+import type {
+  ModifierGroup,
+  ModifierOption,
+  ProductModifierGroup,
+  ProductModifierOption,
+} from "@/types/modifiers";
 import { MODIFIER_TEMPLATES, type ModifierTemplate } from "./modifier-templates";
 import type {
+  PendingLinkOverride,
   PendingModifierChanges,
   PendingModifierGroupCreate,
+  PendingOptionOverride,
 } from "./product-modifier-pending";
 
 function formatPrice(value: number): string {
@@ -265,10 +272,16 @@ function NewOptionInput({
 
 function ModifierGroupCard({
   group,
+  linkActive,
+  linkRequirement,
+  linkSelectionType,
+  optionActiveById,
   dragHandle,
   onUnlink,
   onGroupChange,
   onPendingGroupChange,
+  onLinkOverride,
+  onOptionOverride,
   onPendingOptionChange,
   onStageOption,
   onDraftOptionChange,
@@ -277,6 +290,10 @@ function ModifierGroupCard({
   resetVersion,
 }: {
   group: ModifierGroup;
+  linkActive: boolean;
+  linkRequirement: "required" | "optional";
+  linkSelectionType: "single" | "multiple";
+  optionActiveById: Map<string, boolean>;
   dragHandle?: React.ReactNode;
   onUnlink: () => void;
   onGroupChange: () => void;
@@ -290,6 +307,8 @@ function ModifierGroupCard({
       maxSelections: number;
     }
   ) => void;
+  onLinkOverride: (override: PendingLinkOverride) => void;
+  onOptionOverride: (override: PendingOptionOverride) => void;
   onPendingOptionChange: (
     option: ModifierOption,
     name: string,
@@ -317,12 +336,13 @@ function ModifierGroupCard({
   const { options, loading } = useModifierOptions(group.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectionType, setSelectionType] = useState<"single" | "multiple">(
-    group.selectionType === "multiple" ? "multiple" : "single"
+    linkSelectionType
   );
   const [groupName, setGroupName] = useState(group.name_he);
   const [requirement, setRequirement] = useState<"required" | "optional">(
-    group.requirement
+    linkRequirement
   );
+  const [activeOnProduct, setActiveOnProduct] = useState(linkActive);
   const [minSelections, setMinSelections] = useState(group.minSelections);
   const [maxSelections, setMaxSelections] = useState(group.maxSelections);
   const [orderedOptions, setOrderedOptions] = useState<ModifierOption[]>(options);
@@ -332,17 +352,19 @@ function ModifierGroupCard({
   >([]);
 
   useEffect(() => {
-    setSelectionType(group.selectionType === "multiple" ? "multiple" : "single");
+    setSelectionType(linkSelectionType);
     setGroupName(group.name_he);
-    setRequirement(group.requirement);
+    setRequirement(linkRequirement);
+    setActiveOnProduct(linkActive);
     setMinSelections(group.minSelections);
     setMaxSelections(group.maxSelections);
     setOrderedOptions(options);
     setHiddenOptionIds(new Set());
     setStagedOptions([]);
   }, [
-    group.requirement,
-    group.selectionType,
+    linkActive,
+    linkRequirement,
+    linkSelectionType,
     group.name_he,
     group.minSelections,
     group.maxSelections,
@@ -354,41 +376,47 @@ function ModifierGroupCard({
     selectionType === "multiple"
       ? t("admin.productForm.selectionMultipleShort")
       : t("admin.productForm.selectionSingleShort");
-  const requiredLabel = requirement === "required"
-    ? t("admin.productForm.requiredShort")
-    : t("admin.productForm.optionalShort");
+  const requiredLabel =
+    requirement === "required"
+      ? t("admin.productForm.requiredShort")
+      : t("admin.productForm.optionalShort");
 
-  const updateGroupSettings = (
+  const emitGlobalNameOrLimits = (
+    nextName: string,
+    nextMin: number,
+    nextMax: number
+  ) => {
+    onPendingGroupChange(group, {
+      name: nextName,
+      selectionType: group.selectionType === "multiple" ? "multiple" : "single",
+      requirement: group.requirement,
+      minSelections: nextMin,
+      maxSelections: nextMax,
+    });
+  };
+
+  const emitLinkOverride = (
     patch: Partial<{
-      name: string;
       selectionType: "single" | "multiple";
       requirement: "required" | "optional";
-      minSelections: number;
-      maxSelections: number;
+      active: boolean;
     }>
   ) => {
     const nextSelection = patch.selectionType ?? selectionType;
     const nextRequirement = patch.requirement ?? requirement;
-    const nextName = patch.name ?? groupName;
-    const nextMin =
-      nextSelection === "multiple"
-        ? patch.minSelections ?? minSelections
-        : 0;
-    const nextMax =
-      nextSelection === "multiple"
-        ? patch.maxSelections ?? maxSelections
-        : 1;
+    const nextActive = patch.active ?? activeOnProduct;
     setSelectionType(nextSelection);
     setRequirement(nextRequirement);
-    setGroupName(nextName);
-    setMinSelections(nextMin);
-    setMaxSelections(nextMax);
-    onPendingGroupChange(group, {
-      name: nextName,
+    setActiveOnProduct(nextActive);
+    if (nextSelection === "single") {
+      setMinSelections(0);
+      setMaxSelections(1);
+    }
+    onLinkOverride({
+      groupId: group.id,
+      active: nextActive,
       selectionType: nextSelection,
       requirement: nextRequirement,
-      minSelections: nextMin,
-      maxSelections: nextMax,
     });
   };
 
@@ -410,8 +438,17 @@ function ModifierGroupCard({
     onDeleteOption(option);
   };
 
+  const visibleOptions = orderedOptions.filter(
+    (option) => !hiddenOptionIds.has(option.id) && !option.archived
+  );
+
   return (
-    <div className="rounded-2xl border border-beige-dark/20 bg-cream/20 dark:border-white/10 dark:bg-white/[0.03]">
+    <div
+      className={cn(
+        "rounded-2xl border border-beige-dark/20 bg-cream/20 dark:border-white/10 dark:bg-white/[0.03]",
+        !activeOnProduct && "opacity-70"
+      )}
+    >
       <div className="flex items-start gap-2 border-b border-beige-dark/15 px-3 py-3 sm:px-4">
         {dragHandle}
         <div className="min-w-0 flex-1">
@@ -420,13 +457,16 @@ function ModifierGroupCard({
               <Input
                 dir="rtl"
                 value={groupName}
-                onChange={(event) =>
-                  updateGroupSettings({ name: event.target.value })
-                }
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setGroupName(next);
+                  emitGlobalNameOrLimits(next, minSelections, maxSelections);
+                }}
                 className="h-9 border-0 bg-transparent px-0 text-base font-semibold shadow-none focus-visible:ring-1 dark:text-warm-white"
               />
               <p className="mt-0.5 text-xs text-coffee/45">
                 {selectionLabel} • {requiredLabel}
+                {!activeOnProduct ? ` • ${t("admin.productForm.hiddenOnProduct")}` : ""}
               </p>
             </div>
             <div className="relative">
@@ -474,7 +514,7 @@ function ModifierGroupCard({
                 type="radio"
                 name={`selection-${group.id}`}
                 checked={selectionType !== "multiple"}
-                onChange={() => updateGroupSettings({ selectionType: "single" })}
+                onChange={() => emitLinkOverride({ selectionType: "single" })}
                 className="accent-coffee"
               />
               {t("admin.productForm.selectionSingleShort")}
@@ -484,7 +524,7 @@ function ModifierGroupCard({
                 type="radio"
                 name={`selection-${group.id}`}
                 checked={selectionType === "multiple"}
-                onChange={() => updateGroupSettings({ selectionType: "multiple" })}
+                onChange={() => emitLinkOverride({ selectionType: "multiple" })}
                 className="accent-coffee"
               />
               {t("admin.productForm.selectionMultipleShort")}
@@ -495,7 +535,7 @@ function ModifierGroupCard({
               type="checkbox"
               checked={requirement === "required"}
               onChange={(e) =>
-                updateGroupSettings({
+                emitLinkOverride({
                   requirement: e.target.checked ? "required" : "optional",
                 })
               }
@@ -511,14 +551,11 @@ function ModifierGroupCard({
                   type="number"
                   min={0}
                   value={minSelections}
-                  onChange={(event) =>
-                    updateGroupSettings({
-                      minSelections: Math.max(
-                        0,
-                        Number(event.target.value) || 0
-                      ),
-                    })
-                  }
+                  onChange={(event) => {
+                    const nextMin = Math.max(0, Number(event.target.value) || 0);
+                    setMinSelections(nextMin);
+                    emitGlobalNameOrLimits(groupName, nextMin, maxSelections);
+                  }}
                   className="h-9"
                 />
               </label>
@@ -528,17 +565,69 @@ function ModifierGroupCard({
                   type="number"
                   min={1}
                   value={maxSelections}
-                  onChange={(event) =>
-                    updateGroupSettings({
-                      maxSelections: Math.max(
-                        1,
-                        Number(event.target.value) || 1
-                      ),
-                    })
-                  }
+                  onChange={(event) => {
+                    const nextMax = Math.max(1, Number(event.target.value) || 1);
+                    setMaxSelections(nextMax);
+                    emitGlobalNameOrLimits(groupName, minSelections, nextMax);
+                  }}
                   className="h-9"
                 />
               </label>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2 rounded-xl border border-beige-dark/15 bg-beige/15 p-3 dark:border-white/10 dark:bg-white/[0.04]">
+          <div>
+            <p className="text-xs font-medium text-coffee/70">
+              {t("admin.productForm.productAdaptation")}
+            </p>
+            <p className="mt-0.5 text-[11px] text-coffee/45">
+              {t("admin.productForm.productOverrideHint")}
+            </p>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={!activeOnProduct}
+              onChange={(e) => emitLinkOverride({ active: !e.target.checked })}
+              className="rounded accent-coffee"
+            />
+            {t("admin.productForm.hideGroupOnProduct")}
+          </label>
+          {visibleOptions.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-coffee/55">
+                {t("admin.productForm.optionVisibleOnProduct")}
+              </p>
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                {visibleOptions.map((option) => {
+                  const visible = optionActiveById.get(option.id) ?? true;
+                  return (
+                    <label
+                      key={option.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg bg-warm-white/70 px-2 py-1.5 text-sm dark:bg-white/5"
+                      dir="rtl"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visible}
+                        onChange={(e) =>
+                          onOptionOverride({
+                            optionId: option.id,
+                            groupId: group.id,
+                            active: e.target.checked,
+                          })
+                        }
+                        className="rounded accent-coffee"
+                      />
+                      <span className={cn(!visible && "text-coffee/40 line-through")}>
+                        {option.name_he}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -552,12 +641,9 @@ function ModifierGroupCard({
 
           {loading ? (
             <p className="text-xs text-coffee/45">{t("admin.modifiers.loadingOptions")}</p>
-          ) : orderedOptions.filter((option) => !hiddenOptionIds.has(option.id))
-              .length > 0 ? (
+          ) : visibleOptions.length > 0 ? (
             <SortableList
-              items={orderedOptions.filter(
-                (option) => !hiddenOptionIds.has(option.id)
-              )}
+              items={visibleOptions}
               onReorder={handleReorderOptions}
               className="space-y-1.5"
               renderItem={(opt, handle) => (
@@ -915,6 +1001,7 @@ interface ProductModifiersPanelProps {
   allGroups: ModifierGroup[];
   linkedGroupIds: string[];
   onLinkedChange: (ids: string[]) => void;
+  existingLinks?: ProductModifierGroup[];
   onDirty?: () => void;
 }
 
@@ -932,6 +1019,7 @@ export const ProductModifiersPanel = forwardRef<
     allGroups,
     linkedGroupIds,
     onLinkedChange,
+    existingLinks = [],
     onDirty,
   },
   ref
@@ -943,6 +1031,10 @@ export const ProductModifiersPanel = forwardRef<
   const [extraGroups, setExtraGroups] = useState<ModifierGroup[]>([]);
   const [showExisting, setShowExisting] = useState(false);
   const [resetVersion, setResetVersion] = useState(0);
+  const [overrideTick, setOverrideTick] = useState(0);
+  const [loadedOptionOverrides, setLoadedOptionOverrides] = useState<
+    ProductModifierOption[]
+  >([]);
   const newGroupDraftKey = useRef(`group:${Date.now()}`);
   const pendingGroupUpdates = useRef(
     new Map<string, PendingModifierChanges["groupUpdates"][number]>()
@@ -956,6 +1048,8 @@ export const ProductModifiersPanel = forwardRef<
   const pendingGroupCreates = useRef(
     new Map<string, PendingModifierGroupCreate>()
   );
+  const pendingLinkOverrides = useRef(new Map<string, PendingLinkOverride>());
+  const pendingOptionOverrides = useRef(new Map<string, PendingOptionOverride>());
 
   const mergedGroups = useMemo(() => {
     const byId = new Map(allGroups.map((g) => [g.id, g]));
@@ -967,11 +1061,64 @@ export const ProductModifiersPanel = forwardRef<
     .map((id) => mergedGroups.find((g) => g.id === id))
     .filter(Boolean) as ModifierGroup[];
 
+  const assignableGroups = useMemo(
+    () => mergedGroups.filter((g) => !g.archived),
+    [mergedGroups]
+  );
+
   const unlinkedGroups = mergedGroups.filter(
     (g) => !linkedGroupIds.includes(g.id) && !g.archived
   );
 
   const markDirty = useCallback(() => onDirty?.(), [onDirty]);
+
+  useEffect(() => {
+    pendingLinkOverrides.current.clear();
+    pendingOptionOverrides.current.clear();
+    setOverrideTick((value) => value + 1);
+
+    if (!productId) {
+      setLoadedOptionOverrides([]);
+      return;
+    }
+
+    let cancelled = false;
+    void getProductModifierOptions(productId).then((options) => {
+      if (!cancelled) setLoadedOptionOverrides(options);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+
+  const optionActiveById = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const option of loadedOptionOverrides) {
+      map.set(option.optionId, option.active);
+    }
+    for (const override of pendingOptionOverrides.current.values()) {
+      map.set(override.optionId, override.active);
+    }
+    return map;
+  }, [loadedOptionOverrides, overrideTick]);
+
+  const getLinkSettings = useCallback(
+    (group: ModifierGroup) => {
+      const pending = pendingLinkOverrides.current.get(group.id);
+      const existing = existingLinks.find((link) => link.groupId === group.id);
+      const rawSelection =
+        pending?.selectionType ??
+        existing?.selectionType ??
+        group.selectionType;
+      const selectionType: "single" | "multiple" =
+        rawSelection === "multiple" ? "multiple" : "single";
+      const requirement =
+        pending?.requirement ?? existing?.requirement ?? group.requirement;
+      const active = pending?.active ?? existing?.active ?? true;
+      return { selectionType, requirement, active };
+    },
+    [existingLinks, overrideTick]
+  );
 
   useImperativeHandle(
     ref,
@@ -981,19 +1128,49 @@ export const ProductModifiersPanel = forwardRef<
         optionUpdates: [...pendingOptionUpdates.current.values()],
         optionCreates: [...pendingOptionCreates.current.values()],
         groupCreates: [...pendingGroupCreates.current.values()],
+        linkOverrides: [...pendingLinkOverrides.current.values()],
+        optionOverrides: [...pendingOptionOverrides.current.values()],
       }),
       markSaved: () => {
+        const savedOptionOverrides = [...pendingOptionOverrides.current.values()];
+        if (savedOptionOverrides.length > 0) {
+          setLoadedOptionOverrides((previous) => {
+            const byOptionId = new Map(
+              previous.map((item) => [item.optionId, item])
+            );
+            for (const override of savedOptionOverrides) {
+              const existing = byOptionId.get(override.optionId);
+              byOptionId.set(override.optionId, {
+                id: existing?.id ?? `${productId}_${override.optionId}`,
+                productId: productId ?? existing?.productId ?? "",
+                optionId: override.optionId,
+                active: override.active,
+                priceDeltaOverride:
+                  override.priceDeltaOverride ?? existing?.priceDeltaOverride,
+                sortOrderOverride:
+                  override.sortOrderOverride ?? existing?.sortOrderOverride,
+              });
+            }
+            return [...byOptionId.values()];
+          });
+        }
         pendingGroupUpdates.current.clear();
         pendingOptionUpdates.current.clear();
         pendingOptionCreates.current.clear();
         pendingGroupCreates.current.clear();
+        pendingLinkOverrides.current.clear();
+        pendingOptionOverrides.current.clear();
         setShowNewGroup(false);
         setTemplateSeed(null);
+        setOverrideTick((value) => value + 1);
         setResetVersion((version) => version + 1);
         newGroupDraftKey.current = `group:${Date.now()}`;
+        if (productId) {
+          void getProductModifierOptions(productId).then(setLoadedOptionOverrides);
+        }
       },
     }),
-    []
+    [productId]
   );
 
   const handlePendingGroupChange = useCallback(
@@ -1155,6 +1332,48 @@ export const ProductModifiersPanel = forwardRef<
     [markDirty]
   );
 
+  const handleLinkOverride = useCallback(
+    (override: PendingLinkOverride) => {
+      const existing = existingLinks.find(
+        (link) => link.groupId === override.groupId
+      );
+      const baselineActive = existing?.active ?? true;
+      const baselineRequirement = existing?.requirement;
+      const baselineSelectionType = existing?.selectionType;
+      const unchanged =
+        override.active === baselineActive &&
+        (override.requirement ?? baselineRequirement) === baselineRequirement &&
+        (override.selectionType ?? baselineSelectionType) ===
+          baselineSelectionType;
+
+      if (unchanged) {
+        pendingLinkOverrides.current.delete(override.groupId);
+      } else {
+        pendingLinkOverrides.current.set(override.groupId, override);
+      }
+      setOverrideTick((value) => value + 1);
+      markDirty();
+    },
+    [existingLinks, markDirty]
+  );
+
+  const handleOptionOverride = useCallback(
+    (override: PendingOptionOverride) => {
+      const existing = loadedOptionOverrides.find(
+        (item) => item.optionId === override.optionId
+      );
+      const baselineActive = existing?.active ?? true;
+      if (override.active === baselineActive) {
+        pendingOptionOverrides.current.delete(override.optionId);
+      } else {
+        pendingOptionOverrides.current.set(override.optionId, override);
+      }
+      setOverrideTick((value) => value + 1);
+      markDirty();
+    },
+    [loadedOptionOverrides, markDirty]
+  );
+
   const linkGroup = (groupId: string) => {
     if (!linkedGroupIds.includes(groupId)) {
       onLinkedChange([...linkedGroupIds, groupId]);
@@ -1164,6 +1383,8 @@ export const ProductModifiersPanel = forwardRef<
 
   const unlinkGroup = (groupId: string) => {
     onLinkedChange(linkedGroupIds.filter((id) => id !== groupId));
+    pendingLinkOverrides.current.delete(groupId);
+    setOverrideTick((value) => value + 1);
     markDirty();
   };
 
@@ -1213,6 +1434,37 @@ export const ProductModifiersPanel = forwardRef<
         </div>
       </div>
 
+      {assignableGroups.length > 0 && (
+        <div className="space-y-2 rounded-xl border border-beige-dark/15 p-3 dark:border-white/10">
+          <p className="text-xs font-medium text-coffee/55">
+            {t("admin.productForm.assignGroupsHeading")}
+          </p>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {assignableGroups.map((group) => {
+              const checked = linkedGroupIds.includes(group.id);
+              return (
+                <label
+                  key={group.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg bg-beige/20 px-2.5 py-2 text-sm dark:bg-white/5"
+                  dir="rtl"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => {
+                      if (event.target.checked) linkGroup(group.id);
+                      else unlinkGroup(group.id);
+                    }}
+                    className="rounded accent-coffee"
+                  />
+                  <span className="truncate dark:text-warm-white">{group.name_he}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {!showNewGroup ? (
         <Button
           type="button"
@@ -1256,22 +1508,31 @@ export const ProductModifiersPanel = forwardRef<
           items={linkedGroups}
           onReorder={handleReorderGroups}
           className="space-y-3"
-          renderItem={(group, dragHandle) => (
-            <ModifierGroupCard
-              key={group.id}
-              group={group}
-              dragHandle={dragHandle}
-              onUnlink={() => unlinkGroup(group.id)}
-              onGroupChange={markDirty}
-              onPendingGroupChange={handlePendingGroupChange}
-              onPendingOptionChange={handlePendingOptionChange}
-              onStageOption={stageOption}
-              onDraftOptionChange={updateOptionDraft}
-              onDeleteOption={stageOptionDeletion}
-              defaultFocusOptions={group.id === newGroupId}
-              resetVersion={resetVersion}
-            />
-          )}
+          renderItem={(group, dragHandle) => {
+            const linkSettings = getLinkSettings(group);
+            return (
+              <ModifierGroupCard
+                key={group.id}
+                group={group}
+                linkActive={linkSettings.active}
+                linkRequirement={linkSettings.requirement}
+                linkSelectionType={linkSettings.selectionType}
+                optionActiveById={optionActiveById}
+                dragHandle={dragHandle}
+                onUnlink={() => unlinkGroup(group.id)}
+                onGroupChange={markDirty}
+                onPendingGroupChange={handlePendingGroupChange}
+                onLinkOverride={handleLinkOverride}
+                onOptionOverride={handleOptionOverride}
+                onPendingOptionChange={handlePendingOptionChange}
+                onStageOption={stageOption}
+                onDraftOptionChange={updateOptionDraft}
+                onDeleteOption={stageOptionDeletion}
+                defaultFocusOptions={group.id === newGroupId}
+                resetVersion={resetVersion}
+              />
+            );
+          }}
         />
       )}
 

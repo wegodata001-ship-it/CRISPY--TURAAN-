@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   writeBatch,
@@ -579,20 +580,10 @@ export async function upsertProductModifierOption(
   try {
     const parsed = productModifierOptionSchema.parse(input);
     const db = getDb();
-    const existing = await getDocs(
-      query(
-        collection(db, COLLECTIONS.productModifierOptions),
-        where("productId", "==", parsed.productId),
-        where("optionId", "==", parsed.optionId)
-      )
-    );
-    if (!existing.empty) {
-      const id = existing.docs[0]!.id;
-      await updateDoc(doc(db, COLLECTIONS.productModifierOptions, id), parsed);
-      return success(mapProductModifierOption({ id, ...parsed }));
-    }
-    const ref = await addDoc(collection(db, COLLECTIONS.productModifierOptions), parsed);
-    return success(mapProductModifierOption({ id: ref.id, ...parsed }));
+    const id = `${parsed.productId}_${parsed.optionId}`;
+    const ref = doc(db, COLLECTIONS.productModifierOptions, id);
+    await setDoc(ref, sanitizeFirestoreData(parsed), { merge: true });
+    return success(mapProductModifierOption({ id, ...parsed }));
   } catch (error) {
     return failure(error, "Failed to save product modifier option");
   }

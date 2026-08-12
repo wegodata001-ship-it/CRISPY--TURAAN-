@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowRight,
   Eye,
   Loader2,
   Pencil,
@@ -17,11 +18,16 @@ import {
   useModifierGroups,
   useProductBuilderConfig,
 } from "@/hooks/useModifiers";
-import { syncProductModifierLinks } from "@/services/modifierService";
+import {
+  createModifierGroup,
+  syncProductModifierLinks,
+} from "@/services/modifierService";
 import { ProductBuilderPreview } from "@/features/catalog/product-builder";
 import { SortableList } from "@/components/admin/sortable-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { getProductImage } from "@/lib/menu/placeholders";
 import {
   AdminDialog,
   AdminDialogBody,
@@ -37,6 +43,7 @@ import {
 } from "@/features/admin/components/admin-toast";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
+import { normalizeModifierGroupInput } from "@/lib/validation/modifier-normalize";
 import type { ModifierGroup, ProductModifierGroup } from "@/types/modifiers";
 import { cn } from "@/lib/utils";
 
@@ -63,12 +70,19 @@ export function ProductBuilderAdmin() {
   const dirtyRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [createMode, setCreateMode] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupSelection, setNewGroupSelection] = useState<"single" | "multiple">("single");
+  const [newGroupRequired, setNewGroupRequired] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
   const [removeLink, setRemoveLink] = useState<DraftLink | null>(null);
   const [editLink, setEditLink] = useState<DraftLink | null>(null);
   const [editRequirement, setEditRequirement] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [toasts, setToasts] = useState<AdminToast[]>([]);
+  const [localGroups, setLocalGroups] = useState<ModifierGroup[]>([]);
   const { config } = useProductBuilderConfig(previewOpen && productId ? productId : null);
 
   const product = products.find((item) => item.id === productId);
@@ -76,10 +90,11 @@ export function ProductBuilderAdmin() {
     () => new Map(categories.map((category) => [category.id, category])),
     [categories]
   );
-  const groupById = useMemo(
-    () => new Map(groups.map((group) => [group.id, group])),
-    [groups]
-  );
+  const groupById = useMemo(() => {
+    const map = new Map(groups.map((group) => [group.id, group]));
+    localGroups.forEach((group) => map.set(group.id, group));
+    return map;
+  }, [groups, localGroups]);
   const linkCounts = useMemo(() => {
     const counts = new Map<string, number>();
     allLinks.forEach((link) => {
@@ -140,9 +155,19 @@ export function ProductBuilderAdmin() {
         .includes(groupSearch.trim().toLocaleLowerCase())
   );
 
+  const resetCreateForm = () => {
+    setCreateMode(false);
+    setCreating(false);
+    setNewGroupName("");
+    setNewGroupSelection("single");
+    setNewGroupRequired(false);
+    setCreateError(null);
+  };
+
   const openAddGroups = () => {
     setSelectedGroupIds(new Set());
     setGroupSearch("");
+    resetCreateForm();
     setLinkOpen(true);
   };
 
@@ -159,6 +184,61 @@ export function ProductBuilderAdmin() {
       })),
     ]);
     setLinkOpen(false);
+    resetCreateForm();
+  };
+
+  const createAndAssignGroup = async () => {
+    const nameHe = newGroupName.trim();
+    if (!nameHe) {
+      setCreateError(t("admin.modifiers.nameHeMissing"));
+      return;
+    }
+    if (creating) return;
+    setCreating(true);
+    setCreateError(null);
+
+    const result = await createModifierGroup(
+      normalizeModifierGroupInput({
+        nameHe,
+        selectionType: newGroupSelection,
+        requirement: newGroupRequired ? "required" : "optional",
+        minSelections: newGroupRequired ? 1 : 0,
+        maxSelections: newGroupSelection === "multiple" ? 3 : 1,
+        sortOrder: groups.length + 1,
+        active: true,
+        archived: false,
+        displayType: "buttons",
+      })
+    );
+
+    setCreating(false);
+
+    if (!result.success) {
+      setCreateError(result.error);
+      setToasts((current) => [...current, createToast(result.error, "error")]);
+      return;
+    }
+
+    const group = result.data;
+    setLocalGroups((current) =>
+      current.some((item) => item.id === group.id) ? current : [...current, group]
+    );
+    updateDraft((current) => [
+      ...current,
+      {
+        id: `draft-${group.id}`,
+        productId,
+        groupId: group.id,
+        sortOrder: current.length + 1,
+        active: true,
+      },
+    ]);
+    setToasts((current) => [
+      ...current,
+      createToast(t("admin.builder.groupCreated")),
+    ]);
+    setLinkOpen(false);
+    resetCreateForm();
   };
 
   const save = async () => {
@@ -241,7 +321,9 @@ export function ProductBuilderAdmin() {
                 >
                   <span
                     className="h-11 w-11 shrink-0 rounded-xl bg-beige/50 bg-cover bg-center"
-                    style={item.image ? { backgroundImage: `url("${item.image}")` } : undefined}
+                    style={{
+                      backgroundImage: `url("${getProductImage(item.image, item.categoryId)}")`,
+                    }}
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">
@@ -281,7 +363,7 @@ export function ProductBuilderAdmin() {
                   <Button variant="outline" onClick={() => setPreviewOpen(true)}>
                     <Eye className="h-4 w-4" /> {t("admin.builder.preview")}
                   </Button>
-                  <Button onClick={openAddGroups} disabled={unlinkedGroups.length === 0}>
+                  <Button onClick={openAddGroups}>
                     <Plus className="h-4 w-4" /> {t("admin.builder.addGroup")}
                   </Button>
                 </div>
@@ -352,55 +434,181 @@ export function ProductBuilderAdmin() {
         </section>
       </div>
 
-      <AdminDialog open={linkOpen} onOpenChange={setLinkOpen}>
+      <AdminDialog
+        open={linkOpen}
+        onOpenChange={(open) => {
+          setLinkOpen(open);
+          if (!open) resetCreateForm();
+        }}
+      >
         <AdminDialogContent size="sm">
           <AdminDialogHeader>
-            <AdminDialogTitle>{t("admin.builder.addModifierGroup")}</AdminDialogTitle>
+            <AdminDialogTitle>
+              {createMode
+                ? t("admin.builder.createNewGroup")
+                : t("admin.builder.addModifierGroup")}
+            </AdminDialogTitle>
           </AdminDialogHeader>
           <AdminDialogBody>
-            <div className="relative">
-              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee/40" />
-              <Input
-                value={groupSearch}
-                onChange={(event) => setGroupSearch(event.target.value)}
-                placeholder={t("admin.builder.searchGroups")}
-                className="h-11 ps-10"
-              />
-            </div>
-            <div className="mt-3 space-y-2">
-              {availableGroups.map((group) => (
-                <label
-                  key={group.id}
-                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-beige-dark/15 px-3"
-                >
+            {createMode ? (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="builder-new-group-name">
+                    {t("admin.modifiers.nameHeRequired")}
+                  </Label>
+                  <Input
+                    id="builder-new-group-name"
+                    dir="rtl"
+                    autoFocus
+                    value={newGroupName}
+                    onChange={(event) => setNewGroupName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void createAndAssignGroup();
+                      }
+                    }}
+                    className="mt-1 h-11 rounded-xl"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["single", "multiple"] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setNewGroupSelection(type)}
+                      className={cn(
+                        "rounded-xl border px-3 py-3 text-sm font-medium transition-colors",
+                        newGroupSelection === type
+                          ? "border-turquoise bg-turquoise/10 text-turquoise"
+                          : "border-beige-dark/20 text-coffee/70 hover:bg-beige/30"
+                      )}
+                    >
+                      {t(
+                        type === "single"
+                          ? "admin.modifiers.selectionSingle"
+                          : "admin.modifiers.selectionMultiple"
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-beige-dark/15 px-3">
                   <input
                     type="checkbox"
-                    checked={selectedGroupIds.has(group.id)}
-                    onChange={(event) => {
-                      const next = new Set(selectedGroupIds);
-                      if (event.target.checked) next.add(group.id);
-                      else next.delete(group.id);
-                      setSelectedGroupIds(next);
-                    }}
+                    checked={newGroupRequired}
+                    onChange={(event) => setNewGroupRequired(event.target.checked)}
                   />
-                  <span>{group.name_he || group.name_en}</span>
+                  <span className="text-sm">{t("admin.modifiers.required")}</span>
                 </label>
-              ))}
-            </div>
-            <p className="mt-5 text-sm text-coffee/50">
-              {t("admin.builder.groupNotFound")}{" "}
-              <Link href="/admin/modifier-groups" className="font-semibold text-turquoise underline">
-                {t("admin.builder.goToModifierManagement")}
-              </Link>
-            </p>
+                {createError && (
+                  <p className="text-sm text-red-600">{createError}</p>
+                )}
+                <p className="text-xs text-coffee/45">
+                  {t("admin.builder.createGroupHint")}{" "}
+                  <Link
+                    href="/admin/modifier-groups"
+                    className="font-semibold text-turquoise underline"
+                  >
+                    {t("admin.builder.goToModifierManagement")}
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee/40" />
+                  <Input
+                    value={groupSearch}
+                    onChange={(event) => setGroupSearch(event.target.value)}
+                    placeholder={t("admin.builder.searchGroups")}
+                    className="h-11 ps-10"
+                  />
+                </div>
+                <div className="mt-3 max-h-[40vh] space-y-2 overflow-y-auto">
+                  {availableGroups.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-beige-dark/25 px-3 py-6 text-center text-sm text-coffee/50">
+                      {t("admin.builder.noGroupsToAdd")}
+                    </p>
+                  ) : (
+                    availableGroups.map((group) => (
+                      <label
+                        key={group.id}
+                        className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-beige-dark/15 px-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedGroupIds.has(group.id)}
+                          onChange={(event) => {
+                            const next = new Set(selectedGroupIds);
+                            if (event.target.checked) next.add(group.id);
+                            else next.delete(group.id);
+                            setSelectedGroupIds(next);
+                          }}
+                        />
+                        <span>{group.name_he || group.name_en}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreateMode(true);
+                    setCreateError(null);
+                  }}
+                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-turquoise/40 px-3 py-3 text-sm font-semibold text-turquoise transition-colors hover:bg-turquoise/5"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("admin.builder.createNewGroup")}
+                </button>
+              </>
+            )}
           </AdminDialogBody>
-          <AdminDialogFooter>
-            <Button variant="outline" onClick={() => setLinkOpen(false)}>
-              {t("admin.action.cancel")}
-            </Button>
-            <Button disabled={selectedGroupIds.size === 0} onClick={addSelectedGroups}>
-              {t("admin.builder.addSelectedGroups")}
-            </Button>
+          <AdminDialogFooter className="justify-between">
+            {createMode ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCreateMode(false);
+                    setCreateError(null);
+                  }}
+                  disabled={creating}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                  {t("admin.builder.backToList")}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={creating || !newGroupName.trim()}
+                  onClick={() => void createAndAssignGroup()}
+                >
+                  {creating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t("admin.builder.createAndAssign")
+                  )}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setLinkOpen(false)}
+                >
+                  {t("admin.action.cancel")}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={selectedGroupIds.size === 0}
+                  onClick={addSelectedGroups}
+                >
+                  {t("admin.builder.addSelectedGroups")}
+                </Button>
+              </>
+            )}
           </AdminDialogFooter>
         </AdminDialogContent>
       </AdminDialog>

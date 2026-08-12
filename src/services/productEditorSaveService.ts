@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   writeBatch,
 } from "firebase/firestore";
@@ -11,6 +12,7 @@ import { productSchema, type ProductInput } from "@/lib/validation/schemas";
 import {
   modifierGroupSchema,
   modifierOptionSchema,
+  productModifierOptionSchema,
 } from "@/lib/validation/modifier-schemas";
 import { nowTimestamp } from "@/types/firestore";
 import type { ProductModifierGroup } from "@/types/modifiers";
@@ -140,6 +142,9 @@ export async function saveProductEditorChanges(
       });
     }
 
+    const linkOverrideByGroupId = new Map(
+      (input.modifiers.linkOverrides ?? []).map((item) => [item.groupId, item])
+    );
     const desiredGroupIds = [...input.desiredGroupIds, ...createdGroupIds];
     const desiredSet = new Set(desiredGroupIds);
     const existingByGroupId = new Map(
@@ -157,17 +162,24 @@ export async function saveProductEditorChanges(
     desiredGroupIds.forEach((groupId, index) => {
       const sortOrder = index + 1;
       const existing = existingByGroupId.get(groupId);
+      const override = linkOverrideByGroupId.get(groupId);
+      const active = override?.active ?? existing?.active ?? true;
+      const requirement = override?.requirement ?? existing?.requirement;
+      const selectionType = override?.selectionType ?? existing?.selectionType;
+      const displayType = override?.displayType ?? existing?.displayType;
+
       if (!existing) {
-        const linkRef = doc(
-          collection(db, COLLECTIONS.productModifierGroups)
-        );
+        const linkRef = doc(collection(db, COLLECTIONS.productModifierGroups));
         batch.set(
           linkRef,
           sanitizeFirestoreData({
             productId: productRef.id,
             groupId,
             sortOrder,
-            active: true,
+            active,
+            requirement,
+            selectionType,
+            displayType,
           })
         );
         writes += 1;
@@ -176,26 +188,57 @@ export async function saveProductEditorChanges(
           productId: productRef.id,
           groupId,
           sortOrder,
-          active: true,
+          active,
+          requirement,
+          selectionType,
+          displayType,
         });
-      } else if (
-        existing.sortOrder !== sortOrder ||
-        existing.productId !== productRef.id
-      ) {
-        batch.update(
-          doc(db, COLLECTIONS.productModifierGroups, existing.id),
-          { productId: productRef.id, sortOrder }
-        );
-        writes += 1;
+      } else {
+        const patch: Record<string, unknown> = {};
+        if (existing.sortOrder !== sortOrder) patch.sortOrder = sortOrder;
+        if (existing.productId !== productRef.id) patch.productId = productRef.id;
+        if (existing.active !== active) patch.active = active;
+        if (existing.requirement !== requirement) {
+          patch.requirement = requirement ?? deleteField();
+        }
+        if (existing.selectionType !== selectionType) {
+          patch.selectionType = selectionType ?? deleteField();
+        }
+        if (existing.displayType !== displayType) {
+          patch.displayType = displayType ?? deleteField();
+        }
+        if (Object.keys(patch).length > 0) {
+          batch.update(doc(db, COLLECTIONS.productModifierGroups, existing.id), patch);
+          writes += 1;
+        }
         resultingLinks.push({
           ...existing,
           productId: productRef.id,
           sortOrder,
+          active,
+          requirement,
+          selectionType,
+          displayType,
         });
-      } else {
-        resultingLinks.push(existing);
       }
     });
+
+    for (const optionOverride of input.modifiers.optionOverrides ?? []) {
+      const parsed = productModifierOptionSchema.parse({
+        productId: productRef.id,
+        optionId: optionOverride.optionId,
+        active: optionOverride.active,
+        priceDeltaOverride: optionOverride.priceDeltaOverride,
+        sortOrderOverride: optionOverride.sortOrderOverride,
+      });
+      const overrideRef = doc(
+        db,
+        COLLECTIONS.productModifierOptions,
+        `${productRef.id}_${optionOverride.optionId}`
+      );
+      batch.set(overrideRef, sanitizeFirestoreData(parsed), { merge: true });
+      writes += 1;
+    }
 
     if (writes > 500) {
       throw new Error(`Product save exceeds Firestore batch limit (${writes})`);

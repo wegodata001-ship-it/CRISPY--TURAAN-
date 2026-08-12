@@ -392,8 +392,9 @@ export function AddonsWizard({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        layout="custom"
         dir={dir}
-        className="bottom-0 left-0 top-auto z-[70] flex h-[88dvh] max-h-[88dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-b-none rounded-t-3xl border-b-0 p-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:h-[min(760px,86vh)] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:border"
+        className="bottom-0 left-0 top-auto z-[1010] flex h-[88dvh] max-h-[88dvh] w-full max-w-none flex-col gap-0 rounded-b-none rounded-t-3xl border-b-0 p-0 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(760px,86vh)] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:border"
       >
         <div className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-beige-dark/40 sm:hidden" />
         <DialogHeader className="shrink-0 border-b border-beige-dark/15 px-5 pb-4 pt-4 text-start sm:px-6">

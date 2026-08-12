@@ -5,6 +5,7 @@ import Image from "next/image";
 import { CheckCircle2, ImageIcon, Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/components/providers/locale-provider";
+import { isAllowedProductImageUrl } from "@/lib/menu/placeholders";
 import { cn } from "@/lib/utils";
 
 interface ProductImageSectionProps {
@@ -28,6 +29,7 @@ export function ProductImageSection({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const hasDisplayImage = Boolean(imageUrl && isAllowedProductImageUrl(imageUrl));
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -75,7 +77,7 @@ export function ProductImageSection({
           imageUrl ? "border-beige-dark/25" : "border-dashed border-beige-dark/40"
         )}
       >
-        {imageUrl ? (
+        {hasDisplayImage ? (
           <div className="relative aspect-square w-full">
             <Image src={imageUrl} alt="" fill className="object-cover" sizes="400px" priority />
             {uploading && (

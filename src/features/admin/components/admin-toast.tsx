@@ -26,7 +26,7 @@ export function AdminToastStack({
   }, [toasts, onDismiss]);
 
   return (
-    <div className="pointer-events-none fixed bottom-6 start-6 z-[10001] flex flex-col gap-2">
+    <div className="pointer-events-none fixed bottom-6 start-6 z-[1100] flex flex-col gap-2">
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div

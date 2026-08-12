@@ -26,6 +26,7 @@ import { ImageUpload } from "@/features/admin/image-upload";
 import { SortableList } from "@/components/admin/sortable-list";
 import { uploadCategoryImage, deleteImageByUrl } from "@/services/storageService";
 import { cn } from "@/lib/utils";
+import { isAllowedProductImageUrl } from "@/lib/menu/placeholders";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
 import {
@@ -185,7 +186,7 @@ export function CategoriesAdmin() {
         )}
         style={{ backgroundColor: cat.active ? cat.color : "#9ca3af" }}
       >
-        {cat.image ? (
+        {cat.image && isAllowedProductImageUrl(cat.image) ? (
           <Image
             src={cat.image}
             alt={cat.name_en}
@@ -354,7 +355,7 @@ export function CategoriesAdmin() {
                   className="h-16 w-16 shrink-0 overflow-hidden rounded-xl"
                   style={{ backgroundColor: viewing.color }}
                 >
-                  {viewing.image ? (
+                  {viewing.image && isAllowedProductImageUrl(viewing.image) ? (
                     <Image
                       src={viewing.image}
                       alt={viewing.name_en}

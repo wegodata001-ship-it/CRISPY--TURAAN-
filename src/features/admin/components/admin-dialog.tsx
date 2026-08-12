@@ -10,13 +10,18 @@ import {
 import { useLocale } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
-type AdminDialogSize = "sm" | "md" | "lg" | "product";
+type AdminDialogSize = "sm" | "md" | "lg" | "xl" | "product";
 
+/**
+ * Explicit width via min() so the modal never collapses to a side strip.
+ * Positioning comes from Dialog layout="center" (fixed + translate).
+ */
 const SIZE_CLASS: Record<AdminDialogSize, string> = {
-  sm: "sm:max-w-[520px]",
-  md: "sm:max-w-[680px]",
-  lg: "sm:max-w-[780px]",
-  product: "sm:max-w-[900px]",
+  sm: "w-[min(520px,calc(100vw-1.5rem))] max-w-[min(520px,calc(100vw-1.5rem))]",
+  md: "w-[min(680px,calc(100vw-1.5rem))] max-w-[min(680px,calc(100vw-1.5rem))]",
+  lg: "w-[min(780px,calc(100vw-1.5rem))] max-w-[min(780px,calc(100vw-1.5rem))]",
+  xl: "w-[min(900px,calc(100vw-1.5rem))] max-w-[min(900px,calc(100vw-1.5rem))]",
+  product: "w-[min(900px,calc(100vw-1.5rem))] max-w-[min(900px,calc(100vw-1.5rem))]",
 };
 
 const AdminDialog = Dialog;
@@ -27,21 +32,21 @@ const AdminDialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogContent> & {
     size?: AdminDialogSize;
   }
->(({ className, size = "md", ...props }, ref) => {
+>(({ className, size = "md", layout: _ignoredLayout, ...props }, ref) => {
   const { dir } = useLocale();
 
   return (
     <DialogContent
       ref={ref}
       dir={dir}
-      overlayClassName="z-[9998] h-[100dvh] w-screen"
       className={cn(
-        "z-[9999] flex max-h-[calc(100dvh-16px)] w-[calc(100vw-16px)] max-w-none flex-col gap-0 overflow-hidden rounded-2xl border border-beige-dark/30 bg-warm-white p-0 sm:max-h-[calc(100dvh-32px)] sm:w-[calc(100vw-32px)]",
+        "max-h-[calc(100dvh-1.5rem)] gap-0 overflow-hidden rounded-2xl border border-beige-dark/30 bg-warm-white p-0 sm:max-h-[min(85dvh,900px)]",
         SIZE_CLASS[size],
-        dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto",
+        dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto [&>button]:end-auto",
         className
       )}
       {...props}
+      layout="center"
     />
   );
 });
@@ -54,7 +59,7 @@ function AdminDialogHeader({
   return (
     <DialogHeader
       className={cn(
-        "shrink-0 border-b border-beige-dark/20 px-5 py-4 pe-12 text-start sm:px-6 dark:border-white/10",
+        "shrink-0 border-b border-beige-dark/20 bg-warm-white px-5 py-4 pe-12 text-start sm:px-6 dark:border-white/10 dark:bg-[#1a1412]",
         className
       )}
       {...props}
@@ -68,7 +73,10 @@ function AdminDialogBody({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-5 sm:px-6", className)}
+      className={cn(
+        "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 py-5 sm:px-6",
+        className
+      )}
       {...props}
     />
   );

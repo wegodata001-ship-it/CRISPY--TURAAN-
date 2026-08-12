@@ -83,7 +83,7 @@ export function QuickActionDialog({
 
   return (
     <AdminDialog open={open} onOpenChange={onOpenChange}>
-      <AdminDialogContent size="md" className="h-[min(720px,calc(100dvh-16px))]">
+      <AdminDialogContent size="md" className="h-[min(720px,calc(100dvh-24px))] sm:h-[min(720px,min(85dvh,900px))]">
         <AdminDialogHeader>
           <AdminDialogTitle>
             {initial ? t("admin.assistant.editAction") : t("admin.assistant.addAction")}

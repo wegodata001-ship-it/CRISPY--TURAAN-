@@ -29,6 +29,8 @@ export function getCategoryPlaceholder(categoryId: string): string {
 export function isAllowedProductImageUrl(url: string): boolean {
   const trimmed = url.trim();
   if (!trimmed) return false;
+  // Broken external hosts (e.g. deleted Unsplash assets) must never hit next/image.
+  if (/unsplash\.com|images\.unsplash\.com/i.test(trimmed)) return false;
   if (trimmed.startsWith("/")) return true;
   if (trimmed.includes("firebasestorage.googleapis.com")) return true;
   if (trimmed.includes("firebasestorage.app")) return true;

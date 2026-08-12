@@ -41,6 +41,7 @@ import {
 import { ProductImageSection } from "./product-image-section";
 import { AdminToastStack, createToast, type AdminToast } from "@/features/admin/components/admin-toast";
 import { getRootCategoriesForAdmin, getSubcategories } from "@/lib/menu/category-tree";
+import { isAllowedProductImageUrl } from "@/lib/menu/placeholders";
 import {
   calcProfitMetrics,
   clearProductDraft,
@@ -91,6 +92,7 @@ export function ProductFormDialog({
   const [manualFields, setManualFields] = useState<Set<ManualTranslateField>>(new Set());
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [linkedGroupIds, setLinkedGroupIds] = useState<string[]>([]);
+  const [modifierLinks, setModifierLinks] = useState<ProductModifierGroup[]>([]);
   const [allGroups, setAllGroups] = useState<ModifierGroup[]>([]);
   const [savedProductId, setSavedProductId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -143,6 +145,7 @@ export function ProductFormDialog({
         });
         setGalleryUrls([]);
         setLinkedGroupIds([]);
+        setModifierLinks([]);
         initialLinkedGroupIdsRef.current = [];
         initialModifierLinksRef.current = [];
         initialFormSnapshotRef.current = form.getValues();
@@ -162,14 +165,16 @@ export function ProductFormDialog({
         cost: product.cost,
         profit: product.profit,
         businessType: product.businessType,
-        imageUrl: product.image,
+        imageUrl: product.image && isAllowedProductImageUrl(product.image) ? product.image : "",
         available: product.available,
         popular: product.isPopular,
         newProduct: product.isNew,
         active: product.active,
         sortOrder: product.sortOrder,
       });
-      setGalleryUrls(product.image ? [product.image] : []);
+      setGalleryUrls(
+        product.image && isAllowedProductImageUrl(product.image) ? [product.image] : []
+      );
       setSavedProductId(product.id);
       initialFormSnapshotRef.current = form.getValues();
     },
@@ -186,6 +191,7 @@ export function ProductFormDialog({
     setIsDirty(false);
     setSaveState("idle");
     initialModifierLinksRef.current = [];
+    setModifierLinks([]);
 
     if (editing) {
       resetFormFromProduct(editing, editing.sortOrder);
@@ -193,10 +199,12 @@ export function ProductFormDialog({
       initialLinkedGroupIdsRef.current = [];
       getProductModifierGroups(editing.id).then((links) => {
         if (cancelled) return;
-        const ids = links.sort((a, b) => a.sortOrder - b.sortOrder).map((l) => l.groupId);
+        const sorted = [...links].sort((a, b) => a.sortOrder - b.sortOrder);
+        const ids = sorted.map((l) => l.groupId);
         setLinkedGroupIds(ids);
+        setModifierLinks(sorted);
         initialLinkedGroupIdsRef.current = ids;
-        initialModifierLinksRef.current = links;
+        initialModifierLinksRef.current = sorted;
       });
       return () => {
         cancelled = true;
@@ -210,6 +218,7 @@ export function ProductFormDialog({
         form.reset(draft.values);
         setGalleryUrls(draft.galleryUrls);
         setLinkedGroupIds(draft.linkedGroupIds);
+        setModifierLinks([]);
         initialLinkedGroupIdsRef.current = [...draft.linkedGroupIds];
         initialModifierLinksRef.current = [];
         initialFormSnapshotRef.current = draft.values;
@@ -369,6 +378,8 @@ export function ProductFormDialog({
           optionUpdates: [],
           optionCreates: [],
           groupCreates: [],
+          linkOverrides: [],
+          optionOverrides: [],
         };
 
       perf.mark("Image processing");
@@ -377,7 +388,7 @@ export function ProductFormDialog({
         productId: persistId,
         productValues: formValues,
         productPatch,
-        existingLinks: initialModifierLinksRef.current,
+        existingLinks: modifierLinks,
         desiredGroupIds: linkedGroupIds,
         modifiers: modifierChanges,
       });
@@ -395,6 +406,7 @@ export function ProductFormDialog({
         ...result.data.createdGroupIds,
       ];
       setLinkedGroupIds(savedGroupIds);
+      setModifierLinks(result.data.links);
       initialFormSnapshotRef.current = formValues;
       initialLinkedGroupIdsRef.current = savedGroupIds;
       initialModifierLinksRef.current = result.data.links;
@@ -437,8 +449,8 @@ export function ProductFormDialog({
       <AdminDialogContent
         size="product"
         className={cn(
-          "h-[100dvh] max-h-[100dvh] w-full rounded-none border-0 sm:h-[min(900px,calc(100dvh-32px))] sm:w-[calc(100vw-32px)] sm:rounded-2xl sm:border",
-          dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto"
+          "h-[calc(100dvh-24px)] max-h-[calc(100dvh-24px)] w-[calc(100vw-24px)] rounded-2xl sm:h-[min(85dvh,900px)] sm:max-h-[min(85dvh,900px)] sm:w-[min(900px,calc(100vw-48px))]",
+          dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto [&>button]:end-auto"
         )}
       >
         <AdminDialogHeader className="px-4 py-3 sm:px-6 sm:py-4">
@@ -677,6 +689,7 @@ export function ProductFormDialog({
               productId={productId}
               allGroups={allGroups}
               linkedGroupIds={linkedGroupIds}
+              existingLinks={modifierLinks}
               onLinkedChange={handleLinkedChange}
               onDirty={() => setIsDirty(true)}
             />

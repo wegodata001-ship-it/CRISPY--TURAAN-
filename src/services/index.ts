@@ -45,6 +45,7 @@ export {
   updateProductModifierGroup,
   unlinkProductModifierGroup,
   getProductModifierGroups,
+  getProductModifierOptions,
   reorderProductModifierGroups,
   syncProductModifierLinks,
   loadProductBuilderConfig,

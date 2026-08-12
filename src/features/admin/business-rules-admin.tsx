@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Copy,
   Eye,
   EyeOff,
   Flame,
   Loader2,
-  MoreVertical,
   Pencil,
   Plus,
   Trash2,
@@ -185,6 +185,21 @@ export function BusinessRulesAdmin() {
     }
   };
 
+  const duplicateRule = async (rule: BusinessRule) => {
+    const result = await createBusinessRule({
+      name: `${rule.name} (${t("admin.action.duplicate")})`,
+      enabled: false,
+      priority: rule.priority + 1,
+      conditions: structuredClone(rule.conditions),
+      actions: structuredClone(rule.actions),
+    });
+    if (!result.success) {
+      setToasts((current) => [...current, createToast(result.error, "error")]);
+      return;
+    }
+    setToasts((current) => [...current, createToast(t("admin.rules.saved"))]);
+  };
+
   const conditionText = (ruleCondition: BusinessRuleCondition): string => {
     switch (ruleCondition.type) {
       case "product_is":
@@ -222,35 +237,84 @@ export function BusinessRulesAdmin() {
       {rules.length === 0 ? (
         <div className="rounded-[20px] border border-dashed border-beige-dark/30 bg-warm-white p-12 text-center">
           <p className="font-semibold">{t("admin.rules.noSelectionRules")}</p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-coffee/55">{t("admin.rules.selectionRulesHint")}</p>
           <Button className="mt-4" onClick={openCreate}><Plus className="h-4 w-4" />{t("admin.rules.new")}</Button>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rules.map((rule) => (
-            <article key={rule.id} className="rounded-[20px] border border-beige-dark/15 bg-warm-white p-5 shadow-soft">
-              <div className="flex items-start gap-3">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-600"><Flame className="h-5 w-5" /></span>
-                <div className="min-w-0 flex-1">
-                  <h2 className="font-display text-lg font-bold">{rule.name}</h2>
-                  <p className="mt-3 text-sm"><span className="font-semibold">{t("admin.rules.ifLabel")}:</span> {rule.conditions.map(conditionText).join(` ${t("admin.rules.andLabel")} `)}</p>
-                  <p className="mt-2 text-sm"><span className="font-semibold">{t("admin.rules.thenLabel")}:</span> {rule.actions.map(actionText).join(", ")}</p>
-                </div>
-                <details className="relative">
-                  <summary className="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-xl hover:bg-beige/35"><MoreVertical className="h-4 w-4" /></summary>
-                  <div className="absolute end-0 top-10 z-10 w-40 rounded-xl border border-beige-dark/15 bg-warm-white p-1 shadow-elevated">
-                    <button type="button" onClick={() => openEdit(rule)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-beige/30"><Pencil className="h-4 w-4" />{t("admin.action.edit")}</button>
-                    <button type="button" onClick={() => setDeleteRule(rule)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" />{t("admin.action.delete")}</button>
-                  </div>
-                </details>
-              </div>
-              <div className="mt-5 flex items-center justify-between border-t border-beige-dark/10 pt-3">
-                <span className={cn("inline-flex items-center gap-2 text-xs font-semibold", rule.enabled ? "text-emerald-700" : "text-stone-500")}>
-                  <span className={cn("h-2 w-2 rounded-full", rule.enabled ? "bg-emerald-500" : "bg-stone-400")} />
-                  {rule.enabled ? t("admin.status.active") : t("admin.status.disabled")}
+            <article
+              key={rule.id}
+              className={cn(
+                "rounded-2xl border bg-warm-white p-4 shadow-soft",
+                rule.enabled ? "border-beige-dark/15" : "border-beige-dark/10 opacity-70"
+              )}
+            >
+              <div className="flex items-start gap-2">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-600">
+                  <Flame className="h-4 w-4" />
                 </span>
-                <Button variant="ghost" size="sm" onClick={() => void toggleRule(rule)}>
-                  {rule.enabled ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="font-display text-base font-bold leading-tight">{rule.name}</h2>
+                    <span
+                      className={cn(
+                        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                        rule.enabled
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-stone-100 text-stone-500"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          rule.enabled ? "bg-emerald-500" : "bg-stone-400"
+                        )}
+                      />
+                      {rule.enabled ? t("admin.status.active") : t("admin.status.disabled")}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-coffee/70">
+                    <span className="font-semibold text-coffee/90">{t("admin.rules.ifLabel")}:</span>{" "}
+                    {rule.conditions.map(conditionText).join(` ${t("admin.rules.andLabel")} `)}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-coffee/70">
+                    <span className="font-semibold text-coffee/90">{t("admin.rules.thenLabel")}:</span>{" "}
+                    {rule.actions.map(actionText).join(", ")}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-beige-dark/10 pt-2">
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => openEdit(rule)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  {t("admin.action.edit")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => void duplicateRule(rule)}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  {t("admin.action.duplicate")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => void toggleRule(rule)}
+                >
+                  {rule.enabled ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   {rule.enabled ? t("admin.rules.disableRule") : t("admin.rules.enableRule")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs text-red-600 hover:text-red-700"
+                  onClick={() => setDeleteRule(rule)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {t("admin.action.delete")}
                 </Button>
               </div>
             </article>

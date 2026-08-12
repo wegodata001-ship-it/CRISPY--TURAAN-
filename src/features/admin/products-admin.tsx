@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -22,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ProductImage } from "@/components/catalog/product-image";
 import { deleteImageByUrl } from "@/services/storageService";
 import { formatPrice, cn } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
@@ -297,7 +297,7 @@ export function ProductsAdmin() {
             <div className="flex items-center gap-3 rounded-xl border border-beige-dark/20 bg-warm-white p-3 dark:border-white/10 dark:bg-white/5">
               {dragHandle}
               <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg">
-                <Image src={product.image} alt="" fill className="object-cover" sizes="48px" />
+                <ProductImage image={product.image} categoryId={product.categoryId} alt="" thumbnail />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium dark:text-warm-white" dir="rtl">{product.name_ar}</p>
@@ -337,7 +337,12 @@ export function ProductsAdmin() {
                 }}
                 className="relative aspect-square cursor-pointer"
               >
-                <Image src={product.image} alt={product.name_ar} fill className="object-cover" sizes="250px" />
+                <ProductImage
+                  image={product.image}
+                  categoryId={product.categoryId}
+                  alt={product.name_he || product.name_en || product.name_ar}
+                  sizes="250px"
+                />
                 <button
                   onClick={(event) => {
                     event.stopPropagation();
@@ -421,7 +426,7 @@ export function ProductsAdmin() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl">
-                        <Image src={product.image} alt="" fill className="object-cover" sizes="48px" />
+                        <ProductImage image={product.image} categoryId={product.categoryId} alt="" thumbnail />
                       </div>
                       <div>
                         <p className="text-sm font-medium dark:text-warm-white" dir="rtl">{product.name_ar}</p>
