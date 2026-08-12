@@ -32,7 +32,7 @@ const AdminDialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogContent> & {
     size?: AdminDialogSize;
   }
->(({ className, size = "md", layout: _ignoredLayout, ...props }, ref) => {
+>(({ className, size = "md", layout: _ignoredLayout, style, ...props }, ref) => {
   const { dir } = useLocale();
 
   return (
@@ -41,11 +41,12 @@ const AdminDialogContent = React.forwardRef<
       dir={dir}
       className={cn(
         // Opaque white panel — overflow hidden; ONLY AdminDialogBody scrolls
-        "flex max-h-[calc(100dvh-48px)] flex-col gap-0 overflow-hidden rounded-[20px] border border-black/[0.06] bg-white p-0 opacity-100 shadow-elevated",
+        "flex max-h-[calc(100dvh-48px)] flex-col gap-0 overflow-hidden rounded-[20px] border border-black/[0.06] bg-[#FFFFFF] p-0 shadow-elevated",
         SIZE_CLASS[size],
         dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto [&>button]:end-auto",
         className
       )}
+      style={{ backgroundColor: "#FFFFFF", opacity: 1, ...style }}
       {...props}
       layout="center"
     />

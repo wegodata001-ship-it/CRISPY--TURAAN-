@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -63,6 +64,8 @@ function AddProductCard({
 
 export function ProductsAdmin() {
   const t = useT();
+  const router = useRouter();
+  const pathname = usePathname();
   const { products, loading, error, isIndexError, retry } = useProducts(undefined, { admin: true });
   const { categories, error: categoriesError, retry: retryCategories } = useAllCategories();
   const [view, setView] = useState<ViewMode>("grid");
@@ -72,6 +75,15 @@ export function ProductsAdmin() {
   const [open, setOpen] = useState(false);
   const [inlinePrices, setInlinePrices] = useState<Record<string, string>>({});
   const [ordered, setOrdered] = useState<Product[]>([]);
+
+  // Header "מוצר חדש" links to /admin/products?new=1
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") !== "1") return;
+    setEditing(null);
+    setOpen(true);
+    router.replace(pathname, { scroll: false });
+  }, [router, pathname]);
 
   const copySuffix = ` (${t("admin.action.copy")})`;
 

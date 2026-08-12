@@ -394,7 +394,14 @@ export function AddonsWizard({
       <DialogContent
         layout="custom"
         dir={dir}
-        className="bottom-0 left-0 top-auto z-[1010] flex h-[88dvh] max-h-[88dvh] w-full max-w-none flex-col gap-0 rounded-b-none rounded-t-3xl border-b-0 p-0 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[min(760px,86vh)] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:border"
+        className={cn(
+          "z-[1010] flex flex-col gap-0 bg-[#FFFFFF] p-0 text-dark-brown shadow-elevated outline-none",
+          // Mobile bottom sheet
+          "inset-x-0 bottom-0 top-auto h-[88dvh] max-h-[88dvh] w-full max-w-none rounded-b-none rounded-t-3xl border-0 border-t border-beige-dark/20",
+          // Desktop: centered via inset + margin auto (no translate — production-safe)
+          "sm:inset-0 sm:m-auto sm:h-[min(760px,86dvh)] sm:max-h-[min(760px,86dvh)] sm:w-full sm:max-w-xl sm:rounded-3xl sm:border sm:border-beige-dark/20"
+        )}
+        style={{ backgroundColor: "#FFFFFF", opacity: 1 }}
       >
         <div className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-beige-dark/40 sm:hidden" />
         <DialogHeader className="shrink-0 border-b border-beige-dark/15 px-5 pb-4 pt-4 text-start sm:px-6">

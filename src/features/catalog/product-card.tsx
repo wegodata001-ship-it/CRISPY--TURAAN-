@@ -10,7 +10,6 @@ import { useCart } from "@/features/cart/cart-context";
 import { useSettings } from "@/hooks/useSettings";
 import { useFavorites } from "@/hooks/useFavorites";
 import { ProductImage } from "@/components/catalog/product-image";
-import { hasRealProductImage } from "@/lib/menu/placeholders";
 import type { Product } from "@/types";
 
 interface ProductCardProps {
@@ -27,7 +26,6 @@ export function ProductCard({ product, index = 0, onClick }: ProductCardProps) {
   const { addItem, openCart } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const showThumbnails = settings?.showProductThumbnails !== false;
-  const showThumbnail = showThumbnails && hasRealProductImage(product.image);
   const isRtl = dir === "rtl";
 
   const handleAdd = (e: React.MouseEvent) => {
@@ -56,9 +54,11 @@ export function ProductCard({ product, index = 0, onClick }: ProductCardProps) {
       onClick={onClick}
       dir={dir}
       className={cn(
-        "group grid cursor-pointer grid-cols-[72px_1fr_60px] items-center gap-3 border-b border-beige-dark/12 px-1 py-4 transition-colors last:border-b-0 sm:grid-cols-[88px_1fr_72px] sm:gap-4",
-        !product.available && "opacity-55",
-        isRtl ? "" : ""
+        "group grid cursor-pointer items-center gap-3 border-b border-beige-dark/12 px-1 py-4 transition-colors last:border-b-0 sm:gap-4",
+        showThumbnails
+          ? "grid-cols-[80px_1fr_64px] sm:grid-cols-[96px_1fr_72px]"
+          : "grid-cols-[1fr_64px] sm:grid-cols-[1fr_72px]",
+        !product.available && "opacity-55"
       )}
     >
       {/* Price + add — visual left in RTL */}
@@ -120,23 +120,21 @@ export function ProductCard({ product, index = 0, onClick }: ProductCardProps) {
         )}
       </div>
 
-      {/* Thumbnail — visual right in RTL */}
-      <div className={cn("flex justify-center", isRtl ? "order-1" : "order-3")}>
-        {showThumbnail ? (
-          <div className="relative h-[60px] w-[60px] overflow-hidden rounded-xl bg-beige/30 ring-1 ring-beige-dark/15">
+      {/* Thumbnail — always render real image or category fallback */}
+      {showThumbnails && (
+        <div className={cn("flex justify-center", isRtl ? "order-1" : "order-3")}>
+          <div className="relative h-[72px] w-[72px] overflow-hidden rounded-2xl bg-beige/40 shadow-soft ring-1 ring-beige-dark/20 sm:h-[84px] sm:w-[84px]">
             <ProductImage
               image={product.image}
               categoryId={product.categoryId}
-              alt=""
+              alt={localized.name}
               thumbnail
-              sizes="60px"
-              className="rounded-xl"
+              sizes="84px"
+              className="rounded-2xl"
             />
           </div>
-        ) : (
-          <div className="h-[60px] w-[60px] rounded-xl bg-cream ring-1 ring-beige-dark/10" aria-hidden />
-        )}
-      </div>
+        </div>
+      )}
     </motion.article>
   );
 }
