@@ -11,7 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AdminDialog,
+  AdminDialogContent,
+  AdminDialogHeader,
+  AdminDialogTitle,
+} from "@/features/admin/components/admin-dialog";
 import { useT } from "@/components/providers/locale-provider";
 import { normalizeModifierOptionInput } from "@/lib/validation/modifier-normalize";
 import type { ModifierGroup, ModifierOption } from "@/types/modifiers";
@@ -196,9 +201,10 @@ export function GroupOptionsManager({
         </ul>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent
-          className="max-w-md"
+      <AdminDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <AdminDialogContent
+          size="sm"
+          className="gap-4 overflow-y-auto p-6"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -206,11 +212,11 @@ export function GroupOptionsManager({
             }
           }}
         >
-          <DialogHeader>
-            <DialogTitle>
+          <AdminDialogHeader className="border-0 p-0 pe-8">
+            <AdminDialogTitle>
               {editing ? t("admin.modifiers.editOption") : t("admin.modifiers.newOption")}
-            </DialogTitle>
-          </DialogHeader>
+            </AdminDialogTitle>
+          </AdminDialogHeader>
           <div className="space-y-4">
             <div>
               <Label>{t("admin.modifiers.nameHeRequired")}</Label>
@@ -243,8 +249,8 @@ export function GroupOptionsManager({
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.action.save")}
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </AdminDialogContent>
+      </AdminDialog>
     </section>
   );
 }

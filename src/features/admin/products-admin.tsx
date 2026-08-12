@@ -32,6 +32,35 @@ import type { Product } from "@/types";
 
 type ViewMode = "grid" | "table" | "reorder";
 
+function AddProductCard({
+  onClick,
+  title,
+  description,
+}: {
+  onClick: () => void;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={title}
+      className="group flex aspect-[3/4] min-h-[220px] w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-turquoise/45 bg-turquoise/[0.04] px-4 text-center transition-colors duration-200 hover:border-turquoise hover:bg-turquoise/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-turquoise focus-visible:ring-offset-2 dark:bg-turquoise/[0.06]"
+    >
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-turquoise/10 text-turquoise transition-colors duration-200 group-hover:bg-turquoise group-hover:text-warm-white">
+        <Plus className="h-7 w-7" strokeWidth={2} aria-hidden />
+      </span>
+      <span className="mt-4 text-base font-semibold text-dark-brown dark:text-warm-white">
+        {title}
+      </span>
+      <span className="mt-1 text-sm text-coffee/55 dark:text-warm-white/55">
+        {description}
+      </span>
+    </button>
+  );
+}
+
 export function ProductsAdmin() {
   const t = useT();
   const { products, loading, error, isIndexError, retry } = useProducts(undefined, { admin: true });
@@ -252,6 +281,11 @@ export function ProductsAdmin() {
 
       {loading ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+          <AddProductCard
+            onClick={openCreate}
+            title={t("admin.products.addProductCard")}
+            description={t("admin.products.addProductHint")}
+          />
           {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="aspect-[3/4] rounded-2xl" />)}
         </div>
       ) : view === "reorder" ? (
@@ -274,6 +308,11 @@ export function ProductsAdmin() {
         />
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+          <AddProductCard
+            onClick={openCreate}
+            title={t("admin.products.addProductCard")}
+            description={t("admin.products.addProductHint")}
+          />
           {filtered.map((product, i) => (
             <motion.div
               key={product.id}
@@ -285,21 +324,45 @@ export function ProductsAdmin() {
                 selected.has(product.id) ? "border-turquoise ring-2 ring-turquoise/30" : "border-beige-dark/20 dark:border-white/10"
               )}
             >
-              <div className="relative aspect-square">
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label={`${t("admin.action.edit")} ${product.name_he || product.name_en}`}
+                onClick={() => openEdit(product)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openEdit(product);
+                  }
+                }}
+                className="relative aspect-square cursor-pointer"
+              >
                 <Image src={product.image} alt={product.name_ar} fill className="object-cover" sizes="250px" />
-                <button onClick={() => toggleSelect(product.id)} className="absolute top-2 left-2 rounded-lg bg-warm-white/90 p-1.5 shadow-sm">
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleSelect(product.id);
+                  }}
+                  className="absolute top-2 left-2 rounded-lg bg-warm-white/90 p-1.5 shadow-sm"
+                >
                   {selected.has(product.id) ? <CheckSquare className="h-4 w-4 text-turquoise" /> : <Square className="h-4 w-4 text-coffee/40" />}
                 </button>
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="absolute top-2 right-2 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                   <button
-                    onClick={() => duplicateProduct(product)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void duplicateProduct(product);
+                    }}
                     className="rounded-lg bg-warm-white/90 p-1.5"
                     title={t("admin.action.duplicate")}
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </button>
                   <button
-                    onClick={() => openEdit(product)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openEdit(product);
+                    }}
                     className="rounded-lg bg-warm-white/90 p-1.5"
                     title={t("admin.action.edit")}
                   >

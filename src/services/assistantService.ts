@@ -51,13 +51,12 @@ export function subscribeToAssistantConfig(
 
 export async function updateAssistantConfig(
   input: Partial<AssistantConfig>
-): Promise<ServiceResult<AssistantConfig>> {
+): Promise<ServiceResult<void>> {
   try {
     const db = getDb();
     const ref = doc(db, COLLECTIONS.assistant, ASSISTANT_DOC_ID);
     await setDoc(ref, { ...input, updatedAt: nowTimestamp() }, { merge: true });
-    const snap = await getDoc(ref);
-    return success(parseAssistantConfig(snap.data() as Record<string, unknown>));
+    return success(undefined);
   } catch (error) {
     return failure(error, "Failed to update assistant config");
   }

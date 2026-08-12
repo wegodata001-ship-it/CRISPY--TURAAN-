@@ -65,17 +65,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetch("/api/auth/bootstrap", { method: "POST" }).catch(() => {});
 
     const auth = getFirebaseAuth();
-    const unsub = onAuthStateChanged(auth, async (fbUser) => {
-      setFirebaseUser(fbUser);
-      if (fbUser) {
-        const profile = await fetchUserProfile(fbUser.uid);
-        setUser(profile);
-      } else {
-        setUser(null);
-      }
+    const authTimeout = window.setTimeout(() => {
+      console.error("[AuthProvider] authentication state timed out");
       setLoading(false);
+    }, 10_000);
+    const unsub = onAuthStateChanged(auth, async (fbUser) => {
+      window.clearTimeout(authTimeout);
+      setFirebaseUser(fbUser);
+      try {
+        if (fbUser) {
+          const profile = await fetchUserProfile(fbUser.uid);
+          setUser(profile);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("[AuthProvider] failed to load user profile", error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     });
-    return unsub;
+    return () => {
+      window.clearTimeout(authTimeout);
+      unsub();
+    };
   }, []);
 
   const login = useCallback(

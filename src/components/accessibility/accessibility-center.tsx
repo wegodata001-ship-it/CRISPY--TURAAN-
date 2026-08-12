@@ -198,7 +198,7 @@ export function AccessibilityCenter() {
         aria-controls="a11y-panel"
         aria-label={t("a11y.openMenu")}
         className={cn(
-          "a11y-fab fixed z-[60] flex h-14 w-14 items-center justify-center rounded-full",
+          "a11y-fab fixed z-40 flex h-14 w-14 items-center justify-center rounded-full",
           "glass shadow-premium border border-white/30",
           "text-turquoise transition-transform hover:scale-105 active:scale-95",
           "bottom-40 end-4 md:bottom-6 md:end-24",
@@ -217,7 +217,7 @@ export function AccessibilityCenter() {
         {panelOpen && (
           <>
             <motion.div
-              className="fixed inset-0 z-[58] bg-dark-brown/25 backdrop-blur-sm"
+              className="fixed inset-0 z-[45] bg-dark-brown/25 backdrop-blur-sm"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -234,7 +234,7 @@ export function AccessibilityCenter() {
               tabIndex={-1}
               dir={dir}
               className={cn(
-                "a11y-panel fixed z-[59] flex max-h-[min(85vh,720px)] w-[min(calc(100vw-2rem),400px)] flex-col",
+                "a11y-panel fixed z-[46] flex max-h-[min(85vh,720px)] w-[min(calc(100vw-2rem),400px)] flex-col",
                 "rounded-3xl glass shadow-premium overflow-hidden",
                 "bottom-40 end-4 md:bottom-6 md:end-24",
                 "border border-white/40 dark:border-white/10"

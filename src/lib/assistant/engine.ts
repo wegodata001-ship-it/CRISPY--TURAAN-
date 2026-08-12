@@ -278,6 +278,30 @@ function runQuickAction(action: AssistantQuickAction, ctx: AssistantContext, req
       return respond(ctx, t.checkoutHint, [], { clientAction: { type: "checkout" } });
     case "contact":
       return respond(ctx, `${t.contactIntro}\n${t.phone(ctx.settings.phone)}`, [], { showContact: true });
+    case "product":
+      if (action.productId) {
+        return handleProductDetail(ctx, action.productId) ?? respond(ctx, t.noResults);
+      }
+      break;
+    case "page":
+      if (action.url) {
+        return respond(ctx, action.label[ctx.locale], [], {
+          clientAction: { type: "open_url", url: action.url },
+        });
+      }
+      break;
+    case "whatsapp":
+      return respond(ctx, action.label[ctx.locale], [], {
+        clientAction: {
+          type: "open_url",
+          url: action.url || ctx.settings.whatsapp || `https://wa.me/${ctx.settings.phone}`,
+        },
+      });
+    case "question":
+      if (action.question?.[ctx.locale]) {
+        return processMessage({ ...req, message: action.question[ctx.locale] }, ctx);
+      }
+      break;
     case "category":
       if (action.categoryId) {
         const cat = ctx.categories.find((c) => c.id === action.categoryId);

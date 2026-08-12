@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Download, Printer, Search, FileText, ChevronDown, Layers } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChefHat, Search } from "lucide-react";
 import { useOrders } from "@/hooks/useOrders";
-import { updateOrder, deleteOrder } from "@/services";
+import { updateOrderStatus } from "@/services";
+import { useAuth } from "@/components/providers/auth-provider";
 import { OrderItemExtrasDialog } from "@/features/admin/orders/order-item-extras-dialog";
+import { OrderCard } from "@/features/admin/orders/order-card";
+import { CancelOrderDialog } from "@/features/admin/orders/cancel-order-dialog";
+import { KitchenView } from "@/features/admin/orders/kitchen-view";
+import { AdminToastStack, createToast, type AdminToast } from "@/features/admin/components/admin-toast";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -16,300 +19,347 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatPrice, formatDate } from "@/lib/utils";
+import { formatPrice, cn } from "@/lib/utils";
+import {
+  ACTIVE_ORDER_STATUSES,
+  ORDER_STATUSES,
+  averagePreparationMinutes,
+  effectivePaymentStatus,
+  isActiveOrder,
+  isToday,
+  orderSearchText,
+} from "@/lib/orders/operations";
+import { kitchenTicketHtml, printKitchenTicket } from "@/lib/orders/kitchen-ticket";
 import { exportHtmlAsPdf } from "@/lib/export-pdf";
-import { cn } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
-import type { Order, OrderStatus } from "@/types";
+import type { Order, OrderStatus, PaymentStatus } from "@/types";
 
-const statuses: OrderStatus[] = ["pending", "preparing", "ready", "delivered", "cancelled"];
-
-const statusVariant: Record<OrderStatus, "pending" | "preparing" | "ready" | "delivered" | "cancelled"> = {
-  pending: "pending",
-  preparing: "preparing",
-  ready: "ready",
-  delivered: "delivered",
-  cancelled: "cancelled",
-};
-
-const statusColors: Record<OrderStatus, string> = {
-  pending: "bg-amber-500",
-  preparing: "bg-blue-500",
-  ready: "bg-emerald-500",
-  delivered: "bg-coffee",
-  cancelled: "bg-red-500",
-};
-
-function OrderTimeline({ status }: { status: OrderStatus }) {
-  const t = useT();
-  const steps: OrderStatus[] = ["pending", "preparing", "ready", "delivered"];
-  const currentIndex = status === "cancelled" ? -1 : steps.indexOf(status);
-  const statusLabel = (s: OrderStatus) => t(`admin.status.${s}`);
-
-  return (
-    <div className="mt-4 flex items-center gap-1">
-      {steps.map((step, i) => (
-        <div key={step} className="flex flex-1 items-center">
-          <div className="flex flex-col items-center gap-1">
-            <div
-              className={cn(
-                "h-3 w-3 rounded-full border-2 transition-colors",
-                i <= currentIndex ? statusColors[step] : "border-beige-dark/40 bg-transparent"
-              )}
-            />
-            <span className={cn("text-[10px]", i <= currentIndex ? "text-dark-brown dark:text-warm-white" : "text-coffee/40")}>
-              {statusLabel(step)}
-            </span>
-          </div>
-          {i < steps.length - 1 && (
-            <div className={cn("mx-1 h-0.5 flex-1", i < currentIndex ? "bg-coffee/40" : "bg-beige-dark/30")} />
-          )}
-        </div>
-      ))}
-      {status === "cancelled" && (
-        <Badge variant="cancelled" className="ml-2">{t("admin.status.cancelled")}</Badge>
-      )}
-    </div>
-  );
-}
+type OrdersTab = "active" | "history";
+type DateFilter = "today" | "week" | "all";
 
 export function OrdersAdmin() {
   const t = useT();
-  const { orders, loading } = useOrders();
-  const [updating, setUpdating] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { orders, loading, error } = useOrders();
+  const [tab, setTab] = useState<OrdersTab>("active");
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("today");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
+  const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<"pickup" | "delivery" | "all">("all");
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [extrasDialog, setExtrasDialog] = useState<{
-    order: Order;
-    itemIndex: number;
-  } | null>(null);
+  const [optimistic, setOptimistic] = useState<Record<string, OrderStatus>>({});
+  const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
+  const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
+  const [kitchenOpen, setKitchenOpen] = useState(false);
+  const [toasts, setToasts] = useState<AdminToast[]>([]);
+  const [extrasDialog, setExtrasDialog] = useState<{ order: Order; itemIndex: number } | null>(null);
+  const knownOrderIds = useRef<Set<string>>(new Set());
+  const realtimeReady = useRef(false);
+  const updatesInFlight = useRef<Set<string>>(new Set());
 
-  const statusLabel = (status: OrderStatus) => t(`admin.status.${status}`);
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput.trim().toLocaleLowerCase()), 275);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-  const filtered = orders.filter((o) => {
-    if (statusFilter !== "all" && o.status !== statusFilter) return false;
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return o.orderNumber.toLowerCase().includes(q) || o.customerName.toLowerCase().includes(q);
-  });
+  useEffect(() => {
+    if (!realtimeReady.current) {
+      knownOrderIds.current = new Set(orders.map((order) => order.id));
+      if (!loading) realtimeReady.current = true;
+      return;
+    }
+    const newOrders = orders.filter((order) => !knownOrderIds.current.has(order.id));
+    newOrders.forEach((order) => {
+      setToasts((current) => [
+        ...current,
+        createToast(
+          `${t("admin.orders.newReceived")} — ${order.orderNumber} · ${formatPrice(order.total)}`
+        ),
+      ]);
+    });
+    knownOrderIds.current = new Set(orders.map((order) => order.id));
+  }, [orders, loading, t]);
 
-  const exportCsv = () => {
-    const headers = [
-      t("orders.orderNumber"),
-      t("orders.customer"),
-      t("orders.status"),
-      t("orders.total"),
-      t("orders.date"),
-    ];
-    const rows = [
-      headers,
-      ...filtered.map((o) => [
-        o.orderNumber,
-        o.customerName,
-        statusLabel(o.status),
-        String(o.total),
-        o.createdAt,
-      ]),
-    ];
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+  useEffect(() => {
+    setOptimistic((current) => {
+      const next = { ...current };
+      let changed = false;
+      orders.forEach((order) => {
+        if (next[order.id] === order.status) {
+          delete next[order.id];
+          changed = true;
+        }
+      });
+      return changed ? next : current;
+    });
+  }, [orders]);
+
+  const effectiveOrders = useMemo(
+    () => orders.map((order) => ({ ...order, status: optimistic[order.id] ?? order.status })),
+    [orders, optimistic]
+  );
+
+  const todayOrders = useMemo(() => effectiveOrders.filter((order) => isToday(order.createdAt)), [effectiveOrders]);
+  const averagePrep = useMemo(() => averagePreparationMinutes(todayOrders), [todayOrders]);
+  const todayRevenue = useMemo(
+    () =>
+      todayOrders
+        .filter((order) => order.status !== "cancelled")
+        .reduce((sum, order) => sum + order.total, 0),
+    [todayOrders]
+  );
+
+  const filtered = useMemo(() => {
+    const now = Date.now();
+    return effectiveOrders
+      .filter((order) => (tab === "active" ? isActiveOrder(order) : !isActiveOrder(order)))
+      .filter((order) => {
+        if (dateFilter === "today") return isToday(order.createdAt);
+        if (dateFilter === "week") return now - new Date(order.createdAt).getTime() <= 7 * 86_400_000;
+        return true;
+      })
+      .filter((order) => statusFilter === "all" || order.status === statusFilter)
+      .filter((order) => paymentFilter === "all" || effectivePaymentStatus(order) === paymentFilter)
+      .filter((order) => typeFilter === "all" || order.orderType === typeFilter)
+      .filter((order) => !search || orderSearchText(order).includes(search))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [dateFilter, effectiveOrders, paymentFilter, search, statusFilter, tab, typeFilter]);
+
+  const activeOrders = useMemo(
+    () =>
+      effectiveOrders
+        .filter((order) => isActiveOrder(order) && isToday(order.createdAt))
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [effectiveOrders]
+  );
+
+  const pushToast = (message: string, type: "success" | "error" = "success") =>
+    setToasts((current) => [...current, createToast(message, type)]);
+
+  const changeStatus = async (order: Order, status: OrderStatus, cancelReason?: string) => {
+    if (updatesInFlight.current.has(order.id) || order.status === status) return false;
+    updatesInFlight.current.add(order.id);
+    setUpdatingIds((current) => new Set(current).add(order.id));
+    setOptimistic((current) => ({ ...current, [order.id]: status }));
+
+    const result = await updateOrderStatus(order.id, status, {
+      cancelReason,
+      cancelledBy: user?.email ?? user?.uid ?? "admin",
+    });
+    if (!result.success) {
+      setOptimistic((current) => {
+        const next = { ...current };
+        delete next[order.id];
+        return next;
+      });
+      pushToast(t("admin.orders.statusError"), "error");
+    } else {
+      pushToast(t("admin.orders.statusSaved"));
+    }
+    setUpdatingIds((current) => {
+      const next = new Set(current);
+      next.delete(order.id);
+      return next;
+    });
+    updatesInFlight.current.delete(order.id);
+    return result.success;
   };
 
-  const exportPdf = () => {
-    const headers = [
-      t("orders.orderNumber"),
-      t("orders.customer"),
-      t("orders.status"),
-      t("orders.total"),
-      t("orders.date"),
-    ];
-    const rows = filtered.map((o) =>
-      `<tr><td>${o.orderNumber}</td><td>${o.customerName}</td><td>${statusLabel(o.status)}</td><td>${formatPrice(o.total)}</td><td>${formatDate(o.createdAt)}</td></tr>`
-    ).join("");
-    exportHtmlAsPdf(
-      t("admin.orders.title"),
-      `<h1>${t("admin.orders.title")}</h1>
-       <p>${new Date().toLocaleString()}</p>
-       <table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
-       <tbody>${rows}</tbody></table>`
-    );
-  };
-
-  const printOrders = () => window.print();
-
-  const handleStatusChange = async (order: Order, status: OrderStatus) => {
-    setUpdating(order.id);
-    await updateOrder(order.id, { status });
-    setUpdating(null);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm(t("admin.orders.deleteConfirm"))) return;
-    await deleteOrder(id);
-  };
+  const kpis: { status: OrderStatus; value: number }[] = [
+    { status: "pending", value: todayOrders.filter((order) => order.status === "pending").length },
+    { status: "preparing", value: todayOrders.filter((order) => order.status === "preparing").length },
+    { status: "ready", value: todayOrders.filter((order) => order.status === "ready").length },
+    { status: "delivered", value: todayOrders.filter((order) => order.status === "delivered").length },
+  ];
 
   return (
     <div>
       <AdminPageHeader
         title={t("admin.orders.title")}
-        subtitle={`${orders.length} ${t("orders.totalOrders")}`}
+        subtitle={t("admin.orders.operationsSubtitle")}
         actions={
-          <>
-            <div className="relative">
-              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-coffee/40" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t("admin.orders.search")}
-                className="h-10 rounded-xl border border-beige-dark/30 bg-warm-white pl-9 pr-3 text-sm dark:border-white/10 dark:bg-white/5"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as OrderStatus | "all")}>
-              <SelectTrigger className="h-10 w-32"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("admin.status.all")}</SelectItem>
-                {statuses.map((s) => (
-                  <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" onClick={exportCsv}>
-              <Download className="h-3.5 w-3.5" /> {t("admin.orders.exportCsv")}
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportPdf}>
-              <FileText className="h-3.5 w-3.5" /> {t("admin.orders.exportPdf")}
-            </Button>
-            <Button variant="outline" size="sm" onClick={printOrders}>
-              <Printer className="h-3.5 w-3.5" /> {t("admin.action.print")}
-            </Button>
-          </>
+          <Button variant="turquoise" onClick={() => setKitchenOpen(true)}>
+            <ChefHat className="h-4 w-4" />
+            {t("admin.orders.kitchenView")}
+          </Button>
         }
       />
 
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        {kpis.map(({ status, value }) => (
+          <button
+            key={status}
+            type="button"
+            onClick={() => {
+              setTab(status === "delivered" ? "history" : "active");
+              setDateFilter("today");
+              setStatusFilter(status);
+            }}
+            className="rounded-2xl border border-beige-dark/15 bg-warm-white p-4 text-start shadow-soft transition hover:border-turquoise/40"
+          >
+            <p className="text-2xl font-bold text-dark-brown dark:text-warm-white">{value}</p>
+            <p className="text-sm text-coffee/55">{t(`admin.status.${status}`)}</p>
+          </button>
+        ))}
+        <div className="rounded-2xl border border-beige-dark/15 bg-warm-white p-4 shadow-soft">
+          <p className="text-xl font-bold text-turquoise">{formatPrice(todayRevenue)}</p>
+          <p className="text-sm text-coffee/55">{t("admin.orders.todayRevenue")}</p>
+        </div>
+        <div className="rounded-2xl border border-beige-dark/15 bg-warm-white p-4 shadow-soft">
+          <p className="text-xl font-bold text-coffee">
+            {averagePrep == null
+              ? "—"
+              : t("admin.orders.minutesShort").replace("{count}", String(averagePrep))}
+          </p>
+          <p className="text-sm text-coffee/55">{t("admin.orders.averagePrep")}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 flex gap-2 border-b border-beige-dark/20">
+        {(["active", "history"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => {
+              setTab(value);
+              setStatusFilter("all");
+            }}
+            className={cn(
+              "border-b-2 px-4 py-3 text-sm font-semibold",
+              tab === value ? "border-turquoise text-turquoise" : "border-transparent text-coffee/55"
+            )}
+          >
+            {t(`admin.orders.tab.${value}`)}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 rounded-2xl bg-warm-white p-3 shadow-soft sm:grid-cols-2 lg:grid-cols-6">
+        <div className="relative sm:col-span-2">
+          <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee/40" />
+          <input
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder={t("admin.orders.searchV2")}
+            className="h-10 w-full rounded-xl border border-beige-dark/30 bg-warm-white ps-10 pe-3 text-sm"
+          />
+        </div>
+        <Select value={dateFilter} onValueChange={(value) => setDateFilter(value as DateFilter)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="today">{t("admin.orders.today")}</SelectItem>
+            <SelectItem value="week">{t("admin.orders.lastWeek")}</SelectItem>
+            <SelectItem value="all">{t("admin.status.all")}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as OrderStatus | "all")}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("admin.status.all")}</SelectItem>
+            {ORDER_STATUSES.map((status) => (
+              <SelectItem key={status} value={status}>{t(`admin.status.${status}`)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={paymentFilter} onValueChange={(value) => setPaymentFilter(value as PaymentStatus | "all")}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("admin.orders.allPayments")}</SelectItem>
+            {(["pending", "paid", "failed", "refunded"] as PaymentStatus[]).map((status) => (
+              <SelectItem key={status} value={status}>{t(`admin.payment.${status}`)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as typeof typeFilter)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("admin.orders.allTypes")}</SelectItem>
+            <SelectItem value="pickup">{t("admin.orders.type.pickup")}</SelectItem>
+            <SelectItem value="delivery">{t("admin.orders.type.delivery")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {statusFilter !== "all" && (
+        <button className="mt-3 text-sm text-turquoise" onClick={() => setStatusFilter("all")}>
+          {t(`admin.status.${statusFilter}`)} ×
+        </button>
+      )}
+
+      {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+
       {loading ? (
-        <div className="mt-6 space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-64 rounded-2xl" />
           ))}
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="mt-5 rounded-2xl border border-dashed border-beige-dark/30 p-12 text-center text-coffee/55">
+          {t("admin.orders.noResults")}
+        </div>
       ) : (
-        <div className="mt-6 space-y-3">
-          {filtered.map((order, i) => (
-            <motion.div
+        <div className="mt-5 grid items-start gap-4 md:grid-cols-2">
+          {filtered.map((order) => (
+            <OrderCard
               key={order.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.02 }}
-              className={cn(
-                "rounded-2xl bg-warm-white p-4 shadow-soft md:p-5 dark:bg-white/5",
-                "border-l-4",
-                order.status === "pending" && "border-l-amber-500",
-                order.status === "preparing" && "border-l-blue-500",
-                order.status === "ready" && "border-l-emerald-500",
-                order.status === "delivered" && "border-l-coffee",
-                order.status === "cancelled" && "border-l-red-500"
-              )}
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(expanded === order.id ? null : order.id)}
-                    className="flex w-full items-center gap-2 text-left"
-                  >
-                    <p className="font-semibold text-dark-brown dark:text-warm-white">{order.orderNumber}</p>
-                    <Badge variant={statusVariant[order.status]}>{statusLabel(order.status)}</Badge>
-                    <ChevronDown className={cn("h-4 w-4 text-coffee/40 transition-transform", expanded === order.id && "rotate-180")} />
-                  </button>
-                  <p className="mt-1 text-sm text-coffee/60">{order.customerName}</p>
-                  <p className="text-xs text-coffee/40">{formatDate(order.createdAt)}</p>
-                  <div className="mt-2 space-y-2">
-                    {order.items.map((item, itemIndex) => (
-                      <div
-                        key={`${order.id}-${itemIndex}-${item.productId}`}
-                        className="flex flex-wrap items-start justify-between gap-2 rounded-xl bg-cream/40 px-3 py-2 dark:bg-white/5"
-                      >
-                        <div className="min-w-0 flex-1 text-xs text-coffee/60">
-                          <span className="font-medium text-coffee/80">
-                            {item.quantity}× {item.productName}
-                          </span>
-                          {item.modifiers?.map((m) => (
-                            <p key={m.optionId} className="ps-3 text-[10px] text-coffee/45">
-                              + {m.optionName}
-                              {m.kitchenNote ? ` (${m.kitchenNote})` : ""}
-                            </p>
-                          ))}
-                          {item.notes && <p className="ps-3 text-[10px] italic">{item.notes}</p>}
-                        </div>
-                        {order.status !== "delivered" && order.status !== "cancelled" && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 shrink-0 rounded-lg px-2 text-[11px]"
-                            onClick={() => setExtrasDialog({ order, itemIndex })}
-                          >
-                            <Layers className="h-3 w-3" />
-                            {t("admin.orders.editExtras")}
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <AnimatePresence>
-                    {expanded === order.id && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                      >
-                        <OrderTimeline status={order.status} />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                <div className="flex items-center gap-3">
-                  <p className="text-lg font-bold text-coffee">{formatPrice(order.total)}</p>
-                  <Select
-                    value={order.status}
-                    onValueChange={(v) => handleStatusChange(order, v as OrderStatus)}
-                    disabled={updating === order.id}
-                  >
-                    <SelectTrigger className="h-8 w-[130px] text-xs">
-                      {updating === order.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <SelectValue />
-                      )}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statuses.map((s) => (
-                        <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(order.id)}>
-                    {t("admin.action.delete")}
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
+              order={order}
+              expanded={expanded === order.id}
+              updating={updatingIds.has(order.id)}
+              onToggle={() => setExpanded((current) => (current === order.id ? null : order.id))}
+              onStatusChange={(status) =>
+                status === "cancelled" ? setCancelOrder(order) : void changeStatus(order, status)
+              }
+              onCancel={() => setCancelOrder(order)}
+              onPrint={() => printKitchenTicket(order)}
+              onExportPdf={() => exportHtmlAsPdf(order.orderNumber, kitchenTicketHtml(order))}
+              onCopyNumber={() => {
+                void navigator.clipboard.writeText(order.orderNumber).then(
+                  () => pushToast(t("admin.orders.numberCopied")),
+                  () => pushToast(t("admin.orders.copyFailed"), "error")
+                );
+              }}
+              onEditItem={(itemIndex) => setExtrasDialog({ order, itemIndex })}
+            />
           ))}
         </div>
       )}
 
+      <CancelOrderDialog
+        order={cancelOrder}
+        open={cancelOrder != null}
+        saving={cancelOrder ? updatingIds.has(cancelOrder.id) : false}
+        onOpenChange={(open) => !open && setCancelOrder(null)}
+        onConfirm={(reason) => {
+          if (!cancelOrder) return;
+          void changeStatus(cancelOrder, "cancelled", reason).then((saved) => {
+            if (saved) setCancelOrder(null);
+          });
+        }}
+      />
       <OrderItemExtrasDialog
         order={extrasDialog?.order ?? null}
         itemIndex={extrasDialog?.itemIndex ?? null}
         open={extrasDialog != null}
         onOpenChange={(open) => !open && setExtrasDialog(null)}
+      />
+      <KitchenView
+        open={kitchenOpen}
+        orders={activeOrders}
+        updatingIds={updatingIds}
+        onClose={() => setKitchenOpen(false)}
+        onStatusChange={(order, status) =>
+          status === "cancelled" ? setCancelOrder(order) : void changeStatus(order, status)
+        }
+        onCancel={setCancelOrder}
+        onPrint={printKitchenTicket}
+      />
+      <AdminToastStack
+        toasts={toasts}
+        onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))}
       />
     </div>
   );

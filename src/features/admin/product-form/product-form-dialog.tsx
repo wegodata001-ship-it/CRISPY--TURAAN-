@@ -24,12 +24,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { useT } from "@/components/providers/locale-provider";
+  AdminDialog,
+  AdminDialogBody,
+  AdminDialogContent,
+  AdminDialogFooter,
+  AdminDialogHeader,
+  AdminDialogTitle,
+} from "@/features/admin/components/admin-dialog";
+import { useLocale, useT } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 import { CategorySearchSelect } from "./category-search-select";
 import {
@@ -80,6 +82,7 @@ export function ProductFormDialog({
   onDuplicate,
 }: ProductFormDialogProps) {
   const t = useT();
+  const { dir } = useLocale();
   const [tab, setTab] = useState<ProductFormTab>("details");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +178,7 @@ export function ProductFormDialog({
 
   useEffect(() => {
     if (!open) return;
+    let cancelled = false;
     setTab("details");
     setError(null);
     setTranslateError(null);
@@ -185,13 +189,18 @@ export function ProductFormDialog({
 
     if (editing) {
       resetFormFromProduct(editing, editing.sortOrder);
+      setLinkedGroupIds([]);
+      initialLinkedGroupIdsRef.current = [];
       getProductModifierGroups(editing.id).then((links) => {
+        if (cancelled) return;
         const ids = links.sort((a, b) => a.sortOrder - b.sortOrder).map((l) => l.groupId);
         setLinkedGroupIds(ids);
         initialLinkedGroupIdsRef.current = ids;
         initialModifierLinksRef.current = links;
       });
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     const draft = loadProductDraft();
@@ -237,6 +246,7 @@ export function ProductFormDialog({
       onOpenChange(true);
       return;
     }
+    if (saving) return;
     if (isDirty && !confirm(t("admin.productForm.unsavedConfirm"))) return;
     onOpenChange(false);
   };
@@ -392,8 +402,8 @@ export function ProductFormDialog({
       setSaveState("saved");
       setIsDirty(false);
       pushToast(createToast(t("admin.productForm.saveSuccess")));
-      setTimeout(() => setSaveState("idle"), 2000);
       perf.mark("SAVE END");
+      onOpenChange(false);
     } catch (err) {
       console.error("[PRODUCT_SAVE_FAILED]", err);
       setSaveState("idle");
@@ -423,10 +433,16 @@ export function ProductFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleCloseRequest}>
-      <DialogContent className="flex h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:h-[92vh] sm:max-w-3xl sm:rounded-2xl sm:border">
-        <DialogHeader className="shrink-0 border-b border-beige-dark/20 px-4 py-3 sm:px-6 sm:py-4 dark:border-white/10">
-          <DialogTitle className="flex items-center gap-2 text-start font-display text-lg sm:text-xl">
+    <AdminDialog open={open} onOpenChange={handleCloseRequest}>
+      <AdminDialogContent
+        size="product"
+        className={cn(
+          "h-[100dvh] max-h-[100dvh] w-full rounded-none border-0 sm:h-[min(900px,calc(100dvh-32px))] sm:w-[calc(100vw-32px)] sm:rounded-2xl sm:border",
+          dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto"
+        )}
+      >
+        <AdminDialogHeader className="px-4 py-3 sm:px-6 sm:py-4">
+          <AdminDialogTitle className="flex items-center gap-2 text-start font-display text-lg sm:text-xl">
             {editing ? t("admin.products.edit") : t("admin.products.new")}
             {isDirty && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
@@ -437,8 +453,8 @@ export function ProductFormDialog({
             {saveState === "saved" && (
               <span className="text-xs font-medium text-emerald-600">{t("admin.productForm.savedLabel")}</span>
             )}
-          </DialogTitle>
-        </DialogHeader>
+          </AdminDialogTitle>
+        </AdminDialogHeader>
 
         <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-beige-dark/20 px-3 py-2 sm:px-4 dark:border-white/10">
           {TABS.map(({ id, icon: Icon, labelKey }) => (
@@ -459,7 +475,7 @@ export function ProductFormDialog({
           ))}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-5">
+        <AdminDialogBody className="px-4 py-4 sm:px-6 sm:py-5">
           {translateError && (
             <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
               {translateError}
@@ -697,9 +713,9 @@ export function ProductFormDialog({
           )}
 
           {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-        </div>
+        </AdminDialogBody>
 
-        <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-3 border-t border-beige-dark/20 bg-warm-white px-4 py-3 sm:px-6 sm:py-4 dark:border-white/10 dark:bg-[#1a1412]">
+        <AdminDialogFooter className="justify-between px-4 py-3 sm:px-6 sm:py-4">
           <Button
             type="button"
             variant="outline"
@@ -726,9 +742,9 @@ export function ProductFormDialog({
               t("admin.productForm.saveChanges")
             )}
           </Button>
-        </div>
-      </DialogContent>
+        </AdminDialogFooter>
+      </AdminDialogContent>
       <AdminToastStack toasts={toasts} onDismiss={dismissToast} />
-    </Dialog>
+    </AdminDialog>
   );
 }

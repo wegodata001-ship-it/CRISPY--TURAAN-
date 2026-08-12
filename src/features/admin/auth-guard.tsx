@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AppLoadingScreen } from "@/components/brand/app-loading-screen";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -17,11 +17,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [user, loading, pathname, router]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-cream">
-        <Loader2 className="h-8 w-8 animate-spin text-turquoise" />
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   if (!user) return null;

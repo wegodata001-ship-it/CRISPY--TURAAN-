@@ -25,7 +25,7 @@ import {
   calculateLineTotal,
   collectKitchenNotes,
 } from "@/lib/product-builder/engine";
-import type { Order, OrderStatus, OrderItem, CartItem } from "@/types";
+import type { Order, OrderStatus, OrderItem, CartItem, PaymentStatus } from "@/types";
 import type { FirestoreOrder, FirestoreOrderItem, FirestoreDoc } from "@/types/firestore";
 
 const ORDER_SAVE_FAILED_CODE = "ORDER_SAVE_FAILED";
@@ -68,7 +68,7 @@ function buildFirestoreOrder(
   orderNumber: string,
   now: Timestamp
 ): FirestoreOrder {
-  return {
+  const order: FirestoreOrder = {
     orderNumber,
     customerId: parsed.customerId,
     customerName: parsed.customerName,
@@ -79,9 +79,14 @@ function buildFirestoreOrder(
     delivery: parsed.delivery ?? 0,
     total: parsed.total,
     paymentMethod: parsed.paymentMethod ?? "cash",
+    paymentStatus: parsed.paymentStatus ?? "pending",
     notes: parsed.notes?.trim() ?? "",
     createdAt: now,
   };
+  if (parsed.customerPhone?.trim()) order.customerPhone = parsed.customerPhone.trim();
+  if (parsed.orderType) order.orderType = parsed.orderType;
+  if (parsed.deliveryAddress?.trim()) order.deliveryAddress = parsed.deliveryAddress.trim();
+  return order;
 }
 
 function filterOrders(
@@ -166,6 +171,7 @@ export async function getOrdersByCustomer(customerId: string): Promise<Order[]> 
 export async function getOrderStats(): Promise<{
   total: number;
   pending: number;
+  confirmed: number;
   preparing: number;
   ready: number;
   delivered: number;
@@ -176,6 +182,7 @@ export async function getOrderStats(): Promise<{
     return {
       total: orders.length,
       pending: orders.filter((o) => o.status === "pending").length,
+      confirmed: orders.filter((o) => o.status === "confirmed").length,
       preparing: orders.filter((o) => o.status === "preparing").length,
       ready: orders.filter((o) => o.status === "ready").length,
       delivered: orders.filter((o) => o.status === "delivered").length,
@@ -249,6 +256,10 @@ export async function createOrderFromCart(
     delivery?: number;
     total?: number;
     paymentMethod?: string;
+    paymentStatus?: PaymentStatus;
+    customerPhone?: string;
+    orderType?: "pickup" | "delivery";
+    deliveryAddress?: string;
     notes?: string;
   }
 ): Promise<ServiceResult<Order>> {
@@ -297,6 +308,10 @@ export async function createOrderFromCart(
     delivery: checkout?.delivery ?? 0,
     total: Math.max(total, 0.01),
     paymentMethod: checkout?.paymentMethod ?? "cash",
+    paymentStatus: checkout?.paymentStatus ?? "pending",
+    customerPhone: checkout?.customerPhone,
+    orderType: checkout?.orderType,
+    deliveryAddress: checkout?.deliveryAddress,
     notes: checkout?.notes?.trim() ?? "",
   });
 }
@@ -318,6 +333,33 @@ export async function updateOrder(
   } catch (error) {
     console.error("[updateOrder] failed:", error);
     return failure(new ServiceError("Order save failed", ORDER_SAVE_FAILED_CODE));
+  }
+}
+
+export async function updateOrderStatus(
+  id: string,
+  status: OrderStatus,
+  metadata?: { cancelReason?: string; cancelledBy?: string }
+): Promise<ServiceResult<void>> {
+  try {
+    const now = nowTimestamp();
+    const patch: Record<string, unknown> = { status };
+
+    if (status === "confirmed") patch.confirmedAt = now;
+    if (status === "preparing") patch.preparationStartedAt = now;
+    if (status === "ready") patch.readyAt = now;
+    if (status === "delivered") patch.completedAt = now;
+    if (status === "cancelled") {
+      patch.cancelledAt = now;
+      patch.cancelReason = metadata?.cancelReason?.trim() || "other";
+      patch.cancelledBy = metadata?.cancelledBy?.trim() || "admin";
+    }
+
+    await updateDoc(doc(getDb(), COLLECTIONS.orders, id), patch);
+    return success(undefined);
+  } catch (error) {
+    console.error("[updateOrderStatus] failed:", error);
+    return failure(new ServiceError("Order status update failed", ORDER_SAVE_FAILED_CODE));
   }
 }
 

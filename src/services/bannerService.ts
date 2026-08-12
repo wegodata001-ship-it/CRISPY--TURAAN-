@@ -1,11 +1,11 @@
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   addDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   onSnapshot,
   query,
   orderBy,
@@ -19,6 +19,7 @@ import { mapBanner, isBannerLive } from "@/lib/mappers";
 import { bannerSchema, type BannerInput } from "@/lib/validation/schemas";
 import type { BannerSlide } from "@/types";
 import type { FirestoreBanner, FirestoreDoc } from "@/types/firestore";
+import { sanitizeFirestoreData } from "@/lib/firebase/sanitize-firestore-data";
 
 function docToBanner(id: string, data: DocumentData): FirestoreDoc<FirestoreBanner> {
   return { id, ...(data as FirestoreBanner) };
@@ -100,11 +101,11 @@ export async function reorderBanners(
 ): Promise<ServiceResult<void>> {
   try {
     const db = getDb();
-    await Promise.all(
-      orderedIds.map((id, index) =>
-        updateDoc(doc(db, COLLECTIONS.banners, id), { sortOrder: index + 1 })
-      )
-    );
+    const batch = writeBatch(db);
+    orderedIds.forEach((id, index) => {
+      batch.update(doc(db, COLLECTIONS.banners, id), { sortOrder: index + 1 });
+    });
+    await batch.commit();
     return success(undefined);
   } catch (error) {
     return failure(error, "Failed to reorder banners");
@@ -115,9 +116,9 @@ export async function createBanner(input: BannerInput): Promise<ServiceResult<Ba
   try {
     const parsed = bannerSchema.parse(input);
     const db = getDb();
-    const ref = await addDoc(collection(db, COLLECTIONS.banners), parsed);
-    const snap = await getDoc(ref);
-    return success(mapBanner(docToBanner(snap.id, snap.data()!)));
+    const data = sanitizeFirestoreData(parsed) as FirestoreBanner;
+    const ref = await addDoc(collection(db, COLLECTIONS.banners), data);
+    return success(mapBanner({ id: ref.id, ...data }));
   } catch (error) {
     return failure(error, "Failed to create banner");
   }
@@ -126,16 +127,11 @@ export async function createBanner(input: BannerInput): Promise<ServiceResult<Ba
 export async function updateBanner(
   id: string,
   input: Partial<BannerInput>
-): Promise<ServiceResult<BannerSlide>> {
+): Promise<ServiceResult<void>> {
   try {
     const db = getDb();
-    const ref = doc(db, COLLECTIONS.banners, id);
-    await updateDoc(ref, input);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      return failure(new ServiceError("Banner not found", "NOT_FOUND"));
-    }
-    return success(mapBanner(docToBanner(snap.id, snap.data())));
+    await updateDoc(doc(db, COLLECTIONS.banners, id), sanitizeFirestoreData(input));
+    return success(undefined);
   } catch (error) {
     return failure(error, "Failed to update banner");
   }

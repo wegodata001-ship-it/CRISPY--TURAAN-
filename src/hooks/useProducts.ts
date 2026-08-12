@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import type { Product, ProductFilters, Category, BannerSlide } from "@/types";
 import { subscribeToProducts } from "@/services/productService";
 import { subscribeToCategories } from "@/services/categoryService";
-import { subscribeToBanners } from "@/services/bannerService";
+import { subscribeToAllBanners } from "@/services/bannerService";
+import { isBannerLive } from "@/lib/mappers";
 import {
   mapMasterMenuCategories,
   mapMasterMenuProducts,
@@ -166,15 +167,16 @@ export function useAllProducts() {
 }
 
 export function useBanners() {
-  const [banners, setBanners] = useState<BannerSlide[]>([]);
+  const [allBanners, setAllBanners] = useState<BannerSlide[]>([]);
+  const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    const unsubscribe = subscribeToBanners(
+    const unsubscribe = subscribeToAllBanners(
       (data) => {
-        setBanners(data);
+        setAllBanners(data);
         setLoading(false);
       },
       (err) => {
@@ -182,8 +184,17 @@ export function useBanners() {
         setLoading(false);
       }
     );
-    return unsubscribe;
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => {
+      unsubscribe();
+      clearInterval(timer);
+    };
   }, []);
+
+  const banners = useMemo(
+    () => allBanners.filter((banner) => isBannerLive(banner, now)),
+    [allBanners, now]
+  );
 
   return { banners, loading, error };
 }

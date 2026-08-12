@@ -65,6 +65,8 @@ export interface FirestoreBusinessRuleCondition {
   type: BusinessRuleConditionType;
   optionId?: string;
   groupId?: string;
+  productId?: string;
+  categoryId?: string;
 }
 
 export interface FirestoreBusinessRuleAction {

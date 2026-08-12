@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,7 +12,6 @@ import { SubcategoryChips } from "@/features/catalog/subcategory-chips";
 import { ProductFiltersBar } from "@/features/catalog/product-filters-bar";
 import { ProductGrid } from "@/features/catalog/product-grid";
 import { ProductDetailDrawer } from "@/features/catalog/product-detail-drawer";
-import { CartSidebar } from "@/features/cart/cart-sidebar";
 import { CatalogSeeder } from "@/components/catalog/catalog-seeder";
 import { Input } from "@/components/ui/input";
 import { useProducts, useAllProducts, useCategories } from "@/hooks/useProducts";
@@ -40,13 +39,32 @@ export function CatalogView() {
     sortBy: "popular",
     active: true,
   });
+  const bannerTargetApplied = useRef(false);
 
   const { categories } = useCategories();
   const { products: allProducts, loading: allLoading } = useAllProducts();
   const rootCategories = useMemo(() => getRootCategories(categories), [categories]);
 
   useEffect(() => {
-    if (selectedCategoryId || rootCategories.length === 0) return;
+    if (bannerTargetApplied.current || (categories.length === 0 && allProducts.length === 0)) return;
+    const params = new URLSearchParams(window.location.search);
+    const categoryId = params.get("category");
+    const productId = params.get("product");
+    if (categoryId && categories.some((category) => category.id === categoryId)) {
+      setSelectedCategoryId(categoryId);
+      setSelectedSubcategoryId(null);
+      bannerTargetApplied.current = true;
+    } else if (productId) {
+      const product = allProducts.find((item) => item.id === productId);
+      if (product) {
+        setSelectedProduct(product);
+        bannerTargetApplied.current = true;
+      }
+    }
+  }, [allProducts, categories]);
+
+  useEffect(() => {
+    if (bannerTargetApplied.current || selectedCategoryId || rootCategories.length === 0) return;
     setSelectedCategoryId(rootCategories[0]!.id);
   }, [rootCategories, selectedCategoryId]);
 
@@ -130,10 +148,9 @@ export function CatalogView() {
 
       {isHome && <HeroBanner />}
 
-      <div className="mx-auto max-w-[1400px] px-4 md:px-8 lg:px-10">
-        <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-          {/* Main column */}
-          <div className="min-w-0 flex-1 pb-28 lg:pb-12">
+      <div className="mx-auto max-w-[1280px] px-4 md:px-8 lg:px-10">
+        <div className="mt-6">
+          <div className="min-w-0 pb-28 lg:pb-12">
             {!isSearchMode && (
               <section className="space-y-3">
                 <MenuCategoryStrip
@@ -228,8 +245,6 @@ export function CatalogView() {
             </div>
           </div>
 
-          {/* Desktop cart sidebar */}
-          <CartSidebar />
         </div>
       </div>
 

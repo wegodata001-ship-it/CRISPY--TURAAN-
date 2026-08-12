@@ -37,7 +37,7 @@ export function SiteHeader() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
       className={cn(
-        "sticky top-0 z-50 h-20 border-b bg-warm-white transition-shadow duration-300",
+        "sticky top-0 z-40 h-20 border-b bg-warm-white transition-shadow duration-300",
         scrolled ? "border-beige-dark/20 shadow-soft" : "border-beige-dark/10 shadow-none"
       )}
     >
@@ -92,7 +92,7 @@ export function SiteHeader() {
             type="button"
             onClick={openCart}
             aria-label={t("cart.openCart")}
-            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-beige-dark/25 bg-cream/50 text-coffee transition-colors hover:border-turquoise/40 hover:text-turquoise lg:hidden"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-beige-dark/25 bg-cream/50 text-coffee transition-colors hover:border-turquoise/40 hover:text-turquoise"
           >
             <ShoppingBag className="h-4 w-4" strokeWidth={1.75} />
             {itemCount > 0 && (

@@ -5,7 +5,13 @@ import { Loader2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AdminDialog,
+  AdminDialogContent,
+  AdminDialogFooter,
+  AdminDialogHeader,
+  AdminDialogTitle,
+} from "@/features/admin/components/admin-dialog";
 import { useT } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 import { normalizeModifierGroupInput } from "@/lib/validation/modifier-normalize";
@@ -200,9 +206,9 @@ export function GroupFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="flex max-h-[90vh] w-[92vw] max-w-xl flex-col gap-0 overflow-hidden p-0"
+    <AdminDialog open={open} onOpenChange={onOpenChange}>
+      <AdminDialogContent
+        size="lg"
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
             e.preventDefault();
@@ -210,11 +216,11 @@ export function GroupFormDialog({
           }
         }}
       >
-        <DialogHeader className="border-b border-beige-dark/20 px-6 py-4 dark:border-white/10">
-          <DialogTitle className="text-start font-display text-xl">
+        <AdminDialogHeader>
+          <AdminDialogTitle className="text-start font-display text-xl">
             {editing ? t("admin.modifiers.editGroup") : t("admin.modifiers.newGroup")}
-          </DialogTitle>
-        </DialogHeader>
+          </AdminDialogTitle>
+        </AdminDialogHeader>
 
         <form
           onSubmit={(e) => void handleSubmit(e)}
@@ -360,7 +366,7 @@ export function GroupFormDialog({
           )}
         </form>
 
-        <div className="flex shrink-0 gap-2 border-t border-beige-dark/20 px-6 py-4 dark:border-white/10">
+        <AdminDialogFooter>
           <Button
             type="button"
             variant="outline"
@@ -382,8 +388,8 @@ export function GroupFormDialog({
               t("admin.action.save")
             )}
           </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </AdminDialogFooter>
+      </AdminDialogContent>
+    </AdminDialog>
   );
 }

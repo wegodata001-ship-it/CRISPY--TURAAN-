@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AdminDialog,
+  AdminDialogBody,
+  AdminDialogContent,
+  AdminDialogFooter,
+  AdminDialogHeader,
+  AdminDialogTitle,
+} from "@/features/admin/components/admin-dialog";
 import { Button } from "@/components/ui/button";
 import { ProductBuilder } from "@/features/catalog/product-builder";
 import { useProductBuilderConfig } from "@/hooks/useModifiers";
@@ -18,7 +20,6 @@ import {
   collectKitchenNotes,
   modifiersToSelectionState,
   productHasBuilder,
-  applyBusinessRules,
 } from "@/lib/product-builder/engine";
 import { useT } from "@/components/providers/locale-provider";
 import type { Order, OrderItem } from "@/types";
@@ -77,7 +78,6 @@ export function OrderItemExtrasDialog({
   }, [open, item]);
 
   const hasBuilder = productHasBuilder(config);
-  const visibleConfig = config ? applyBusinessRules(config, initialState) : null;
   const noGroupsLinked =
     config && config.groups.length === 0 && !loadingConfig && !loadingProduct;
 
@@ -109,14 +109,15 @@ export function OrderItemExtrasDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-start">
+    <AdminDialog open={open} onOpenChange={onOpenChange}>
+      <AdminDialogContent size="sm">
+        <AdminDialogHeader>
+          <AdminDialogTitle className="text-start">
             {t("admin.orders.editExtras")} — {item?.productName}
-          </DialogTitle>
-        </DialogHeader>
+          </AdminDialogTitle>
+        </AdminDialogHeader>
 
+        <AdminDialogBody>
         {loadingProduct || loadingConfig ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-turquoise" />
@@ -156,8 +157,9 @@ export function OrderItemExtrasDialog({
         )}
 
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        </AdminDialogBody>
 
-        <div className="mt-4 flex justify-end gap-2 border-t border-beige-dark/15 pt-4">
+        <AdminDialogFooter>
           <Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
             {t("admin.action.cancel")}
           </Button>
@@ -169,8 +171,8 @@ export function OrderItemExtrasDialog({
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.action.save")}
           </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </AdminDialogFooter>
+      </AdminDialogContent>
+    </AdminDialog>
   );
 }

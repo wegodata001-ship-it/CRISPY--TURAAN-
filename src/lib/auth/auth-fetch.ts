@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 
 export async function authFetch(
@@ -15,6 +16,8 @@ export async function authFetch(
 
 export function useAuthFetch() {
   const { getIdToken } = useAuth();
-  return (input: RequestInfo, init?: RequestInit) =>
-    authFetch(getIdToken, input, init);
+  return useCallback(
+    (input: RequestInfo, init?: RequestInit) => authFetch(getIdToken, input, init),
+    [getIdToken]
+  );
 }

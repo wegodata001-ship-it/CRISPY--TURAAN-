@@ -1,41 +1,57 @@
 "use client";
 
-import { useState } from "react";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { CartPanel } from "@/features/cart/cart-panel";
 import { useCart } from "@/features/cart/cart-context";
-import { useT } from "@/components/providers/locale-provider";
+import { useLocale, useT } from "@/components/providers/locale-provider";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { cn } from "@/lib/utils";
 
 export function CartDrawer() {
   const t = useT();
   const { isOpen, closeCart } = useCart();
   const isMobile = useIsMobile(1024);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const { dir } = useLocale();
 
-  if (!isMobile) return null;
-
-  return (
-    <>
+  if (isMobile) {
+    return (
       <Drawer open={isOpen} onOpenChange={(open) => !open && closeCart()}>
-        <DrawerContent className="max-h-[92vh] rounded-t-3xl bg-warm-white">
-          <div className="px-5 pb-8 pt-2">
-            <CartPanel compact onCheckout={closeCart} />
+        <DrawerContent className="h-[88dvh] max-h-[88dvh] rounded-t-3xl bg-warm-white">
+          <div className="min-h-0 flex-1 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
+            <CartPanel
+              compact
+              onCheckout={closeCart}
+              className="flex h-full min-h-0 flex-col"
+            />
           </div>
         </DrawerContent>
       </Drawer>
+    );
+  }
 
-      <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
-        <DialogContent className="text-center">
-          <DialogHeader>
-            <DialogTitle>{t("checkout.success")}</DialogTitle>
-            <DialogDescription>{t("checkout.successHint")}</DialogDescription>
-          </DialogHeader>
-          <Button onClick={() => setShowSuccess(false)}>{t("cart.continueShopping")}</Button>
-        </DialogContent>
-      </Dialog>
-    </>
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && closeCart()}>
+      <DialogContent
+        dir={dir}
+        className={cn(
+          "top-0 flex h-[100dvh] w-[min(420px,92vw)] max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-y-0 bg-warm-white p-0",
+          dir === "rtl"
+            ? "left-0 right-auto border-l"
+            : "left-auto right-0 border-r"
+        )}
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>{t("cart.title")}</DialogTitle>
+          <DialogDescription>{t("cart.title")}</DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 px-6 pb-6 pt-7">
+          <CartPanel
+            onCheckout={closeCart}
+            className="flex h-full min-h-0 flex-col"
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

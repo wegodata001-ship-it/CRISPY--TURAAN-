@@ -20,6 +20,7 @@ import {
   calculateLineTotal,
   calculateUnitPrice,
   modifiersToSelectionState,
+  pruneInvalidSelections,
   validateSelections,
 } from "@/lib/product-builder/engine";
 import type { Product } from "@/types";
@@ -330,9 +331,20 @@ export function AddonsWizard({
   }, [open, product.id, initialSelections]);
 
   const visibleConfig = useMemo(
-    () => applyBusinessRules(config, state),
-    [config, state]
+    () =>
+      applyBusinessRules(config, state, {
+        productId: product.id,
+        categoryId: product.categoryId,
+      }),
+    [config, product.categoryId, product.id, state]
   );
+  useEffect(() => {
+    const next = pruneInvalidSelections(config, state, {
+      productId: product.id,
+      categoryId: product.categoryId,
+    });
+    if (JSON.stringify(next) !== JSON.stringify(state)) setState(next);
+  }, [config, product.categoryId, product.id, state]);
   const groups = visibleConfig.groups.filter(
     (group) =>
       !group.hidden &&
@@ -341,8 +353,12 @@ export function AddonsWizard({
   const isReview = step >= groups.length;
   const currentGroup = groups[Math.min(step, Math.max(0, groups.length - 1))];
   const selections = useMemo(
-    () => buildSelectedModifiers(visibleConfig, state, locale),
-    [visibleConfig, state, locale]
+    () =>
+      buildSelectedModifiers(config, state, locale, {
+        productId: product.id,
+        categoryId: product.categoryId,
+      }),
+    [config, locale, product.categoryId, product.id, state]
   );
   const unitPrice = useMemo(
     () => calculateUnitPrice(product.price, selections),
@@ -351,7 +367,11 @@ export function AddonsWizard({
   const total = calculateLineTotal(unitPrice, quantity);
   const currentValid =
     !currentGroup || isReview || groupIsValid(currentGroup, state);
-  const allValid = validateSelections(visibleConfig, state).length === 0;
+  const allValid =
+    validateSelections(config, state, {
+      productId: product.id,
+      categoryId: product.categoryId,
+    }).length === 0;
 
   const updateGroup = (
     groupId: string,
@@ -373,7 +393,7 @@ export function AddonsWizard({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         dir={dir}
-        className="bottom-0 left-0 top-auto flex h-[88dvh] max-h-[88dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-b-none rounded-t-3xl border-b-0 p-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:h-[min(760px,86vh)] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:border"
+        className="bottom-0 left-0 top-auto z-[70] flex h-[88dvh] max-h-[88dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-b-none rounded-t-3xl border-b-0 p-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:h-[min(760px,86vh)] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:border"
       >
         <div className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-beige-dark/40 sm:hidden" />
         <DialogHeader className="shrink-0 border-b border-beige-dark/15 px-5 pb-4 pt-4 text-start sm:px-6">

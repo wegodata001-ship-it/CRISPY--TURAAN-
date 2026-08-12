@@ -11,7 +11,9 @@ export type ModifierRequirement = "required" | "optional";
 export type BusinessRuleConditionType =
   | "option_selected"
   | "option_not_selected"
-  | "group_has_selection";
+  | "group_has_selection"
+  | "product_is"
+  | "category_is";
 
 export type BusinessRuleActionType =
   | "hide_group"
@@ -81,6 +83,8 @@ export interface BusinessRuleCondition {
   type: BusinessRuleConditionType;
   optionId?: string;
   groupId?: string;
+  productId?: string;
+  categoryId?: string;
 }
 
 export interface BusinessRuleAction {

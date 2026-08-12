@@ -99,6 +99,9 @@ export default function CheckoutPage() {
         delivery: deliveryFee,
         total,
         paymentMethod: payment,
+        customerPhone: phone.trim(),
+        orderType,
+        deliveryAddress: orderType === "delivery" ? address.trim() : undefined,
         notes: orderNotes || undefined,
       });
       if (!result.success) {

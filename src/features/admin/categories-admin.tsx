@@ -14,7 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AdminDialog,
+  AdminDialogBody,
+  AdminDialogContent,
+  AdminDialogFooter,
+  AdminDialogHeader,
+  AdminDialogTitle,
+} from "@/features/admin/components/admin-dialog";
 import { ImageUpload } from "@/features/admin/image-upload";
 import { SortableList } from "@/components/admin/sortable-list";
 import { uploadCategoryImage, deleteImageByUrl } from "@/services/storageService";
@@ -334,11 +341,12 @@ export function CategoriesAdmin() {
       )}
 
       {/* View-only dialog — no data changes */}
-      <Dialog open={!!viewing} onOpenChange={() => setViewing(null)}>
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t("admin.categories.viewTitle")}</DialogTitle>
-          </DialogHeader>
+      <AdminDialog open={!!viewing} onOpenChange={() => setViewing(null)}>
+        <AdminDialogContent size="sm">
+          <AdminDialogHeader>
+            <AdminDialogTitle>{t("admin.categories.viewTitle")}</AdminDialogTitle>
+          </AdminDialogHeader>
+          <AdminDialogBody>
           {viewing && (
             <div className="space-y-4 text-sm">
               <div className="flex items-start gap-4">
@@ -412,17 +420,19 @@ export function CategoriesAdmin() {
               </dl>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+          </AdminDialogBody>
+        </AdminDialogContent>
+      </AdminDialog>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+      <AdminDialog open={open} onOpenChange={setOpen}>
+        <AdminDialogContent size="md">
+          <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+          <AdminDialogHeader>
+            <AdminDialogTitle>
               {editing ? t("admin.categories.edit") : t("admin.categories.new")}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={onSubmit} className="space-y-4">
+            </AdminDialogTitle>
+          </AdminDialogHeader>
+          <AdminDialogBody className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <Label htmlFor="nameHe">{t("admin.categoryNameHe")}</Label>
@@ -495,7 +505,12 @@ export function CategoriesAdmin() {
               {t("admin.categories.visibleInCatalog")}
             </label>
             {error && <p className="text-sm text-red-600">{error}</p>}
-            <Button type="submit" className="w-full" disabled={saving}>
+          </AdminDialogBody>
+          <AdminDialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={saving}>
+              {t("admin.action.cancel")}
+            </Button>
+            <Button type="submit" disabled={saving}>
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : editing ? (
@@ -504,9 +519,10 @@ export function CategoriesAdmin() {
                 t("admin.action.create")
               )}
             </Button>
+          </AdminDialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </AdminDialogContent>
+      </AdminDialog>
     </div>
   );
 }

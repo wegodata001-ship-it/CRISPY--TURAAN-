@@ -19,6 +19,7 @@ import { LocaleHtmlScript } from "@/components/providers/locale-html-sync";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { CartProvider } from "@/features/cart/cart-context";
 import { CartDrawer } from "@/features/cart/cart-drawer";
+import { FloatingCartButton } from "@/features/cart/floating-cart-button";
 import { MobileCartBar } from "@/features/cart/mobile-cart-bar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { BrandSplash } from "@/components/brand/brand-splash";
@@ -120,6 +121,7 @@ export default function RootLayout({
                     <main id="main-content" className="flex-1" tabIndex={-1}>
                       {children}
                     </main>
+                    <FloatingCartButton />
                     <MobileCartBar />
                     <CartDrawer />
                     <BottomNav />

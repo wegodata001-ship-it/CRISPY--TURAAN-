@@ -52,7 +52,7 @@ function ProductDetailContent({
   const t = useT();
   const { locale } = useLocale();
   const localized = useLocalizedProduct(product);
-  const { addItem, openCart } = useCart();
+  const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { products } = useProducts({ active: true });
   const { config, loading: configLoading } = useProductBuilderConfig(product.id);
@@ -77,7 +77,6 @@ function ProductDetailContent({
       notes: notes.trim() || undefined,
       quantity,
     });
-    openCart();
     onOpenChange(false);
     setQuantity(1);
     setNotes("");
@@ -98,7 +97,6 @@ function ProductDetailContent({
       configurable: true,
     });
     setWizardOpen(false);
-    openCart();
     onOpenChange(false);
     setQuantity(1);
     setNotes("");
@@ -116,9 +114,9 @@ function ProductDetailContent({
 
   return (
     <>
-    <div className="min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[42%_58%] lg:overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:grid-cols-[45%_55%]">
       <div
-        className="relative h-[clamp(200px,32vh,280px)] w-full overflow-hidden bg-beige/20 lg:h-full lg:max-h-[88dvh] lg:min-h-[460px]"
+        className="relative h-[clamp(180px,25dvh,220px)] w-full shrink-0 overflow-hidden bg-beige/20 lg:h-full lg:min-h-0"
         onClick={() => setZoomed(!zoomed)}
       >
         <Image
@@ -166,21 +164,22 @@ function ProductDetailContent({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-col px-5 py-5 lg:overflow-y-auto lg:px-7 lg:py-7">
-        <div className="space-y-1.5">
+      <div className="flex min-h-0 flex-1 flex-col bg-warm-white">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 lg:px-7 lg:py-7">
+          <div className="space-y-1.5">
           <h2 className="font-display text-2xl font-bold" dir={localized.dir}>
             {localized.name}
           </h2>
           <p className="text-2xl font-bold text-turquoise">{formatPrice(product.price)}</p>
         </div>
 
-        {localized.description && (
-          <p className="mt-4 text-sm leading-relaxed text-coffee/70" dir={localized.dir}>
-            {localized.description}
-          </p>
-        )}
+          {localized.description && (
+            <p className="mt-4 text-sm leading-relaxed text-coffee/70" dir={localized.dir}>
+              {localized.description}
+            </p>
+          )}
 
-        <div className="mt-5 space-y-2">
+          <div className="mt-5 space-y-2">
           <Label className="text-sm font-medium">{t("cart.quantity")}</Label>
           <div className="flex items-center gap-3">
             <button
@@ -201,9 +200,9 @@ function ProductDetailContent({
               <Plus className="h-4 w-4" />
             </button>
           </div>
-        </div>
+          </div>
 
-        <div className="mt-5">
+          <div className="mt-5">
           <Label htmlFor={`product-notes-${product.id}`} className="text-sm">
             {t("builder.notes")}
           </Label>
@@ -214,36 +213,39 @@ function ProductDetailContent({
             placeholder={t("builder.notesPlaceholder")}
             className="mt-1.5 min-h-[70px] max-h-[100px] resize-none rounded-xl"
           />
+          </div>
+
+          {suggestions.length > 0 && (
+            <div className="mt-6 rounded-2xl border border-turquoise/20 bg-turquoise/5 p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-turquoise">
+                <Sparkles className="h-4 w-4" />
+                {t("builder.suggestions")}
+              </div>
+              <div className="flex flex-col gap-2">
+                {suggestions.map(({ product: sug }) => (
+                  <ProductCard
+                    key={sug.id}
+                    product={sug}
+                    onClick={() => onSelectProduct?.(sug)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        <Button
-          variant="turquoise"
-          size="lg"
-          className="sticky bottom-0 z-10 mt-5 h-12 w-full rounded-xl shadow-soft lg:static lg:max-w-sm"
-          onClick={handleAdd}
-          disabled={!product.available || configLoading}
-        >
-          <ShoppingBag className="h-4 w-4" strokeWidth={1.75} />
-          {t("catalog.addToCart")} · {formatPrice(calculateLineTotal(product.price, quantity))}
-        </Button>
-
-        {suggestions.length > 0 && (
-          <div className="mt-6 rounded-2xl border border-turquoise/20 bg-turquoise/5 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-turquoise">
-              <Sparkles className="h-4 w-4" />
-              {t("builder.suggestions")}
-            </div>
-            <div className="flex flex-col gap-2">
-              {suggestions.map(({ product: sug, message }) => (
-                <ProductCard
-                  key={sug.id}
-                  product={sug}
-                  onClick={() => onSelectProduct?.(sug)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        <div className="shrink-0 border-t border-beige-dark/15 bg-warm-white px-5 py-4 lg:px-7">
+          <Button
+            variant="turquoise"
+            size="lg"
+            className="h-12 w-full rounded-xl shadow-soft"
+            onClick={handleAdd}
+            disabled={!product.available || configLoading}
+          >
+            <ShoppingBag className="h-4 w-4" strokeWidth={1.75} />
+            {t("catalog.addToCart")} · {formatPrice(calculateLineTotal(product.price, quantity))}
+          </Button>
+        </div>
       </div>
 
     </div>
@@ -284,7 +286,7 @@ export function ProductDetailDrawer({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[90dvh] overflow-hidden">
+        <DrawerContent className="h-[min(90dvh,720px)] max-h-[90dvh] w-full max-w-full overflow-hidden">
           {closeButton}
           {product && (
             <>
@@ -306,7 +308,7 @@ export function ProductDetailDrawer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(620px,88dvh)] max-h-[88dvh] w-[min(900px,92vw)] max-w-[900px] gap-0 overflow-hidden p-0 [&>button]:hidden">
+      <DialogContent className="flex h-[min(620px,calc(100dvh-48px))] max-h-[calc(100dvh-48px)] w-[min(820px,calc(100vw-48px))] max-w-[820px] gap-0 overflow-hidden p-0 [&>button]:hidden">
         {closeButton}
         {product && (
           <>

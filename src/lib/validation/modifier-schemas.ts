@@ -71,9 +71,17 @@ export const productModifierOptionSchema = z.object({
 });
 
 export const businessRuleConditionSchema = z.object({
-  type: z.enum(["option_selected", "option_not_selected", "group_has_selection"]),
+  type: z.enum([
+    "option_selected",
+    "option_not_selected",
+    "group_has_selection",
+    "product_is",
+    "category_is",
+  ]),
   optionId: z.string().optional(),
   groupId: z.string().optional(),
+  productId: z.string().optional(),
+  categoryId: z.string().optional(),
 });
 
 export const businessRuleActionSchema = z.object({

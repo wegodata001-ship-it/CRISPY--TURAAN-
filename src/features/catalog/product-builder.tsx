@@ -14,6 +14,7 @@ import {
   applyBusinessRules,
   buildSelectedModifiers,
   calculateUnitPrice,
+  pruneInvalidSelections,
   validateSelections,
 } from "@/lib/product-builder/engine";
 import type { ProductBuilderConfig, SelectionState } from "@/types/modifiers";
@@ -207,13 +208,29 @@ export function ProductBuilder({
   }, [product.id, initialState]);
 
   const visibleConfig = useMemo(
-    () => applyBusinessRules(config, state),
-    [config, state]
+    () =>
+      applyBusinessRules(config, state, {
+        productId: product.id,
+        categoryId: product.categoryId,
+      }),
+    [config, product.categoryId, product.id, state]
   );
 
+  useEffect(() => {
+    const next = pruneInvalidSelections(config, state, {
+      productId: product.id,
+      categoryId: product.categoryId,
+    });
+    if (JSON.stringify(next) !== JSON.stringify(state)) setState(next);
+  }, [config, product.categoryId, product.id, state]);
+
   const selections = useMemo(
-    () => buildSelectedModifiers(visibleConfig, state, locale),
-    [visibleConfig, state, locale]
+    () =>
+      buildSelectedModifiers(config, state, locale, {
+        productId: product.id,
+        categoryId: product.categoryId,
+      }),
+    [config, locale, product.categoryId, product.id, state]
   );
 
   const unitPrice = useMemo(
@@ -222,8 +239,12 @@ export function ProductBuilder({
   );
 
   const errors = useMemo(
-    () => validateSelections(visibleConfig, state),
-    [visibleConfig, state]
+    () =>
+      validateSelections(config, state, {
+        productId: product.id,
+        categoryId: product.categoryId,
+      }),
+    [config, product.categoryId, product.id, state]
   );
 
   const isValid = errors.length === 0;

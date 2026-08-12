@@ -126,6 +126,20 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         case "checkout":
           router.push("/checkout");
           break;
+        case "open_url":
+          if (action.url.startsWith("/")) {
+            router.push(action.url);
+          } else {
+            try {
+              const url = new URL(action.url);
+              if (url.protocol === "https:" || url.protocol === "http:") {
+                window.open(url.toString(), "_blank", "noopener,noreferrer");
+              }
+            } catch {
+              // Ignore invalid admin-configured URLs.
+            }
+          }
+          break;
         case "remove_from_cart": {
           const line = items.find((i) => i.product.id === action.productId);
           if (line) removeItem(line.lineId);

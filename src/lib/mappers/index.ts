@@ -120,8 +120,21 @@ export function mapOrder(doc: FirestoreDoc<FirestoreOrder>): Order {
     delivery: doc.delivery,
     total: doc.total,
     paymentMethod: doc.paymentMethod,
+    paymentStatus: doc.paymentStatus ?? "pending",
+    customerPhone: doc.customerPhone,
+    orderType: doc.orderType,
+    deliveryAddress: doc.deliveryAddress,
     notes: doc.notes,
     createdAt: timestampToIso(doc.createdAt),
+    confirmedAt: doc.confirmedAt ? timestampToIso(doc.confirmedAt) : null,
+    preparationStartedAt: doc.preparationStartedAt
+      ? timestampToIso(doc.preparationStartedAt)
+      : null,
+    readyAt: doc.readyAt ? timestampToIso(doc.readyAt) : null,
+    completedAt: doc.completedAt ? timestampToIso(doc.completedAt) : null,
+    cancelledAt: doc.cancelledAt ? timestampToIso(doc.cancelledAt) : null,
+    cancelReason: doc.cancelReason,
+    cancelledBy: doc.cancelledBy,
   };
 }
 
@@ -150,6 +163,14 @@ export function mapBanner(doc: FirestoreDoc<FirestoreBanner>): BannerSlide {
     mobileImage: doc.mobileImageUrl,
     cta: doc.cta,
     ctaUrl: doc.ctaUrl,
+    ctaAction: doc.ctaAction ?? (doc.ctaUrl ? "link" : doc.cta ? "link" : "none"),
+    ctaTargetId: doc.ctaTargetId,
+    desktopPositionX: doc.desktopPositionX ?? 50,
+    desktopPositionY: doc.desktopPositionY ?? 50,
+    mobilePositionX: doc.mobilePositionX ?? doc.desktopPositionX ?? 50,
+    mobilePositionY: doc.mobilePositionY ?? doc.desktopPositionY ?? 50,
+    desktopZoom: doc.desktopZoom ?? 1,
+    mobileZoom: doc.mobileZoom ?? 1,
     active: doc.active,
     sortOrder: doc.sortOrder,
     startDate: doc.startDate,
@@ -157,9 +178,8 @@ export function mapBanner(doc: FirestoreDoc<FirestoreBanner>): BannerSlide {
   };
 }
 
-export function isBannerLive(banner: BannerSlide): boolean {
+export function isBannerLive(banner: BannerSlide, now = Date.now()): boolean {
   if (!banner.active) return false;
-  const now = Date.now();
   if (banner.startDate && new Date(banner.startDate).getTime() > now) return false;
   if (banner.endDate && new Date(banner.endDate).getTime() < now) return false;
   return true;

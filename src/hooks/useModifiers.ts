@@ -10,6 +10,7 @@ import {
   subscribeToSuggestions,
   subscribeToInventoryLinks,
   subscribeToProductModifierGroups,
+  subscribeToAllProductModifierGroups,
 } from "@/services/modifierService";
 import type {
   ModifierGroup,
@@ -124,6 +125,27 @@ export function useProductModifierGroups(productId: string | null) {
   }, [productId]);
 
   return { links, loading };
+}
+
+export function useAllProductModifierGroups() {
+  const [links, setLinks] = useState<ProductModifierGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return subscribeToAllProductModifierGroups(
+      (data) => {
+        setLinks(data);
+        setLoading(false);
+      },
+      (message) => {
+        setError(message);
+        setLoading(false);
+      }
+    );
+  }, []);
+
+  return { links, loading, error };
 }
 
 export function useBusinessRules() {

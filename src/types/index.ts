@@ -52,10 +52,13 @@ export interface Customer {
 
 export type OrderStatus =
   | "pending"
+  | "confirmed"
   | "preparing"
   | "ready"
   | "delivered"
   | "cancelled";
+
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 export interface OrderItem {
   productId: string;
@@ -80,8 +83,19 @@ export interface Order {
   delivery?: number;
   total: number;
   paymentMethod?: string;
+  paymentStatus?: PaymentStatus;
+  customerPhone?: string;
+  orderType?: "pickup" | "delivery";
+  deliveryAddress?: string;
   notes?: string;
   createdAt: string;
+  confirmedAt?: string | null;
+  preparationStartedAt?: string | null;
+  readyAt?: string | null;
+  completedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelReason?: string;
+  cancelledBy?: string;
 }
 
 export interface CartItem {
@@ -124,6 +138,14 @@ export interface BannerSlide {
   mobileImage?: string;
   cta?: string;
   ctaUrl?: string;
+  ctaAction?: "none" | "link" | "product" | "category";
+  ctaTargetId?: string;
+  desktopPositionX?: number;
+  desktopPositionY?: number;
+  mobilePositionX?: number;
+  mobilePositionY?: number;
+  desktopZoom?: number;
+  mobileZoom?: number;
   active: boolean;
   sortOrder: number;
   startDate?: string;

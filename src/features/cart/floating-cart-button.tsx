@@ -5,9 +5,10 @@ import { ShoppingBag } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/features/cart/cart-context";
 import { useT } from "@/components/providers/locale-provider";
+import { formatPrice } from "@/lib/utils";
 
 export function FloatingCartButton() {
-  const { itemCount, openCart } = useCart();
+  const { itemCount, total, openCart } = useCart();
   const pathname = usePathname();
   const t = useT();
 
@@ -21,12 +22,16 @@ export function FloatingCartButton() {
         exit={{ scale: 0, opacity: 0 }}
         whileTap={{ scale: 0.95 }}
         onClick={openCart}
-        className="fixed bottom-56 end-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-turquoise text-warm-white shadow-elevated md:bottom-6 md:end-[11rem]"
+        className="fixed bottom-6 end-6 z-30 hidden min-h-12 items-center gap-3 rounded-2xl bg-dark-brown px-4 py-3 text-warm-white shadow-elevated transition-transform hover:scale-[1.02] lg:flex"
         aria-label={t("cart.openCart")}
       >
-        <ShoppingBag className="h-6 w-6" strokeWidth={1.75} />
-        <span className="absolute -top-1 -end-1 flex h-5 w-5 items-center justify-center rounded-full bg-dark-brown text-[10px] font-bold">
+        <ShoppingBag className="h-5 w-5 text-turquoise" strokeWidth={1.75} />
+        <span className="font-semibold">{t("cart.title")}</span>
+        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-turquoise px-1.5 text-xs font-bold">
           {itemCount}
+        </span>
+        <span className="border-s border-warm-white/20 ps-3 text-sm font-semibold">
+          {formatPrice(total)}
         </span>
       </motion.button>
     </AnimatePresence>

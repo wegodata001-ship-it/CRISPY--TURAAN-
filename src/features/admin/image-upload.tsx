@@ -32,9 +32,12 @@ export function ImageUpload({
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFile, setLastFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
+    setLastFile(file);
     if (!file.type.startsWith("image/")) {
       setError(t("admin.upload.selectImage"));
       return;
@@ -86,7 +89,22 @@ export function ImageUpload({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-beige-dark/50 bg-beige/20 transition-colors hover:border-turquoise/50 hover:bg-beige/40 dark:border-white/10 dark:bg-white/5"
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragOver={(event) => event.preventDefault()}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            const file = event.dataTransfer.files?.[0];
+            if (file) void handleFile(file);
+          }}
+          className={cn(
+            "flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-beige-dark/50 bg-beige/20 transition-colors hover:border-turquoise/50 hover:bg-beige/40 dark:border-white/10 dark:bg-white/5",
+            dragging && "border-turquoise bg-turquoise/10"
+          )}
         >
           {uploading ? (
             <Loader2 className="h-8 w-8 animate-spin text-turquoise" />
@@ -96,6 +114,7 @@ export function ImageUpload({
           <span className="text-sm text-coffee/60 dark:text-warm-white/60">
             {uploading ? t("admin.upload.uploading") : t("admin.upload.clickToUpload")}
           </span>
+          {!uploading && <span className="text-xs text-coffee/40">JPG / PNG / WEBP</span>}
         </button>
       )}
 
@@ -108,7 +127,16 @@ export function ImageUpload({
         </div>
       )}
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-red-600">{error}</p>
+          {lastFile && (
+            <Button type="button" variant="outline" size="sm" onClick={() => void handleFile(lastFile)}>
+              {t("admin.action.retry")}
+            </Button>
+          )}
+        </div>
+      )}
 
       {value && !uploading && (
         <Button

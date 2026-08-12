@@ -21,6 +21,7 @@ const STATUS_VARIANTS: Record<
   ready: "ready",
   delivered: "delivered",
   cancelled: "cancelled",
+  confirmed: "preparing",
 };
 
 const STATUS_KEYS: Record<OrderStatus, string> = {
@@ -29,11 +30,13 @@ const STATUS_KEYS: Record<OrderStatus, string> = {
   ready: "orders.status.ready",
   delivered: "orders.status.delivered",
   cancelled: "orders.status.cancelled",
+  confirmed: "admin.status.confirmed",
 };
 
 const statusFilters: (OrderStatus | "all")[] = [
   "all",
   "pending",
+  "confirmed",
   "preparing",
   "ready",
   "delivered",

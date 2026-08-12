@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore";
-import type { OrderStatus } from "@/types";
+import type { OrderStatus, PaymentStatus } from "@/types";
 
 import type { BusinessType } from "@/types";
 
@@ -75,8 +75,19 @@ export interface FirestoreOrder {
   delivery: number;
   total: number;
   paymentMethod: string;
+  paymentStatus?: PaymentStatus;
+  customerPhone?: string;
+  orderType?: "pickup" | "delivery";
+  deliveryAddress?: string;
   notes: string;
   createdAt: Timestamp;
+  confirmedAt?: Timestamp | null;
+  preparationStartedAt?: Timestamp | null;
+  readyAt?: Timestamp | null;
+  completedAt?: Timestamp | null;
+  cancelledAt?: Timestamp | null;
+  cancelReason?: string;
+  cancelledBy?: string;
 }
 
 export interface FirestoreBanner {
@@ -95,6 +106,14 @@ export interface FirestoreBanner {
   mobileImageUrl?: string;
   cta?: string;
   ctaUrl?: string;
+  ctaAction?: "none" | "link" | "product" | "category";
+  ctaTargetId?: string;
+  desktopPositionX?: number;
+  desktopPositionY?: number;
+  mobilePositionX?: number;
+  mobilePositionY?: number;
+  desktopZoom?: number;
+  mobileZoom?: number;
   active: boolean;
   sortOrder: number;
   startDate?: string;

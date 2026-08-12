@@ -160,7 +160,7 @@ export function CartPanel({ compact, onCheckout, className }: CartPanelProps) {
 
   return (
     <div className={className}>
-      <div className="flex items-center gap-2 border-b border-beige-dark/15 pb-4">
+      <div className="flex shrink-0 items-center gap-2 border-b border-beige-dark/15 pb-4">
         <ShoppingBag className="h-5 w-5 text-coffee" strokeWidth={1.75} />
         <h2 className="heading-section text-lg">{t("cart.title")}</h2>
         {itemCount > 0 && (
@@ -168,7 +168,7 @@ export function CartPanel({ compact, onCheckout, className }: CartPanelProps) {
         )}
       </div>
 
-      <div className="max-h-[calc(100vh-22rem)] overflow-y-auto py-2">
+      <div className="min-h-0 flex-1 overflow-y-auto py-2">
         <AnimatePresence mode="popLayout">
           {items.length === 0 ? (
             <motion.div
@@ -202,7 +202,7 @@ export function CartPanel({ compact, onCheckout, className }: CartPanelProps) {
       </div>
 
       {items.length > 0 && (
-        <div className="border-t border-beige-dark/15 pt-4">
+        <div className="shrink-0 border-t border-beige-dark/15 pt-4">
           {!compact && (
             <div className="mb-3 flex gap-2">
               <Input

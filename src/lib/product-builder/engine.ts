@@ -110,7 +110,8 @@ function groupHasSelection(state: SelectionState, groupId: string): boolean {
 
 function evaluateCondition(
   condition: BusinessRule["conditions"][0],
-  state: SelectionState
+  state: SelectionState,
+  context: { productId?: string; categoryId?: string }
 ): boolean {
   switch (condition.type) {
     case "option_selected":
@@ -119,6 +120,10 @@ function evaluateCondition(
       return condition.optionId ? !isOptionSelected(state, condition.optionId) : true;
     case "group_has_selection":
       return condition.groupId ? groupHasSelection(state, condition.groupId) : false;
+    case "product_is":
+      return Boolean(condition.productId && condition.productId === context.productId);
+    case "category_is":
+      return Boolean(condition.categoryId && condition.categoryId === context.categoryId);
     default:
       return false;
   }
@@ -126,7 +131,8 @@ function evaluateCondition(
 
 export function applyBusinessRules(
   config: ProductBuilderConfig,
-  state: SelectionState
+  state: SelectionState,
+  context: { productId?: string; categoryId?: string } = { productId: config.productId }
 ): ProductBuilderConfig {
   const hiddenGroups = new Set<string>();
   const hiddenOptions = new Set<string>();
@@ -134,22 +140,39 @@ export function applyBusinessRules(
   const shownOptions = new Set<string>();
 
   for (const rule of config.rules) {
-    const matches = rule.conditions.every((c) => evaluateCondition(c, state));
+    const matches = rule.conditions.every((condition) =>
+      evaluateCondition(condition, state, {
+        productId: context.productId ?? config.productId,
+        categoryId: context.categoryId,
+      })
+    );
     if (!matches) continue;
 
     for (const action of rule.actions) {
       switch (action.type) {
         case "hide_group":
-          if (action.groupId) hiddenGroups.add(action.groupId);
+          if (action.groupId) {
+            hiddenGroups.add(action.groupId);
+            shownGroups.delete(action.groupId);
+          }
           break;
         case "hide_option":
-          if (action.optionId) hiddenOptions.add(action.optionId);
+          if (action.optionId) {
+            hiddenOptions.add(action.optionId);
+            shownOptions.delete(action.optionId);
+          }
           break;
         case "show_group":
-          if (action.groupId) shownGroups.add(action.groupId);
+          if (action.groupId) {
+            shownGroups.add(action.groupId);
+            hiddenGroups.delete(action.groupId);
+          }
           break;
         case "show_option":
-          if (action.optionId) shownOptions.add(action.optionId);
+          if (action.optionId) {
+            shownOptions.add(action.optionId);
+            hiddenOptions.delete(action.optionId);
+          }
           break;
       }
     }
@@ -157,17 +180,44 @@ export function applyBusinessRules(
 
   const groups = config.groups
     .map((g) => {
-      const groupHidden =
-        hiddenGroups.has(g.group.id) && !shownGroups.has(g.group.id);
+      const groupHidden = hiddenGroups.has(g.group.id);
       const options = g.options.map((o) => ({
         ...o,
-        hidden: groupHidden || (hiddenOptions.has(o.id) && !shownOptions.has(o.id)),
+        hidden: groupHidden || hiddenOptions.has(o.id),
       }));
       return { ...g, hidden: groupHidden, options };
     })
-    .filter((g) => !g.hidden || shownGroups.has(g.group.id));
+    .filter((g) => !g.hidden);
 
   return { ...config, groups };
+}
+
+export function pruneInvalidSelections(
+  config: ProductBuilderConfig,
+  state: SelectionState,
+  context: { productId?: string; categoryId?: string } = { productId: config.productId }
+): SelectionState {
+  const visible = applyBusinessRules(config, state, context);
+  const validOptionsByGroup = new Map(
+    visible.groups.map((group) => [
+      group.group.id,
+      new Set(
+        group.options
+          .filter((option) => !option.hidden && option.inStock)
+          .map((option) => option.id)
+      ),
+    ])
+  );
+  const next: SelectionState = {};
+  for (const [groupId, entries] of Object.entries(state)) {
+    const validOptions = validOptionsByGroup.get(groupId);
+    if (!validOptions) continue;
+    const validEntries = entries.filter(
+      (entry) => entry.quantity > 0 && validOptions.has(entry.optionId)
+    );
+    if (validEntries.length > 0) next[groupId] = validEntries;
+  }
+  return next;
 }
 
 export function calculateUnitPrice(
@@ -187,10 +237,11 @@ export function calculateLineTotal(
 
 export function validateSelections(
   config: ProductBuilderConfig,
-  state: SelectionState
+  state: SelectionState,
+  context?: { productId?: string; categoryId?: string }
 ): string[] {
   const errors: string[] = [];
-  const visibleConfig = applyBusinessRules(config, state);
+  const visibleConfig = applyBusinessRules(config, state, context);
 
   for (const group of visibleConfig.groups) {
     if (group.hidden) continue;
@@ -224,9 +275,10 @@ export function validateSelections(
 export function buildSelectedModifiers(
   config: ProductBuilderConfig,
   state: SelectionState,
-  locale: Locale
+  locale: Locale,
+  context?: { productId?: string; categoryId?: string }
 ): SelectedModifier[] {
-  const visibleConfig = applyBusinessRules(config, state);
+  const visibleConfig = applyBusinessRules(config, state, context);
   const result: SelectedModifier[] = [];
 
   for (const group of visibleConfig.groups) {

@@ -1,234 +1,348 @@
 "use client";
 
-import { useState } from "react";
-import { useForm, type Resolver } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
-import { useBusinessRules } from "@/hooks/useModifiers";
-import { useModifierGroups, useModifierOptions } from "@/hooks/useModifiers";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Eye,
+  EyeOff,
+  Flame,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useAllCategories, useProducts } from "@/hooks/useProducts";
+import {
+  useBusinessRules,
+  useModifierGroups,
+  useModifierOptions,
+} from "@/hooks/useModifiers";
 import {
   createBusinessRule,
   updateBusinessRule,
   deleteBusinessRule,
 } from "@/services/modifierService";
-import {
-  businessRuleSchema,
-  type BusinessRuleInput,
-} from "@/lib/validation/modifier-schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { useT } from "@/components/providers/locale-provider";
+import {
+  AdminDialog,
+  AdminDialogBody,
+  AdminDialogContent,
+  AdminDialogFooter,
+  AdminDialogHeader,
+  AdminDialogTitle,
+} from "@/features/admin/components/admin-dialog";
+import {
+  AdminToastStack,
+  createToast,
+  type AdminToast,
+} from "@/features/admin/components/admin-toast";
+import { useLocale, useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
-import type { BusinessRule } from "@/types/modifiers";
+import type {
+  BusinessRule,
+  BusinessRuleAction,
+  BusinessRuleCondition,
+} from "@/types/modifiers";
+import type { BusinessRuleInput } from "@/lib/validation/modifier-schemas";
+import { cn } from "@/lib/utils";
 
-const CONDITION_TYPE_KEYS = {
-  option_selected: "admin.rules.conditionOptionSelected",
-  option_not_selected: "admin.rules.conditionOptionNotSelected",
-  group_has_selection: "admin.rules.conditionGroupHasSelection",
-} as const;
+type SourceType = "product" | "category" | "group" | "option";
 
-const ACTION_TYPE_KEYS = {
+const ACTION_LABEL_KEYS: Record<BusinessRuleAction["type"], string> = {
   hide_group: "admin.rules.actionHideGroup",
   hide_option: "admin.rules.actionHideOption",
   show_group: "admin.rules.actionShowGroup",
   show_option: "admin.rules.actionShowOption",
-} as const;
+};
+
+function sourceFromCondition(condition: BusinessRuleCondition): SourceType {
+  if (condition.type === "product_is") return "product";
+  if (condition.type === "category_is") return "category";
+  if (condition.type === "group_has_selection") return "group";
+  return "option";
+}
+
+function emptyRule(priority: number): BusinessRuleInput {
+  return {
+    name: "",
+    enabled: true,
+    priority,
+    conditions: [{ type: "option_selected", optionId: "" }],
+    actions: [{ type: "hide_group", groupId: "" }],
+  };
+}
 
 export function BusinessRulesAdmin() {
   const t = useT();
+  const { dir } = useLocale();
   const { rules, loading } = useBusinessRules();
   const { groups } = useModifierGroups();
   const { options } = useModifierOptions();
+  const { products } = useProducts(undefined, { admin: true });
+  const { categories } = useAllCategories();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<BusinessRule | null>(null);
+  const [draft, setDraft] = useState<BusinessRuleInput>(() => emptyRule(0));
+  const [source, setSource] = useState<SourceType>("option");
+  const [sourceGroupId, setSourceGroupId] = useState("");
+  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [deleteRule, setDeleteRule] = useState<BusinessRule | null>(null);
+  const [toasts, setToasts] = useState<AdminToast[]>([]);
 
-  const form = useForm<BusinessRuleInput>({
-    resolver: zodResolver(businessRuleSchema) as Resolver<BusinessRuleInput>,
-    defaultValues: {
-      name: "",
-      enabled: true,
-      priority: rules.length,
-      conditions: [{ type: "option_selected", optionId: "" }],
-      actions: [{ type: "hide_group", groupId: "" }],
-    },
-  });
+  const groupById = useMemo(() => new Map(groups.map((group) => [group.id, group])), [groups]);
+  const optionById = useMemo(() => new Map(options.map((option) => [option.id, option])), [options]);
+  const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
+  const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories]);
+  const condition = draft.conditions[0]!;
+  const action = draft.actions[0]!;
+  const sourceOptions = sourceGroupId
+    ? options.filter((option) => option.groupId === sourceGroupId)
+    : options;
 
-  const labelConditionType = (type: keyof typeof CONDITION_TYPE_KEYS) => t(CONDITION_TYPE_KEYS[type]);
-  const labelActionType = (type: keyof typeof ACTION_TYPE_KEYS) => t(ACTION_TYPE_KEYS[type]);
+  const setCondition = (next: BusinessRuleCondition) =>
+    setDraft((current) => ({
+      ...current,
+      conditions: [next, ...current.conditions.slice(1)],
+    }));
+  const setAction = (next: BusinessRuleAction) =>
+    setDraft((current) => ({
+      ...current,
+      actions: [next, ...current.actions.slice(1)],
+    }));
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({
-      name: "",
-      enabled: true,
-      priority: rules.length,
-      conditions: [{ type: "option_selected", optionId: options[0]?.id ?? "" }],
-      actions: [{ type: "hide_group", groupId: groups[0]?.id ?? "" }],
-    });
+    setDraft(emptyRule(rules.length));
+    setSource("option");
+    setSourceGroupId(groups[0]?.id ?? "");
+    setStep(0);
     setOpen(true);
   };
 
   const openEdit = (rule: BusinessRule) => {
+    const firstCondition = rule.conditions[0]!;
     setEditing(rule);
-    form.reset({
+    setDraft({
       name: rule.name,
       enabled: rule.enabled,
       priority: rule.priority,
-      conditions: rule.conditions,
-      actions: rule.actions,
+      conditions: structuredClone(rule.conditions),
+      actions: structuredClone(rule.actions),
     });
+    setSource(sourceFromCondition(firstCondition));
+    setSourceGroupId(
+      firstCondition.groupId ??
+        optionById.get(firstCondition.optionId ?? "")?.groupId ??
+        ""
+    );
+    setStep(0);
     setOpen(true);
   };
 
-  const onSubmit = form.handleSubmit(async (data) => {
+  useEffect(() => {
+    if (!open || source !== "option" || sourceGroupId) return;
+    setSourceGroupId(groups[0]?.id ?? "");
+  }, [groups, open, source, sourceGroupId]);
+
+  const conditionValid =
+    draft.name.trim().length > 0 &&
+    (condition.type === "product_is"
+      ? Boolean(condition.productId)
+      : condition.type === "category_is"
+        ? Boolean(condition.categoryId)
+        : condition.type === "group_has_selection"
+          ? Boolean(condition.groupId)
+          : Boolean(condition.optionId));
+  const actionValid = Boolean(action.type);
+  const targetValid = action.type.endsWith("_group")
+    ? Boolean(action.groupId)
+    : Boolean(action.optionId);
+
+  const saveRule = async () => {
+    if (!conditionValid || !actionValid || !targetValid || saving) return;
     setSaving(true);
-    const result = editing
-      ? await updateBusinessRule(editing.id, data)
-      : await createBusinessRule(data);
-    setSaving(false);
-    if (result.success) setOpen(false);
-  });
+    try {
+      const result = editing
+        ? await updateBusinessRule(editing.id, draft)
+        : await createBusinessRule(draft);
+      if (!result.success) {
+        setToasts((current) => [...current, createToast(result.error, "error")]);
+        return;
+      }
+      setOpen(false);
+      setToasts((current) => [...current, createToast(t("admin.rules.saved"))]);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  const labelOption = (id?: string) => options.find((o) => o.id === id)?.name_he ?? id ?? "—";
-  const labelGroup = (id?: string) => groups.find((g) => g.id === id)?.name_he ?? id ?? "—";
+  const toggleRule = async (rule: BusinessRule) => {
+    const result = await updateBusinessRule(rule.id, { enabled: !rule.enabled });
+    if (!result.success) {
+      setToasts((current) => [...current, createToast(result.error, "error")]);
+    }
+  };
 
-  if (loading) return <p className="text-sm text-coffee/50">{t("admin.rules.loadingRules")}</p>;
+  const conditionText = (ruleCondition: BusinessRuleCondition): string => {
+    switch (ruleCondition.type) {
+      case "product_is":
+        return `${t("admin.rules.sourceProduct")}: ${productById.get(ruleCondition.productId ?? "")?.name_he || "—"}`;
+      case "category_is":
+        return `${t("admin.rules.sourceCategory")}: ${categoryById.get(ruleCondition.categoryId ?? "")?.name_he || "—"}`;
+      case "group_has_selection":
+        return `${t("admin.rules.sourceGroup")}: ${groupById.get(ruleCondition.groupId ?? "")?.name_he || "—"}`;
+      case "option_not_selected":
+        return `${t("admin.rules.optionNotSelected")}: ${optionById.get(ruleCondition.optionId ?? "")?.name_he || "—"}`;
+      default:
+        return `${optionById.get(ruleCondition.optionId ?? "")?.name_he || "—"} ${t("admin.rules.isSelected")}`;
+    }
+  };
+
+  const actionText = (ruleAction: BusinessRuleAction): string => {
+    const target = ruleAction.groupId
+      ? groupById.get(ruleAction.groupId)?.name_he
+      : optionById.get(ruleAction.optionId ?? "")?.name_he;
+    return `${t(ACTION_LABEL_KEYS[ruleAction.type])} “${target || "—"}”`;
+  };
+
+  if (loading) {
+    return <div className="grid min-h-64 place-items-center"><Loader2 className="h-7 w-7 animate-spin text-turquoise" /></div>;
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-[1100px] space-y-6">
       <AdminPageHeader
-        title={t("admin.rules.title")}
-        subtitle={t("admin.rules.subtitle")}
-        actions={
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" /> {t("admin.rules.new")}
-          </Button>
-        }
+        title={t("admin.rules.selectionRulesTitle")}
+        subtitle={t("admin.rules.selectionRulesSubtitle")}
+        actions={<Button onClick={openCreate}><Plus className="h-4 w-4" />{t("admin.rules.new")}</Button>}
       />
 
-      <div className="space-y-3">
-        {rules.map((rule) => (
-          <div key={rule.id} className="rounded-2xl border border-beige-dark/25 bg-warm-white p-4 shadow-soft">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold">{rule.name}</h3>
-                  <Badge variant={rule.enabled ? "default" : "outline"}>
-                    {rule.enabled ? t("admin.status.active") : t("admin.status.disabled")}
-                  </Badge>
-                  <Badge variant="outline">
-                    {t("admin.rules.priorityBadge").replace("{priority}", String(rule.priority))}
-                  </Badge>
+      {rules.length === 0 ? (
+        <div className="rounded-[20px] border border-dashed border-beige-dark/30 bg-warm-white p-12 text-center">
+          <p className="font-semibold">{t("admin.rules.noSelectionRules")}</p>
+          <Button className="mt-4" onClick={openCreate}><Plus className="h-4 w-4" />{t("admin.rules.new")}</Button>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {rules.map((rule) => (
+            <article key={rule.id} className="rounded-[20px] border border-beige-dark/15 bg-warm-white p-5 shadow-soft">
+              <div className="flex items-start gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-orange-50 text-orange-600"><Flame className="h-5 w-5" /></span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-display text-lg font-bold">{rule.name}</h2>
+                  <p className="mt-3 text-sm"><span className="font-semibold">{t("admin.rules.ifLabel")}:</span> {rule.conditions.map(conditionText).join(` ${t("admin.rules.andLabel")} `)}</p>
+                  <p className="mt-2 text-sm"><span className="font-semibold">{t("admin.rules.thenLabel")}:</span> {rule.actions.map(actionText).join(", ")}</p>
                 </div>
-                <p className="mt-2 text-xs text-coffee/55">
-                  {t("admin.rules.ifLabel")}{" "}
-                  {rule.conditions.map((c, i) => (
-                    <span key={i}>
-                      {i > 0 ? ` ${t("admin.rules.andLabel")} ` : ""}
-                      {labelConditionType(c.type as keyof typeof CONDITION_TYPE_KEYS)}
-                      {c.optionId ? ` (${labelOption(c.optionId)})` : ""}
-                      {c.groupId ? ` (${labelGroup(c.groupId)})` : ""}
-                    </span>
+                <details className="relative">
+                  <summary className="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-xl hover:bg-beige/35"><MoreVertical className="h-4 w-4" /></summary>
+                  <div className="absolute end-0 top-10 z-10 w-40 rounded-xl border border-beige-dark/15 bg-warm-white p-1 shadow-elevated">
+                    <button type="button" onClick={() => openEdit(rule)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-beige/30"><Pencil className="h-4 w-4" />{t("admin.action.edit")}</button>
+                    <button type="button" onClick={() => setDeleteRule(rule)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" />{t("admin.action.delete")}</button>
+                  </div>
+                </details>
+              </div>
+              <div className="mt-5 flex items-center justify-between border-t border-beige-dark/10 pt-3">
+                <span className={cn("inline-flex items-center gap-2 text-xs font-semibold", rule.enabled ? "text-emerald-700" : "text-stone-500")}>
+                  <span className={cn("h-2 w-2 rounded-full", rule.enabled ? "bg-emerald-500" : "bg-stone-400")} />
+                  {rule.enabled ? t("admin.status.active") : t("admin.status.disabled")}
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => void toggleRule(rule)}>
+                  {rule.enabled ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {rule.enabled ? t("admin.rules.disableRule") : t("admin.rules.enableRule")}
+                </Button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <AdminDialog open={open} onOpenChange={setOpen}>
+        <AdminDialogContent size="md">
+          <AdminDialogHeader>
+            <AdminDialogTitle>{editing ? t("admin.rules.edit") : t("admin.rules.newSelectionRule")}</AdminDialogTitle>
+            <p className="text-sm text-coffee/50">{t("admin.rules.stepOf").replace("{step}", String(step + 1)).replace("{count}", "3")}</p>
+          </AdminDialogHeader>
+          <AdminDialogBody>
+            {step === 0 && (
+              <div className="space-y-5">
+                <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+                  <div><label className="text-sm font-medium">{t("admin.rules.ruleName")}</label><Input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} className="mt-1 h-11" /></div>
+                  <div><label className="text-sm font-medium">{t("admin.rules.priority")}</label><Input type="number" min={0} value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: Number(event.target.value) || 0 })} className="mt-1 h-11" /></div>
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold">{t("admin.rules.whenTitle")}</h3>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {(["product", "category", "group", "option"] as SourceType[]).map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setSource(value);
+                          if (value === "product") setCondition({ type: "product_is", productId: "" });
+                          if (value === "category") setCondition({ type: "category_is", categoryId: "" });
+                          if (value === "group") setCondition({ type: "group_has_selection", groupId: "" });
+                          if (value === "option") setCondition({ type: "option_selected", optionId: "" });
+                        }}
+                        className={cn("min-h-12 rounded-xl border-2 px-3 text-start", source === value ? "border-turquoise bg-turquoise/10" : "border-beige-dark/15")}
+                      >
+                        {t(`admin.rules.source.${value}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {source === "product" && <select value={condition.productId || ""} onChange={(event) => setCondition({ type: "product_is", productId: event.target.value })} className="h-11 w-full rounded-xl border px-3"><option value="">{t("admin.rules.chooseProduct")}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name_he || product.name_en}</option>)}</select>}
+                {source === "category" && <select value={condition.categoryId || ""} onChange={(event) => setCondition({ type: "category_is", categoryId: event.target.value })} className="h-11 w-full rounded-xl border px-3"><option value="">{t("admin.rules.chooseCategory")}</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name_he || category.name_en}</option>)}</select>}
+                {source === "group" && <select value={condition.groupId || ""} onChange={(event) => setCondition({ type: "group_has_selection", groupId: event.target.value })} className="h-11 w-full rounded-xl border px-3"><option value="">{t("admin.rules.chooseGroup")}</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name_he || group.name_en}</option>)}</select>}
+                {source === "option" && <div className="grid gap-3 sm:grid-cols-2">
+                  <select value={sourceGroupId} onChange={(event) => { setSourceGroupId(event.target.value); setCondition({ type: condition.type === "option_not_selected" ? "option_not_selected" : "option_selected", optionId: "" }); }} className="h-11 w-full rounded-xl border px-3"><option value="">{t("admin.rules.chooseGroup")}</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name_he || group.name_en}</option>)}</select>
+                  <select value={condition.optionId || ""} onChange={(event) => setCondition({ type: condition.type === "option_not_selected" ? "option_not_selected" : "option_selected", optionId: event.target.value })} className="h-11 w-full rounded-xl border px-3"><option value="">{t("admin.rules.chooseOption")}</option>{sourceOptions.map((option) => <option key={option.id} value={option.id}>{option.name_he || option.name_en}</option>)}</select>
+                  <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" checked={condition.type === "option_not_selected"} onChange={(event) => setCondition({ type: event.target.checked ? "option_not_selected" : "option_selected", optionId: condition.optionId })} />{t("admin.rules.whenNotSelected")}</label>
+                </div>}
+              </div>
+            )}
+
+            {step === 1 && (
+              <div>
+                <h3 className="font-display text-lg font-bold">{t("admin.rules.whatToDoTitle")}</h3>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {(["show_group", "hide_group", "show_option", "hide_option"] as BusinessRuleAction["type"][]).map((type) => (
+                    <button key={type} type="button" onClick={() => setAction({ type })} className={cn("min-h-14 rounded-xl border-2 px-3 text-start", action.type === type ? "border-turquoise bg-turquoise/10" : "border-beige-dark/15")}>{t(ACTION_LABEL_KEYS[type])}</button>
                   ))}
-                </p>
-                <p className="mt-1 text-xs text-coffee/55">
-                  {t("admin.rules.thenLabel")}{" "}
-                  {rule.actions.map((a, i) => (
-                    <span key={i}>
-                      {i > 0 ? ", " : ""}
-                      {labelActionType(a.type as keyof typeof ACTION_TYPE_KEYS)}
-                      {a.groupId ? ` ${labelGroup(a.groupId)}` : ""}
-                      {a.optionId ? ` ${labelOption(a.optionId)}` : ""}
-                    </span>
-                  ))}
-                </p>
+                  <button type="button" disabled className="min-h-14 rounded-xl border border-dashed px-3 text-start text-coffee/35">{t("admin.rules.makeRequired")} · {t("admin.rules.notSupported")}</button>
+                  <button type="button" disabled className="min-h-14 rounded-xl border border-dashed px-3 text-start text-coffee/35">{t("admin.rules.makeOptional")} · {t("admin.rules.notSupported")}</button>
+                </div>
               </div>
-              <div className="flex gap-1">
-                <button type="button" onClick={() => openEdit(rule)} className="rounded-lg p-2 hover:bg-beige/50">
-                  <Pencil className="h-4 w-4" />
-                </button>
-                <button type="button" onClick={() => void deleteBusinessRule(rule.id)} className="rounded-lg p-2 text-red-500 hover:bg-red-50">
-                  <Trash2 className="h-4 w-4" />
-                </button>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-5">
+                <h3 className="font-display text-lg font-bold">{t("admin.rules.targetTitle")}</h3>
+                {action.type.endsWith("_group") ? (
+                  <select value={action.groupId || ""} onChange={(event) => setAction({ type: action.type, groupId: event.target.value })} className="h-11 w-full rounded-xl border px-3"><option value="">{t("admin.rules.chooseGroup")}</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name_he || group.name_en}</option>)}</select>
+                ) : (
+                  <select value={action.optionId || ""} onChange={(event) => setAction({ type: action.type, optionId: event.target.value })} className="h-11 w-full rounded-xl border px-3"><option value="">{t("admin.rules.chooseOption")}</option>{options.map((option) => <option key={option.id} value={option.id}>{groupById.get(option.groupId)?.name_he} — {option.name_he || option.name_en}</option>)}</select>
+                )}
+                <div className="rounded-2xl bg-beige/25 p-4 text-sm">
+                  <p><span className="font-semibold">{t("admin.rules.ifLabel")}:</span> {conditionText(condition)}</p>
+                  <p className="mt-2"><span className="font-semibold">{t("admin.rules.thenLabel")}:</span> {actionText(action)}</p>
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
-        {rules.length === 0 && (
-          <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-coffee/50">
-            {t("admin.rules.emptyRules")}
-          </p>
-        )}
-      </div>
+            )}
+          </AdminDialogBody>
+          <AdminDialogFooter className="justify-between">
+            <Button variant="outline" onClick={() => step === 0 ? setOpen(false) : setStep((current) => current - 1)}>{step === 0 ? t("admin.action.cancel") : t("common.back")}</Button>
+            {step < 2 ? <Button disabled={(step === 0 && !conditionValid) || (step === 1 && !actionValid)} onClick={() => setStep((current) => current + 1)}>{t("common.continue")}<span aria-hidden>{dir === "rtl" ? "←" : "→"}</span></Button> : <Button disabled={!targetValid || saving} onClick={() => void saveRule()}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.rules.saveRule")}</Button>}
+          </AdminDialogFooter>
+        </AdminDialogContent>
+      </AdminDialog>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editing ? t("admin.rules.edit") : t("admin.rules.newBusinessRule")}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div><Label>{t("admin.rules.ruleName")}</Label><Input {...form.register("name")} className="mt-1" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>{t("admin.rules.priority")}</Label><Input type="number" {...form.register("priority", { valueAsNumber: true })} className="mt-1" /></div>
-              <div className="flex items-end gap-2 pb-2">
-                <input type="checkbox" {...form.register("enabled")} id="enabled" />
-                <Label htmlFor="enabled">{t("admin.rules.enabled")}</Label>
-              </div>
-            </div>
+      <AdminDialog open={Boolean(deleteRule)} onOpenChange={(value) => !value && setDeleteRule(null)}>
+        <AdminDialogContent size="sm"><AdminDialogHeader><AdminDialogTitle>{t("admin.rules.deleteTitle")}</AdminDialogTitle></AdminDialogHeader><AdminDialogBody>{t("admin.rules.deleteQuestion").replace("{name}", deleteRule?.name || "")}</AdminDialogBody><AdminDialogFooter><Button variant="outline" onClick={() => setDeleteRule(null)}>{t("admin.action.cancel")}</Button><Button variant="destructive" onClick={async () => { if (!deleteRule) return; const result = await deleteBusinessRule(deleteRule.id); if (!result.success) setToasts((current) => [...current, createToast(result.error, "error")]); setDeleteRule(null); }}>{t("admin.action.delete")}</Button></AdminDialogFooter></AdminDialogContent>
+      </AdminDialog>
 
-            <div className="rounded-xl bg-beige/30 p-3">
-              <Label>{t("admin.rules.condition")}</Label>
-              <select {...form.register("conditions.0.type")} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="option_selected">{t("admin.rules.conditionOptionSelected")}</option>
-                <option value="option_not_selected">{t("admin.rules.conditionOptionNotSelected")}</option>
-                <option value="group_has_selection">{t("admin.rules.conditionGroupHasSelection")}</option>
-              </select>
-              <select {...form.register("conditions.0.optionId")} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="">{t("admin.rules.selectOptionIfApplicable")}</option>
-                {options.map((o) => (
-                  <option key={o.id} value={o.id}>{o.name_he || o.name_en}</option>
-                ))}
-              </select>
-              <select {...form.register("conditions.0.groupId")} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="">{t("admin.rules.selectGroupIfApplicable")}</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name_he || g.name_en}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="rounded-xl bg-beige/30 p-3">
-              <Label>{t("admin.rules.actionLabel")}</Label>
-              <select {...form.register("actions.0.type")} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="hide_group">{t("admin.rules.actionHideGroup")}</option>
-                <option value="hide_option">{t("admin.rules.actionHideOption")}</option>
-                <option value="show_group">{t("admin.rules.actionShowGroup")}</option>
-                <option value="show_option">{t("admin.rules.actionShowOption")}</option>
-              </select>
-              <select {...form.register("actions.0.groupId")} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="">{t("admin.rules.targetGroup")}</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name_he || g.name_en}</option>
-                ))}
-              </select>
-              <select {...form.register("actions.0.optionId")} className="mt-2 w-full rounded-xl border px-3 py-2 text-sm">
-                <option value="">{t("admin.rules.targetOption")}</option>
-                {options.map((o) => (
-                  <option key={o.id} value={o.id}>{o.name_he || o.name_en}</option>
-                ))}
-              </select>
-            </div>
-
-            <Button type="submit" disabled={saving} className="w-full">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.rules.saveRule")}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AdminToastStack toasts={toasts} onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))} />
     </div>
   );
 }

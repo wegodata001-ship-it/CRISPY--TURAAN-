@@ -11,6 +11,7 @@ import {
   query,
   where,
   orderBy,
+  deleteField,
   type Unsubscribe,
   type DocumentData,
 } from "firebase/firestore";
@@ -392,6 +393,25 @@ export function subscribeToProductModifierGroups(
   );
 }
 
+export function subscribeToAllProductModifierGroups(
+  onData: (links: ProductModifierGroup[]) => void,
+  onError: (msg: string) => void
+): Unsubscribe {
+  const db = getDb();
+  return onSnapshot(
+    collection(db, COLLECTIONS.productModifierGroups),
+    (snap) =>
+      onData(
+        snap.docs.map((document) =>
+          mapProductModifierGroup(
+            docTo<FirestoreProductModifierGroup>(document.id, document.data())
+          )
+        )
+      ),
+    (error) => onError(error.message)
+  );
+}
+
 export async function linkProductModifierGroup(
   input: ProductModifierGroupInput
 ): Promise<ServiceResult<ProductModifierGroup>> {
@@ -444,7 +464,12 @@ export async function unlinkProductModifierGroup(id: string): Promise<ServiceRes
 /** Batch-sync product ↔ modifier group links (1 read + 1 batch commit max) */
 export async function syncProductModifierLinks(
   productId: string,
-  desiredGroupIds: string[]
+  desiredLinks: Array<
+    Pick<
+      ProductModifierGroup,
+      "groupId" | "requirement" | "selectionType" | "displayType" | "active"
+    >
+  >
 ): Promise<ServiceResult<void>> {
   try {
     const db = getDb();
@@ -459,7 +484,7 @@ export async function syncProductModifierLinks(
       mapProductModifierGroup(docTo<FirestoreProductModifierGroup>(d.id, d.data()))
     );
     const existingByGroupId = new Map(existing.map((l) => [l.groupId, l]));
-    const desiredSet = new Set(desiredGroupIds);
+    const desiredSet = new Set(desiredLinks.map((link) => link.groupId));
 
     const batch = writeBatch(db);
     let writes = 0;
@@ -471,12 +496,21 @@ export async function syncProductModifierLinks(
       }
     }
 
-    desiredGroupIds.forEach((groupId, index) => {
+    desiredLinks.forEach((desired, index) => {
+      const groupId = desired.groupId;
       const sortOrder = index + 1;
       const link = existingByGroupId.get(groupId);
       if (link) {
-        if (link.sortOrder !== sortOrder) {
-          batch.update(doc(db, COLLECTIONS.productModifierGroups, link.id), { sortOrder });
+        const patch: Record<string, unknown> = {};
+        if (link.sortOrder !== sortOrder) patch.sortOrder = sortOrder;
+        if (link.active !== desired.active) patch.active = desired.active;
+        for (const key of ["requirement", "selectionType", "displayType"] as const) {
+          if (link[key] !== desired[key]) {
+            patch[key] = desired[key] ?? deleteField();
+          }
+        }
+        if (Object.keys(patch).length > 0) {
+          batch.update(doc(db, COLLECTIONS.productModifierGroups, link.id), patch);
           writes += 1;
         }
       } else {
@@ -487,7 +521,10 @@ export async function syncProductModifierLinks(
             productId,
             groupId,
             sortOrder,
-            active: true,
+            active: desired.active,
+            requirement: desired.requirement,
+            selectionType: desired.selectionType,
+            displayType: desired.displayType,
           })
         );
         writes += 1;
@@ -601,14 +638,12 @@ export async function createBusinessRule(input: BusinessRuleInput): Promise<Serv
 export async function updateBusinessRule(
   id: string,
   input: Partial<BusinessRuleInput>
-): Promise<ServiceResult<BusinessRule>> {
+): Promise<ServiceResult<void>> {
   try {
     const db = getDb();
     const ref = doc(db, COLLECTIONS.businessRules, id);
     await updateDoc(ref, { ...input, updatedAt: nowTimestamp() });
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return failure(new ServiceError("Not found", "NOT_FOUND"));
-    return success(mapBusinessRule(docTo<FirestoreBusinessRule>(snap.id, snap.data())));
+    return success(undefined);
   } catch (error) {
     return failure(error, "Failed to update business rule");
   }

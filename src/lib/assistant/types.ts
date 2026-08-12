@@ -9,7 +9,11 @@ export type QuickActionType =
   | "offers"
   | "cart"
   | "checkout"
-  | "contact";
+  | "contact"
+  | "product"
+  | "page"
+  | "whatsapp"
+  | "question";
 
 export interface AssistantQuickAction {
   id: string;
@@ -18,6 +22,9 @@ export interface AssistantQuickAction {
   action: QuickActionType;
   categoryId?: string;
   categoryIds?: string[];
+  productId?: string;
+  url?: string;
+  question?: LocalizedText;
   enabled: boolean;
   sortOrder: number;
 }
@@ -183,7 +190,8 @@ export type AssistantClientAction =
   | { type: "add_to_cart"; productId: string }
   | { type: "remove_from_cart"; productId: string }
   | { type: "show_cart" }
-  | { type: "checkout" };
+  | { type: "checkout" }
+  | { type: "open_url"; url: string };
 
 export interface AssistantChatRequest {
   message: string;

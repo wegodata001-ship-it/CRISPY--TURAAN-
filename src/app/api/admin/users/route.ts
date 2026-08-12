@@ -10,16 +10,51 @@ const createUserSchema = z.object({
   password: z.string().min(6),
   displayName: z.string().min(1),
   role: z.enum(["Admin", "Manager", "Employee"]),
+  active: z.boolean().default(true),
+});
+
+const updateUserSchema = z.object({
+  uid: z.string().min(1),
+  displayName: z.string().trim().min(1).optional(),
+  role: z.enum(["Admin", "Manager", "Employee"]).optional(),
+  active: z.boolean().optional(),
+  password: z.string().min(6).optional(),
 });
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminOnly(request);
   if (auth instanceof Response) return auth;
 
-  const db = getAdminDb();
-  const snap = await db.collection(COLLECTIONS.users).orderBy("createdAt", "desc").get();
-  const users = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  return Response.json({ users });
+  try {
+    const [snap, authUsers] = await Promise.all([
+      getAdminDb().collection(COLLECTIONS.users).get(),
+      getAdminAuth().listUsers(1000),
+    ]);
+    const authById = new Map(authUsers.users.map((user) => [user.uid, user]));
+    const users = snap.docs
+      .map((document) => {
+        const profile = document.data();
+        const authUser = authById.get(document.id);
+        return {
+          id: document.id,
+          email: profile.email ?? authUser?.email ?? "",
+          displayName: profile.displayName ?? authUser?.displayName ?? "",
+          role: profile.role,
+          active: profile.active ?? !authUser?.disabled,
+          lastSignInAt: authUser?.metadata.lastSignInTime ?? null,
+          createdAt: profile.createdAt ?? null,
+        };
+      })
+      .sort((a, b) => {
+        const aMillis = a.createdAt?.toMillis?.() ?? 0;
+        const bMillis = b.createdAt?.toMillis?.() ?? 0;
+        return bMillis - aMillis;
+      });
+    return Response.json({ users });
+  } catch (error) {
+    console.error("[admin/users GET] failed", error);
+    return Response.json({ error: "Failed to load users" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -35,19 +70,35 @@ export async function POST(request: NextRequest) {
       email: body.email,
       password: body.password,
       displayName: body.displayName,
+      disabled: !body.active,
     });
 
-    await db.collection(COLLECTIONS.users).doc(created.uid).set({
-      email: body.email,
-      displayName: body.displayName,
-      role: body.role,
-      active: true,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    try {
+      await db.collection(COLLECTIONS.users).doc(created.uid).set({
+        email: body.email,
+        displayName: body.displayName,
+        role: body.role,
+        active: body.active,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      await adminAuth.deleteUser(created.uid).catch(() => {});
+      throw error;
+    }
 
-    return Response.json({ id: created.uid, email: body.email });
+    return Response.json({
+      user: {
+        id: created.uid,
+        email: body.email,
+        displayName: body.displayName,
+        role: body.role,
+        active: body.active,
+        lastSignInAt: null,
+      },
+    });
   } catch (error) {
+    console.error("[admin/users POST] failed", error);
     const message = error instanceof Error ? error.message : "Failed to create user";
     return Response.json({ error: message }, { status: 400 });
   }
@@ -58,8 +109,13 @@ export async function PATCH(request: NextRequest) {
   if (!current) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { uid, ...updates } = await request.json();
-    if (!uid) return Response.json({ error: "uid required" }, { status: 400 });
+    const { uid, ...updates } = updateUserSchema.parse(await request.json());
+    if (
+      uid === current.uid &&
+      (updates.active === false || (updates.role && updates.role !== "Admin"))
+    ) {
+      return Response.json({ error: "Cannot disable or demote the current user" }, { status: 400 });
+    }
 
     const db = getAdminDb();
     const adminAuth = getAdminAuth();
@@ -90,6 +146,7 @@ export async function PATCH(request: NextRequest) {
 
     return Response.json({ ok: true });
   } catch (error) {
+    console.error("[admin/users PATCH] failed", error);
     const message = error instanceof Error ? error.message : "Update failed";
     return Response.json({ error: message }, { status: 400 });
   }
@@ -110,6 +167,7 @@ export async function DELETE(request: NextRequest) {
 
     return Response.json({ ok: true });
   } catch (error) {
+    console.error("[admin/users DELETE] failed", error);
     const message = error instanceof Error ? error.message : "Delete failed";
     return Response.json({ error: message }, { status: 400 });
   }

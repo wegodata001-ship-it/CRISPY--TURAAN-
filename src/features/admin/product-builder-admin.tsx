@@ -1,25 +1,46 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, Trash2, Eye, Loader2 } from "lucide-react";
-import { useProducts } from "@/hooks/useProducts";
-import { useModifierGroups, useProductBuilderConfig, useProductModifierGroups } from "@/hooks/useModifiers";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  linkProductModifierGroup,
-  unlinkProductModifierGroup,
-  reorderProductModifierGroups,
-  updateProductModifierGroup,
-} from "@/services/modifierService";
+  Eye,
+  Loader2,
+  Pencil,
+  Plus,
+  Save,
+  Search,
+  Unlink,
+} from "lucide-react";
+import { useAllCategories, useProducts } from "@/hooks/useProducts";
+import {
+  useAllProductModifierGroups,
+  useModifierGroups,
+  useProductBuilderConfig,
+} from "@/hooks/useModifiers";
+import { syncProductModifierLinks } from "@/services/modifierService";
 import { ProductBuilderPreview } from "@/features/catalog/product-builder";
 import { SortableList } from "@/components/admin/sortable-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AdminDialog,
+  AdminDialogBody,
+  AdminDialogContent,
+  AdminDialogFooter,
+  AdminDialogHeader,
+  AdminDialogTitle,
+} from "@/features/admin/components/admin-dialog";
+import {
+  AdminToastStack,
+  createToast,
+  type AdminToast,
+} from "@/features/admin/components/admin-toast";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
 import type { ModifierGroup, ProductModifierGroup } from "@/types/modifiers";
+import { cn } from "@/lib/utils";
+
+type DraftLink = ProductModifierGroup;
 
 const SELECTION_TYPE_KEYS = {
   single: "admin.modifiers.selectionSingle",
@@ -28,210 +49,451 @@ const SELECTION_TYPE_KEYS = {
   counter: "admin.modifiers.selectionCounter",
 } as const;
 
-const DISPLAY_TYPE_KEYS = {
-  buttons: "admin.modifiers.displayButtons",
-  dropdown: "admin.modifiers.displayDropdown",
-  chips: "admin.modifiers.displayChips",
-  cards: "admin.modifiers.displayCards",
-  icons: "admin.modifiers.displayIcons",
-  images: "admin.modifiers.displayImages",
-} as const;
-
 export function ProductBuilderAdmin() {
   const t = useT();
-  const { products, loading: productsLoading } = useProducts();
-  const { groups } = useModifierGroups();
-  const [productId, setProductId] = useState<string>("");
+  const { products, loading: productsLoading } = useProducts(undefined, { admin: true });
+  const { categories } = useAllCategories();
+  const { groups, loading: groupsLoading } = useModifierGroups();
+  const { links: allLinks, loading: linksLoading } = useAllProductModifierGroups();
+  const [productId, setProductId] = useState("");
   const [search, setSearch] = useState("");
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [linkOpen, setLinkOpen] = useState(false);
-  const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [groupSearch, setGroupSearch] = useState("");
+  const [draftLinks, setDraftLinks] = useState<DraftLink[]>([]);
+  const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
   const [saving, setSaving] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
+  const [removeLink, setRemoveLink] = useState<DraftLink | null>(null);
+  const [editLink, setEditLink] = useState<DraftLink | null>(null);
+  const [editRequirement, setEditRequirement] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [toasts, setToasts] = useState<AdminToast[]>([]);
+  const { config } = useProductBuilderConfig(previewOpen && productId ? productId : null);
 
-  const { links, loading: linksLoading } = useProductModifierGroups(productId || null);
-  const { config } = useProductBuilderConfig(productId || null);
+  const product = products.find((item) => item.id === productId);
+  const categoryById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories]
+  );
+  const groupById = useMemo(
+    () => new Map(groups.map((group) => [group.id, group])),
+    [groups]
+  );
+  const linkCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    allLinks.forEach((link) => {
+      if (link.active) counts.set(link.productId, (counts.get(link.productId) ?? 0) + 1);
+    });
+    return counts;
+  }, [allLinks]);
+  const persistedLinks = useMemo(
+    () =>
+      allLinks
+        .filter((link) => link.productId === productId)
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [allLinks, productId]
+  );
 
-  const product = products.find((p) => p.id === productId);
+  useEffect(() => {
+    dirtyRef.current = false;
+    setDirty(false);
+    setDraftLinks(persistedLinks);
+  }, [productId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!dirtyRef.current) setDraftLinks(persistedLinks);
+  }, [persistedLinks]);
+
+  const updateDraft = (updater: (current: DraftLink[]) => DraftLink[]) => {
+    setDraftLinks(updater);
+    dirtyRef.current = true;
+    setDirty(true);
+  };
+
   const filteredProducts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        p.name_he.includes(search) ||
-        p.name_en.toLowerCase().includes(q) ||
-        p.name_ar.includes(search)
+    const query = search.trim().toLocaleLowerCase();
+    if (!query) return products;
+    return products.filter((item) =>
+      [item.name_he, item.name_ar, item.name_en]
+        .join(" ")
+        .toLocaleLowerCase()
+        .includes(query)
     );
   }, [products, search]);
 
-  const linkedGroupIds = new Set(links.map((l) => l.groupId));
-  const availableGroups = groups.filter((g) => !linkedGroupIds.has(g.id));
+  const linkedGroupIds = useMemo(
+    () => new Set(draftLinks.map((link) => link.groupId)),
+    [draftLinks]
+  );
+  const unlinkedGroups = groups.filter(
+    (group) =>
+      !linkedGroupIds.has(group.id) &&
+      !group.archived &&
+      group.active
+  );
+  const availableGroups = unlinkedGroups.filter(
+    (group) =>
+      [group.name_he, group.name_ar, group.name_en]
+        .join(" ")
+        .toLocaleLowerCase()
+        .includes(groupSearch.trim().toLocaleLowerCase())
+  );
 
-  const sortableItems = links
-    .map((link) => ({
-      id: link.id,
-      link,
-      group: groups.find((g) => g.id === link.groupId),
-    }))
-    .filter((x) => x.group) as { id: string; link: ProductModifierGroup; group: ModifierGroup }[];
+  const openAddGroups = () => {
+    setSelectedGroupIds(new Set());
+    setGroupSearch("");
+    setLinkOpen(true);
+  };
 
-  const labelRequirement = (req: "required" | "optional") =>
-    req === "required" ? t("admin.modifiers.required") : t("admin.modifiers.optional");
-  const labelSelectionType = (type: keyof typeof SELECTION_TYPE_KEYS) => t(SELECTION_TYPE_KEYS[type]);
-  const labelDisplayType = (type: keyof typeof DISPLAY_TYPE_KEYS) => t(DISPLAY_TYPE_KEYS[type]);
-
-  const handleLink = async () => {
-    if (!productId || !selectedGroupId) return;
-    setSaving(true);
-    await linkProductModifierGroup({
-      productId,
-      groupId: selectedGroupId,
-      sortOrder: links.length + 1,
-      active: true,
-    });
-    setSaving(false);
+  const addSelectedGroups = () => {
+    const selected = groups.filter((group) => selectedGroupIds.has(group.id));
+    updateDraft((current) => [
+      ...current,
+      ...selected.map((group, index) => ({
+        id: `draft-${group.id}`,
+        productId,
+        groupId: group.id,
+        sortOrder: current.length + index + 1,
+        active: true,
+      })),
+    ]);
     setLinkOpen(false);
-    setSelectedGroupId("");
   };
 
-  const handleReorder = async (
-    items: { id: string; link: ProductModifierGroup; group: ModifierGroup }[]
-  ) => {
-    if (!productId) return;
-    await reorderProductModifierGroups(productId, items.map((i) => i.link.id));
+  const save = async () => {
+    if (!productId || saving || !dirty) return;
+    setSaving(true);
+    try {
+      const result = await syncProductModifierLinks(
+        productId,
+        draftLinks.map((link) => ({
+          groupId: link.groupId,
+          requirement: link.requirement,
+          selectionType: link.selectionType,
+          displayType: link.displayType,
+          active: link.active,
+        }))
+      );
+      if (!result.success) {
+        setToasts((current) => [...current, createToast(result.error, "error")]);
+        return;
+      }
+      dirtyRef.current = false;
+      setDirty(false);
+      setToasts((current) => [
+        ...current,
+        createToast(t("admin.builder.assignmentsSaved")),
+      ]);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (productsLoading) return <p className="text-sm text-coffee/50">{t("admin.builder.loadingProducts")}</p>;
+  const loading = productsLoading || groupsLoading || linksLoading;
+  if (loading) {
+    return (
+      <div className="grid min-h-64 place-items-center">
+        <Loader2 className="h-7 w-7 animate-spin text-turquoise" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-[1200px] space-y-6">
       <AdminPageHeader
-        title={t("admin.builder.title")}
-        subtitle={t("admin.builder.subtitle")}
+        title={t("admin.builder.assignmentTitle")}
+        subtitle={t("admin.builder.assignmentSubtitle")}
+        actions={
+          <Button onClick={() => void save()} disabled={!dirty || saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saving ? t("admin.productForm.saving") : t("admin.action.save")}
+          </Button>
+        }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <div className="rounded-2xl border border-beige-dark/25 bg-warm-white p-4 shadow-soft">
-          <Label>{t("admin.builder.selectProduct")}</Label>
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("admin.builder.searchProducts")}
-            className="mt-2"
-          />
-          <div className="mt-3 max-h-[420px] space-y-1 overflow-y-auto">
-            {filteredProducts.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setProductId(p.id)}
-                className={`w-full rounded-xl px-3 py-2 text-start text-sm transition-colors ${
-                  productId === p.id ? "bg-turquoise/15 font-semibold text-turquoise" : "hover:bg-beige/40"
-                }`}
-              >
-                {p.name_he || p.name_en}
-              </button>
-            ))}
+      <div className="grid items-start gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="rounded-[20px] border border-beige-dark/15 bg-warm-white p-4 shadow-soft lg:sticky lg:top-24">
+          <h2 className="font-display text-lg font-bold">{t("admin.builder.selectProduct")}</h2>
+          <div className="relative mt-3">
+            <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee/40" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("admin.builder.searchProducts")}
+              className="h-11 ps-10"
+            />
           </div>
-        </div>
+          <div className="mt-3 max-h-[min(65dvh,620px)] space-y-2 overflow-y-auto">
+            {filteredProducts.map((item) => {
+              const category = categoryById.get(item.categoryId);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setProductId(item.id)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-2xl border p-2.5 text-start transition-colors",
+                    productId === item.id
+                      ? "border-turquoise bg-turquoise/10"
+                      : "border-transparent hover:bg-beige/30"
+                  )}
+                >
+                  <span
+                    className="h-11 w-11 shrink-0 rounded-xl bg-beige/50 bg-cover bg-center"
+                    style={item.image ? { backgroundImage: `url("${item.image}")` } : undefined}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">
+                      {item.name_he || item.name_en}
+                    </span>
+                    <span className="block truncate text-xs text-coffee/50">
+                      {category?.name_he || category?.name_en || "—"}
+                    </span>
+                  </span>
+                  <span className="rounded-full bg-beige/50 px-2 py-1 text-[11px]">
+                    {t("admin.builder.groupCount").replace(
+                      "{count}",
+                      String(linkCounts.get(item.id) ?? 0)
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-        <div className="space-y-4">
+        <section className="min-w-0">
           {!product ? (
-            <div className="rounded-2xl border border-dashed border-beige-dark/30 p-12 text-center text-sm text-coffee/50">
+            <div className="rounded-[20px] border border-dashed border-beige-dark/30 bg-warm-white p-12 text-center text-sm text-coffee/50">
               {t("admin.builder.selectProductHint")}
             </div>
           ) : (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-bold">{product.name_he || product.name_en}</h2>
-                  <p className="text-sm text-coffee/50">
-                    {t("admin.builder.groupsLinked").replace("{count}", String(links.length))}
+                  <h2 className="font-display text-xl font-bold">{product.name_he || product.name_en}</h2>
+                  <p className="mt-1 text-sm text-coffee/50">
+                    {t("admin.builder.linkedGroupsHeading")}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setPreviewOpen(true)} disabled={!config}>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => setPreviewOpen(true)}>
                     <Eye className="h-4 w-4" /> {t("admin.builder.preview")}
                   </Button>
-                  <Button onClick={() => setLinkOpen(true)} disabled={availableGroups.length === 0}>
+                  <Button onClick={openAddGroups} disabled={unlinkedGroups.length === 0}>
                     <Plus className="h-4 w-4" /> {t("admin.builder.addGroup")}
                   </Button>
                 </div>
               </div>
 
-              {linksLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-coffee/40" />
+              {dirty && (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {t("admin.builder.unsavedAssignments")}
+                </p>
+              )}
+
+              {draftLinks.length === 0 ? (
+                <div className="rounded-[20px] border border-dashed border-beige-dark/30 bg-warm-white p-10 text-center">
+                  <p className="font-semibold">{t("admin.builder.noLinkedGroups")}</p>
+                  <Button className="mt-4" onClick={openAddGroups}>
+                    <Plus className="h-4 w-4" /> {t("admin.builder.addGroup")}
+                  </Button>
+                </div>
               ) : (
                 <SortableList
-                  items={sortableItems}
-                  onReorder={handleReorder}
-                  className="space-y-2"
-                  renderItem={({ link, group }, handle) => (
-                    <div className="flex items-center gap-2 rounded-xl border border-beige-dark/20 bg-warm-white p-3">
-                      {handle}
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium">{group.name_he || group.name_en}</p>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          <Badge variant="outline">{labelSelectionType((link.selectionType ?? group.selectionType) as keyof typeof SELECTION_TYPE_KEYS)}</Badge>
-                          <Badge variant="outline">{labelRequirement((link.requirement ?? group.requirement) as "required" | "optional")}</Badge>
-                          <Badge variant="outline">{labelDisplayType((link.displayType ?? group.displayType) as keyof typeof DISPLAY_TYPE_KEYS)}</Badge>
+                  items={draftLinks}
+                  onReorder={(items) =>
+                    updateDraft(() =>
+                      items.map((link, index) => ({ ...link, sortOrder: index + 1 }))
+                    )
+                  }
+                  className="space-y-3"
+                  renderItem={(link, dragHandle) => {
+                    const group = groupById.get(link.groupId);
+                    if (!group) return null;
+                    return (
+                      <div className="flex items-center gap-3 rounded-[18px] border border-beige-dark/15 bg-warm-white p-4 shadow-soft">
+                        {dragHandle}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold">{group.name_he || group.name_en}</p>
+                          <p className="mt-1 text-xs text-coffee/50">
+                            {t(
+                              SELECTION_TYPE_KEYS[
+                                (link.selectionType ?? group.selectionType) as keyof typeof SELECTION_TYPE_KEYS
+                              ]
+                            )}
+                            {" · "}
+                            {(link.requirement ?? group.requirement) === "required"
+                              ? t("admin.modifiers.required")
+                              : t("admin.modifiers.optional")}
+                          </p>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditLink(link);
+                            setEditRequirement(link.requirement ?? "");
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" /> {t("admin.action.edit")}
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" onClick={() => setRemoveLink(link)}>
+                          <Unlink className="h-4 w-4 text-red-500" />
+                        </Button>
                       </div>
-                      <select
-                        className="rounded-lg border px-2 py-1 text-xs"
-                        value={link.requirement ?? ""}
-                        onChange={(e) =>
-                          void updateProductModifierGroup(link.id, {
-                            requirement: e.target.value as "required" | "optional" | undefined,
-                          })
-                        }
-                      >
-                        <option value="">
-                          {t("admin.builder.defaultRequirement").replace("{requirement}", labelRequirement(group.requirement))}
-                        </option>
-                        <option value="required">{t("admin.modifiers.required")}</option>
-                        <option value="optional">{t("admin.modifiers.optional")}</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => void unlinkProductModifierGroup(link.id)}
-                        className="rounded-lg p-2 text-red-500 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
+                    );
+                  }}
                 />
               )}
-            </>
+            </div>
           )}
-        </div>
+        </section>
       </div>
 
-      <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{t("admin.builder.addModifierGroup")}</DialogTitle></DialogHeader>
-          <select
-            className="w-full rounded-xl border px-3 py-2"
-            value={selectedGroupId}
-            onChange={(e) => setSelectedGroupId(e.target.value)}
-          >
-            <option value="">{t("admin.builder.chooseGroup")}</option>
-            {availableGroups.map((g) => (
-              <option key={g.id} value={g.id}>{g.name_he || g.name_en}</option>
-            ))}
-          </select>
-          <Button onClick={handleLink} disabled={!selectedGroupId || saving} className="mt-3 w-full">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.builder.linkGroup")}
-          </Button>
-        </DialogContent>
-      </Dialog>
+      <AdminDialog open={linkOpen} onOpenChange={setLinkOpen}>
+        <AdminDialogContent size="sm">
+          <AdminDialogHeader>
+            <AdminDialogTitle>{t("admin.builder.addModifierGroup")}</AdminDialogTitle>
+          </AdminDialogHeader>
+          <AdminDialogBody>
+            <div className="relative">
+              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee/40" />
+              <Input
+                value={groupSearch}
+                onChange={(event) => setGroupSearch(event.target.value)}
+                placeholder={t("admin.builder.searchGroups")}
+                className="h-11 ps-10"
+              />
+            </div>
+            <div className="mt-3 space-y-2">
+              {availableGroups.map((group) => (
+                <label
+                  key={group.id}
+                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-beige-dark/15 px-3"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedGroupIds.has(group.id)}
+                    onChange={(event) => {
+                      const next = new Set(selectedGroupIds);
+                      if (event.target.checked) next.add(group.id);
+                      else next.delete(group.id);
+                      setSelectedGroupIds(next);
+                    }}
+                  />
+                  <span>{group.name_he || group.name_en}</span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-5 text-sm text-coffee/50">
+              {t("admin.builder.groupNotFound")}{" "}
+              <Link href="/admin/modifier-groups" className="font-semibold text-turquoise underline">
+                {t("admin.builder.goToModifierManagement")}
+              </Link>
+            </p>
+          </AdminDialogBody>
+          <AdminDialogFooter>
+            <Button variant="outline" onClick={() => setLinkOpen(false)}>
+              {t("admin.action.cancel")}
+            </Button>
+            <Button disabled={selectedGroupIds.size === 0} onClick={addSelectedGroups}>
+              {t("admin.builder.addSelectedGroups")}
+            </Button>
+          </AdminDialogFooter>
+        </AdminDialogContent>
+      </AdminDialog>
 
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{t("admin.builder.customerPreview")}</DialogTitle></DialogHeader>
-          {product && config && <ProductBuilderPreview product={product} config={config} />}
-        </DialogContent>
-      </Dialog>
+      <AdminDialog open={Boolean(removeLink)} onOpenChange={(open) => !open && setRemoveLink(null)}>
+        <AdminDialogContent size="sm">
+          <AdminDialogHeader><AdminDialogTitle>{t("admin.builder.removeAssignment")}</AdminDialogTitle></AdminDialogHeader>
+          <AdminDialogBody>
+            <p>
+              {t("admin.builder.removeAssignmentQuestion")
+                .replace("{group}", groupById.get(removeLink?.groupId ?? "")?.name_he || "")
+                .replace("{product}", product?.name_he || "")}
+            </p>
+          </AdminDialogBody>
+          <AdminDialogFooter>
+            <Button variant="outline" onClick={() => setRemoveLink(null)}>{t("admin.action.cancel")}</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (removeLink) {
+                  updateDraft((current) => current.filter((link) => link.id !== removeLink.id));
+                }
+                setRemoveLink(null);
+              }}
+            >
+              {t("admin.builder.removeLinkOnly")}
+            </Button>
+          </AdminDialogFooter>
+        </AdminDialogContent>
+      </AdminDialog>
+
+      <AdminDialog open={Boolean(editLink)} onOpenChange={(open) => !open && setEditLink(null)}>
+        <AdminDialogContent size="sm">
+          <AdminDialogHeader><AdminDialogTitle>{t("admin.builder.editAssignment")}</AdminDialogTitle></AdminDialogHeader>
+          <AdminDialogBody>
+            <label className="text-sm font-medium">{t("admin.builder.requirementForProduct")}</label>
+            <select
+              value={editRequirement}
+              onChange={(event) => setEditRequirement(event.target.value)}
+              className="mt-2 h-11 w-full rounded-xl border border-beige-dark/25 bg-warm-white px-3"
+            >
+              <option value="">{t("admin.builder.useGroupDefault")}</option>
+              <option value="required">{t("admin.modifiers.required")}</option>
+              <option value="optional">{t("admin.modifiers.optional")}</option>
+            </select>
+          </AdminDialogBody>
+          <AdminDialogFooter>
+            <Button variant="outline" onClick={() => setEditLink(null)}>{t("admin.action.cancel")}</Button>
+            <Button
+              onClick={() => {
+                if (editLink) {
+                  updateDraft((current) =>
+                    current.map((link) =>
+                      link.id === editLink.id
+                        ? {
+                            ...link,
+                            requirement:
+                              (editRequirement || undefined) as ProductModifierGroup["requirement"],
+                          }
+                        : link
+                    )
+                  );
+                }
+                setEditLink(null);
+              }}
+            >
+              {t("admin.action.save")}
+            </Button>
+          </AdminDialogFooter>
+        </AdminDialogContent>
+      </AdminDialog>
+
+      <AdminDialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <AdminDialogContent size="md">
+          <AdminDialogHeader><AdminDialogTitle>{t("admin.builder.customerPreview")}</AdminDialogTitle></AdminDialogHeader>
+          <AdminDialogBody>
+            {product && config ? (
+              <ProductBuilderPreview product={product} config={config} />
+            ) : (
+              <div className="grid min-h-48 place-items-center">
+                <Loader2 className="h-6 w-6 animate-spin text-turquoise" />
+              </div>
+            )}
+          </AdminDialogBody>
+        </AdminDialogContent>
+      </AdminDialog>
+
+      <AdminToastStack
+        toasts={toasts}
+        onDismiss={(id) =>
+          setToasts((current) => current.filter((toast) => toast.id !== id))
+        }
+      />
     </div>
   );
 }

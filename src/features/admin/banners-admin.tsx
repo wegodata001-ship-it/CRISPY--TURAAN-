@@ -1,358 +1,343 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  Loader2,
-  Eye,
-  Calendar,
-  Copy,
-  ImageIcon,
-  Power,
-} from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Calendar, Copy, Eye, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { subscribeToAllBanners, createBanner, updateBanner, deleteBanner, reorderBanners } from "@/services";
-import { isBannerLive } from "@/lib/mappers";
-import { bannerSchema, type BannerInput } from "@/lib/validation/schemas";
+import { useAllCategories, useAllProducts } from "@/hooks/useProducts";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ImageUpload } from "@/features/admin/image-upload";
-import { uploadBannerImage, deleteImageByUrl } from "@/services/storageService";
-import { cn, formatDate } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AdminDialog,
+  AdminDialogBody,
+  AdminDialogContent,
+  AdminDialogFooter,
+  AdminDialogHeader,
+  AdminDialogTitle,
+} from "@/features/admin/components/admin-dialog";
+import { AdminToastStack, createToast, type AdminToast } from "@/features/admin/components/admin-toast";
+import { BannerWizard } from "@/features/admin/banners/banner-wizard";
+import { BannerHero } from "@/features/catalog/banner-hero";
+import { SortableList } from "@/components/admin/sortable-list";
+import {
+  bannerToDraft,
+  bannerVisibility,
+  draftToBanner,
+  pickChangedBannerFields,
+} from "@/lib/banners/manager";
+import { formatDate, cn } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
-import { AdminCard } from "./components/admin-card";
 import { AdminEmptyState } from "./components/admin-empty-state";
-import { adminCardHover } from "./components/admin-styles";
+import type { BannerInput } from "@/lib/validation/schemas";
 import type { BannerSlide } from "@/types";
 
 export function BannersAdmin() {
   const t = useT();
+  const { products } = useAllProducts();
+  const { categories } = useAllCategories();
   const [banners, setBanners] = useState<BannerSlide[]>([]);
+  const [ordered, setOrdered] = useState<BannerSlide[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<BannerSlide | null>(null);
-  const [open, setOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [preview, setPreview] = useState<BannerSlide | null>(null);
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
+  const [deleteTarget, setDeleteTarget] = useState<BannerSlide | null>(null);
+  const [reorderMode, setReorderMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [optimisticActive, setOptimisticActive] = useState<Record<string, boolean>>({});
+  const [toasts, setToasts] = useState<AdminToast[]>([]);
+  const updatesInFlight = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    const unsub = subscribeToAllBanners(
+    return subscribeToAllBanners(
       (data) => {
         setBanners(data);
+        setOrdered(data);
         setLoading(false);
+        setOptimisticActive((current) => {
+          const next = { ...current };
+          data.forEach((banner) => {
+            if (next[banner.id] === banner.active) delete next[banner.id];
+          });
+          return next;
+        });
       },
       () => setLoading(false)
     );
-    return unsub;
   }, []);
 
   const sorted = useMemo(
-    () => [...banners].sort((a, b) => a.sortOrder - b.sortOrder),
-    [banners]
+    () =>
+      [...banners]
+        .map((banner) => ({
+          ...banner,
+          active: optimisticActive[banner.id] ?? banner.active,
+        }))
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [banners, optimisticActive]
   );
 
-  const form = useForm({
-    resolver: zodResolver(bannerSchema),
-    defaultValues: {
-      title: "",
-      subtitle: "",
-      imageUrl: "",
-      mobileImageUrl: "",
-      cta: "",
-      ctaUrl: "",
-      active: true,
-      sortOrder: 0,
-      startDate: "",
-      endDate: "",
-    },
-  });
+  const pushToast = (message: string, type: "success" | "error" = "success") =>
+    setToasts((current) => [...current, createToast(message, type)]);
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({
-      title: "",
-      subtitle: "",
-      imageUrl: "",
-      mobileImageUrl: "",
-      cta: "",
-      ctaUrl: "",
-      active: true,
-      sortOrder: banners.length + 1,
-      startDate: "",
-      endDate: "",
-    });
     setError(null);
-    setOpen(true);
+    setWizardOpen(true);
   };
 
   const openEdit = (banner: BannerSlide) => {
     setEditing(banner);
-    form.reset({
-      title: banner.title,
-      subtitle: banner.subtitle,
-      imageUrl: banner.image,
-      mobileImageUrl: banner.mobileImage ?? "",
-      cta: banner.cta ?? "",
-      ctaUrl: banner.ctaUrl ?? "",
-      active: banner.active,
-      sortOrder: banner.sortOrder,
-      startDate: banner.startDate ?? "",
-      endDate: banner.endDate ?? "",
-    });
     setError(null);
-    setOpen(true);
+    setWizardOpen(true);
   };
 
-  const duplicateBanner = async (banner: BannerSlide) => {
-    await createBanner({
-      title: `${banner.title} (2)`,
-      subtitle: banner.subtitle,
-      imageUrl: banner.image,
-      mobileImageUrl: banner.mobileImage,
-      cta: banner.cta,
-      ctaUrl: banner.ctaUrl,
-      active: false,
-      sortOrder: banners.length + 1,
-      startDate: banner.startDate,
-      endDate: banner.endDate,
-    });
-  };
-
-  const onSubmit = form.handleSubmit(async (data) => {
+  const saveBanner = async (draft: BannerInput, initial: BannerInput) => {
+    if (saving) return;
     setSaving(true);
     setError(null);
-    const payload = {
-      ...data,
-      mobileImageUrl: data.mobileImageUrl || undefined,
-      startDate: data.startDate || undefined,
-      endDate: data.endDate || undefined,
-    };
-    const result = editing
-      ? await updateBanner(editing.id, payload)
-      : await createBanner(payload);
+    const patch = editing ? pickChangedBannerFields(draft, initial) : null;
+    if (editing && patch && Object.keys(patch).length === 0) {
+      setSaving(false);
+      setWizardOpen(false);
+      return;
+    }
+    const result = editing ? await updateBanner(editing.id, patch!) : await createBanner(draft);
     setSaving(false);
     if (!result.success) {
       setError(result.error);
       return;
     }
-    setOpen(false);
-  });
-
-  const handleDelete = async (id: string) => {
-    if (!confirm(t("admin.banners.deleteConfirm"))) return;
-    await deleteBanner(id);
+    pushToast(t("admin.banners.saveSuccess"));
+    setWizardOpen(false);
   };
 
   const toggleActive = async (banner: BannerSlide) => {
-    await updateBanner(banner.id, { active: !banner.active });
+    if (updatesInFlight.current.has(banner.id)) return;
+    updatesInFlight.current.add(banner.id);
+    const nextActive = !banner.active;
+    setOptimisticActive((current) => ({ ...current, [banner.id]: nextActive }));
+    const result = await updateBanner(banner.id, { active: nextActive });
+    if (!result.success) {
+      setOptimisticActive((current) => ({ ...current, [banner.id]: banner.active }));
+      pushToast(t("admin.banners.toggleError"), "error");
+    }
+    updatesInFlight.current.delete(banner.id);
   };
 
+  const duplicateBanner = async (banner: BannerSlide) => {
+    const draft = bannerToDraft(banner);
+    const result = await createBanner({
+      ...draft,
+      title: `${draft.title} (${t("admin.action.copy")})`,
+      titleHe: `${draft.titleHe || draft.title} (${t("admin.action.copy")})`,
+      active: false,
+      sortOrder: banners.length + 1,
+      startDate: "",
+      endDate: "",
+    });
+    pushToast(
+      result.success ? t("admin.banners.duplicateSuccess") : result.error,
+      result.success ? "success" : "error"
+    );
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget || saving) return;
+    setSaving(true);
+    const result = await deleteBanner(deleteTarget.id);
+    setSaving(false);
+    if (!result.success) {
+      pushToast(result.error, "error");
+      return;
+    }
+    pushToast(t("admin.banners.deleteSuccess"));
+    setDeleteTarget(null);
+  };
+
+  const handleReorder = async (items: BannerSlide[]) => {
+    setOrdered(items);
+    const result = await reorderBanners(items.map((item) => item.id));
+    if (!result.success) pushToast(result.error, "error");
+  };
+
+  const visibilityLabel = (banner: BannerSlide) => {
+    const status = bannerVisibility(banner);
+    return t(`admin.banners.visibility.${status}`);
+  };
+
+  const renderCard = (banner: BannerSlide, dragHandle?: React.ReactNode) => (
+    <article className={cn("overflow-hidden rounded-2xl border border-beige-dark/15 bg-warm-white shadow-soft", !banner.active && "opacity-80")}>
+      <div className="relative aspect-[16/9] bg-beige/30">
+        <Image src={banner.image} alt={banner.title} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
+          <Badge
+            variant="outline"
+            className={cn(
+              "bg-warm-white/95",
+              bannerVisibility(banner) === "live" && "border-emerald-300 text-emerald-700",
+              bannerVisibility(banner) === "scheduled" && "border-sky-300 text-sky-700",
+              bannerVisibility(banner) === "ended" && "border-stone-300 text-stone-600"
+            )}
+          >
+            {visibilityLabel(banner)}
+          </Badge>
+          {dragHandle}
+        </div>
+      </div>
+
+      <div className="space-y-3 p-4">
+        <div>
+          <h3 className="truncate font-semibold text-dark-brown dark:text-warm-white">{banner.title}</h3>
+          <p className="mt-0.5 line-clamp-2 text-sm text-coffee/55">{banner.subtitle}</p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs text-coffee/55">
+          <span>{t("admin.banners.desktop")} ✓</span>
+          <span>{t("admin.banners.mobile")} {banner.mobileImage ? "✓" : `— ${t("admin.banners.fallback")}`}</span>
+        </div>
+        {(banner.startDate || banner.endDate) && (
+          <p className="flex items-center gap-1.5 text-xs text-coffee/50">
+            <Calendar className="h-3.5 w-3.5" />
+            {banner.startDate ? formatDate(banner.startDate) : "—"} → {banner.endDate ? formatDate(banner.endDate) : "—"}
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 border-t border-beige-dark/15 pt-3">
+          <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => openEdit(banner)}>
+            <Pencil className="h-3.5 w-3.5" /> {t("admin.action.edit")}
+          </Button>
+          <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => setPreview(banner)}>
+            <Eye className="h-3.5 w-3.5" /> {t("admin.banners.preview")}
+          </Button>
+          <label className="flex cursor-pointer items-center gap-2 rounded-xl px-2 text-xs">
+            <span>{banner.active ? t("admin.status.active") : t("admin.status.inactive")}</span>
+            <input type="checkbox" role="switch" checked={banner.active} onChange={() => void toggleActive(banner)} className="h-4 w-8 accent-turquoise" />
+          </label>
+          <details className="relative">
+            <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-xl hover:bg-beige/40">
+              <MoreHorizontal className="h-4 w-4" />
+            </summary>
+            <div className="absolute end-0 top-10 z-20 w-44 space-y-1 rounded-xl border border-beige-dark/20 bg-warm-white p-2 shadow-elevated">
+              <button type="button" onClick={() => void duplicateBanner(banner)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm hover:bg-beige/40">
+                <Copy className="h-4 w-4" /> {t("admin.action.duplicate")}
+              </button>
+              <button type="button" onClick={() => setReorderMode(true)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm hover:bg-beige/40">
+                <GripVertical className="h-4 w-4" /> {t("admin.action.reorder")}
+              </button>
+              <button type="button" onClick={() => setDeleteTarget(banner)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm text-red-600 hover:bg-red-50">
+                <Trash2 className="h-4 w-4" /> {t("admin.action.delete")}
+              </button>
+            </div>
+          </details>
+        </div>
+      </div>
+    </article>
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <AdminPageHeader
         title={t("admin.banners.title")}
-        subtitle={t("admin.banners.subtitle")}
+        subtitle={t("admin.banners.managerSubtitle")}
         actions={
-          <Button onClick={openCreate} className="h-10 rounded-xl">
-            <Plus className="h-4 w-4" />
-            {t("admin.banners.add")}
-          </Button>
-        }
-      />
-
-      {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-72 rounded-2xl" />
-          ))}
-        </div>
-      ) : sorted.length === 0 ? (
-        <AdminEmptyState
-          icon={ImageIcon}
-          title={t("admin.table.empty")}
-          hint={t("admin.banners.dragHint")}
-          action={
-            <Button onClick={openCreate} className="rounded-xl">
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setReorderMode((value) => !value)}>
+              <GripVertical className="h-4 w-4" />
+              {t("admin.action.reorder")}
+            </Button>
+            <Button onClick={openCreate}>
               <Plus className="h-4 w-4" />
               {t("admin.banners.add")}
             </Button>
-          }
-        />
-      ) : (
+          </div>
+        }
+      />
+
+      <div className="flex flex-wrap gap-3 text-sm">
+        <span className="rounded-full bg-warm-white px-3 py-1.5 shadow-sm">{banners.length} {t("admin.banners.count")}</span>
+        <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700">{sorted.filter((banner) => banner.active).length} {t("admin.banners.activeCount")}</span>
+        <span className="rounded-full bg-stone-100 px-3 py-1.5 text-stone-600">{sorted.filter((banner) => !banner.active).length} {t("admin.banners.inactiveCount")}</span>
+      </div>
+
+      {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {sorted.map((banner, i) => (
-            <motion.div
-              key={banner.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className={cn(adminCardHover, "overflow-hidden p-0", !banner.active && "opacity-75")}
-            >
-              <div className="relative aspect-[16/9] w-full bg-beige/30">
-                <Image
-                  src={banner.image}
-                  alt={banner.title}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 640px) 100vw, 33vw"
-                />
-                <div className="absolute inset-x-0 bottom-0 flex gap-1.5 bg-gradient-to-t from-dark-brown/80 to-transparent p-3 pt-8">
-                  <Badge variant="outline" className="border-white/30 bg-dark-brown/50 text-[10px] text-white">
-                    {t("admin.banners.desktop")}
-                  </Badge>
-                  {banner.mobileImage && (
-                    <Badge variant="outline" className="border-white/30 bg-dark-brown/50 text-[10px] text-white">
-                      {t("admin.banners.mobile")}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-3 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-dark-brown dark:text-warm-white">{banner.title}</p>
-                    {banner.subtitle && (
-                      <p className="mt-0.5 line-clamp-2 text-xs text-coffee/50">{banner.subtitle}</p>
-                    )}
-                  </div>
-                  <Badge variant={isBannerLive(banner) ? "ready" : "cancelled"}>
-                    {isBannerLive(banner) ? t("admin.status.live") : t("admin.status.inactive")}
-                  </Badge>
-                </div>
-
-                {(banner.startDate || banner.endDate) && (
-                  <div className="flex items-center gap-1.5 text-[11px] text-coffee/50">
-                    <Calendar className="h-3 w-3 shrink-0" />
-                    <span>
-                      {banner.startDate ? formatDate(banner.startDate) : "—"} →{" "}
-                      {banner.endDate ? formatDate(banner.endDate) : "—"}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-1.5 border-t border-beige-dark/15 pt-3 dark:border-white/10">
-                  <Button variant="ghost" size="icon-sm" onClick={() => setPreview(banner)} title={t("admin.banners.preview")}>
-                    <Eye className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm" onClick={() => openEdit(banner)} title={t("admin.action.edit")}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm" onClick={() => duplicateBanner(banner)} title={t("admin.action.duplicate")}>
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm" onClick={() => toggleActive(banner)} title={banner.active ? t("admin.action.disable") : t("admin.action.enable")}>
-                    <Power className={cn("h-3.5 w-3.5", banner.active ? "text-emerald-600" : "text-gray-400")} />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(banner.id)} title={t("admin.action.delete")}>
-                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+          {Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-80 rounded-2xl" />)}
         </div>
-      )}
-
-      <Dialog open={!!preview} onOpenChange={() => setPreview(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t("admin.banners.preview")}</DialogTitle>
-          </DialogHeader>
-          {preview && (
-            <div className="space-y-4">
+      ) : sorted.length === 0 ? (
+        <AdminEmptyState
+          icon={Plus}
+          title={t("admin.banners.emptyTitle")}
+          hint={t("admin.banners.emptyHint")}
+          action={<Button onClick={openCreate}><Plus className="h-4 w-4" />{t("admin.banners.add")}</Button>}
+        />
+      ) : reorderMode ? (
+        <SortableList
+          items={ordered}
+          onReorder={handleReorder}
+          className="space-y-3"
+          renderItem={(banner, dragHandle) => (
+            <div className="grid grid-cols-[140px_1fr_auto] items-center gap-3 rounded-2xl border border-beige-dark/15 bg-warm-white p-3 shadow-soft">
               <div className="relative aspect-video overflow-hidden rounded-xl">
-                <Image src={preview.image} alt={preview.title} fill className="object-cover" sizes="800px" />
+                <Image src={banner.image} alt="" fill className="object-cover" sizes="140px" />
               </div>
-              {preview.mobileImage && (
-                <div className="relative mx-auto aspect-[9/16] max-h-64 overflow-hidden rounded-xl">
-                  <Image src={preview.mobileImage} alt="" fill className="object-cover" sizes="300px" />
-                </div>
-              )}
+              <div className="min-w-0"><p className="truncate font-semibold">{banner.title}</p><p className="text-xs text-coffee/50">{visibilityLabel(banner)}</p></div>
+              {dragHandle}
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{sorted.map((banner) => <div key={banner.id}>{renderCard(banner)}</div>)}</div>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editing ? t("admin.banners.edit") : t("admin.banners.new")}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="title">{t("admin.banners.titleField")}</Label>
-              <Input id="title" {...form.register("title")} className="mt-1 rounded-xl" />
+      <BannerWizard
+        open={wizardOpen}
+        editing={editing}
+        nextSortOrder={banners.length + 1}
+        products={products}
+        categories={categories}
+        saving={saving}
+        error={error}
+        onOpenChange={setWizardOpen}
+        onSave={(draft, initial) => void saveBanner(draft, initial)}
+      />
+
+      <AdminDialog open={preview != null} onOpenChange={(open) => !open && setPreview(null)}>
+        <AdminDialogContent size="product">
+          <AdminDialogHeader>
+            <AdminDialogTitle>{t("admin.banners.preview")}</AdminDialogTitle>
+            <div className="mt-2 flex max-w-xs gap-2">
+              {(["desktop", "mobile"] as const).map((device) => (
+                <button key={device} onClick={() => setPreviewDevice(device)} className={cn("flex-1 rounded-lg px-3 py-2 text-sm", previewDevice === device ? "bg-turquoise text-white" : "bg-beige/30")}>
+                  {t(`admin.banners.${device}`)}
+                </button>
+              ))}
             </div>
-            <div>
-              <Label htmlFor="subtitle">{t("admin.banners.subtitleField")}</Label>
-              <Input id="subtitle" {...form.register("subtitle")} className="mt-1 rounded-xl" />
-            </div>
-            <ImageUpload
-              label={t("admin.banners.desktopImage")}
-              value={form.watch("imageUrl")}
-              onChange={(url) => form.setValue("imageUrl", url)}
-              onUpload={(file, onProgress) =>
-                uploadBannerImage(file, `${editing?.id ?? `new-${Date.now()}`}-desktop`, onProgress)
-              }
-              onDelete={deleteImageByUrl}
-            />
-            <ImageUpload
-              label={t("admin.banners.mobileImage")}
-              value={form.watch("mobileImageUrl") ?? ""}
-              onChange={(url) => form.setValue("mobileImageUrl", url)}
-              onUpload={(file, onProgress) =>
-                uploadBannerImage(file, `${editing?.id ?? `new-${Date.now()}`}-mobile`, onProgress)
-              }
-              onDelete={deleteImageByUrl}
-            />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="cta">{t("admin.banners.ctaText")}</Label>
-                <Input id="cta" {...form.register("cta")} className="mt-1 rounded-xl" />
-              </div>
-              <div>
-                <Label htmlFor="ctaUrl">{t("admin.banners.ctaLink")}</Label>
-                <Input id="ctaUrl" {...form.register("ctaUrl")} className="mt-1 rounded-xl" />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="startDate">{t("admin.banners.startDate")}</Label>
-                <Input id="startDate" type="datetime-local" {...form.register("startDate")} className="mt-1 rounded-xl" />
-              </div>
-              <div>
-                <Label htmlFor="endDate">{t("admin.banners.endDate")}</Label>
-                <Input id="endDate" type="datetime-local" {...form.register("endDate")} className="mt-1 rounded-xl" />
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" {...form.register("active")} className="rounded" />
-              {t("admin.status.active")}
-            </label>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <Button type="submit" className="h-10 w-full rounded-xl" disabled={saving}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : editing ? (
-                t("admin.action.save")
-              ) : (
-                t("admin.action.create")
-              )}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </AdminDialogHeader>
+          <AdminDialogBody>
+            {preview && <div className={cn("mx-auto", previewDevice === "mobile" ? "max-w-[360px]" : "max-w-5xl")}><BannerHero banner={preview} device={previewDevice} interactive={false} /></div>}
+          </AdminDialogBody>
+        </AdminDialogContent>
+      </AdminDialog>
+
+      <AdminDialog open={deleteTarget != null} onOpenChange={(open) => !saving && !open && setDeleteTarget(null)}>
+        <AdminDialogContent size="sm">
+          <AdminDialogHeader><AdminDialogTitle>{t("admin.banners.deleteTitle")}</AdminDialogTitle></AdminDialogHeader>
+          <AdminDialogBody>
+            <p>{t("admin.banners.deleteQuestion").replace("{title}", deleteTarget?.title ?? "")}</p>
+            <p className="mt-2 text-sm text-coffee/55">{t("admin.banners.deleteHint")}</p>
+          </AdminDialogBody>
+          <AdminDialogFooter>
+            <Button variant="outline" disabled={saving} onClick={() => setDeleteTarget(null)}>{t("admin.action.cancel")}</Button>
+            <Button variant="destructive" disabled={saving} onClick={() => void handleDelete()}>{t("admin.action.delete")}</Button>
+          </AdminDialogFooter>
+        </AdminDialogContent>
+      </AdminDialog>
+
+      <AdminToastStack toasts={toasts} onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))} />
     </div>
   );
 }

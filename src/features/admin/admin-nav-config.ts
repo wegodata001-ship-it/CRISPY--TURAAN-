@@ -4,13 +4,12 @@ import {
   Package,
   Tags,
   Layers,
-  Wrench,
+  Link2,
   GitBranch,
   ClipboardList,
   Users,
   ImageIcon,
   MessageSquare,
-  FolderOpen,
   UserCog,
   Settings,
 } from "lucide-react";
@@ -38,8 +37,9 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { href: "/admin/products", labelKey: "admin.products", icon: Package },
       { href: "/admin/categories", labelKey: "admin.categories", icon: Tags },
-      { href: "/admin/modifier-groups", labelKey: "admin.modifierGroups", icon: Layers },
-      { href: "/admin/product-builder", labelKey: "admin.productBuilder", icon: Wrench },
+      { href: "/admin/modifier-groups", labelKey: "admin.modifierManagement", icon: Layers },
+      { href: "/admin/product-builder", labelKey: "admin.productAssignments", icon: Link2 },
+      { href: "/admin/business-rules", labelKey: "admin.selectionRules", icon: GitBranch },
     ],
   },
   {
@@ -53,13 +53,11 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     labelKey: "admin.nav.group.content",
     items: [
       { href: "/admin/banners", labelKey: "admin.banners", icon: ImageIcon },
-      { href: "/admin/media", labelKey: "admin.media", icon: FolderOpen },
     ],
   },
   {
     labelKey: "admin.nav.group.system",
     items: [
-      { href: "/admin/business-rules", labelKey: "admin.businessRules", icon: GitBranch },
       { href: "/admin/assistant", labelKey: "admin.assistantManager", icon: MessageSquare },
       { href: "/admin/users", labelKey: "admin.users", icon: UserCog, adminOnly: true },
       { href: "/admin/settings", labelKey: "admin.settings", icon: Settings },
@@ -73,8 +71,8 @@ export const ADMIN_PAGE_TITLES: Record<string, string> = {
   "/admin/products": "admin.products",
   "/admin/categories": "admin.categories",
   "/admin/modifier-groups": "admin.modifiers.title",
-  "/admin/product-builder": "admin.builder.title",
-  "/admin/business-rules": "admin.rules.title",
+  "/admin/product-builder": "admin.productAssignments",
+  "/admin/business-rules": "admin.selectionRules",
   "/admin/orders": "admin.orders.title",
   "/admin/customers": "admin.customers.title",
   "/admin/banners": "admin.banners.title",

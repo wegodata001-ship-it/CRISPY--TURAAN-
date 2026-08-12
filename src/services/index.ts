@@ -81,6 +81,7 @@ export {
   createOrder,
   createOrderFromCart,
   updateOrder,
+  updateOrderStatus,
   updateOrderItemExtras,
   deleteOrder,
 } from "./orderService";
