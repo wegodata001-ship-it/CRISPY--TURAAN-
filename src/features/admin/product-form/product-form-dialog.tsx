@@ -32,7 +32,7 @@ import {
   AdminDialogTitle,
 } from "@/features/admin/components/admin-dialog";
 import { useLocale, useT } from "@/components/providers/locale-provider";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import { CategorySearchSelect } from "./category-search-select";
 import {
   ProductModifiersPanel,
@@ -46,9 +46,12 @@ import {
   calcProfitMetrics,
   clearProductDraft,
   DEFAULT_PRODUCT_VALUES,
+  draftHadLocalOnlyImage,
+  getDraftDurableImage,
   loadProductDraft,
   saveProductDraft,
   type ManualTranslateField,
+  type ProductDraftPayload,
   type ProductFormTab,
 } from "./product-form-types";
 import type { Category, Product } from "@/types";
@@ -98,7 +101,11 @@ export function ProductFormDialog({
   const [isDirty, setIsDirty] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [toasts, setToasts] = useState<AdminToast[]>([]);
+  const [draftBanner, setDraftBanner] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<ProductDraftPayload | null>(null);
+  const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved">("idle");
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftStatusClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTranslatedName = useRef("");
   const lastTranslatedDesc = useRef("");
   const initialFormSnapshotRef = useRef<ProductInput | null>(null);
@@ -190,6 +197,9 @@ export function ProductFormDialog({
     setManualFields(new Set());
     setIsDirty(false);
     setSaveState("idle");
+    setDraftBanner(false);
+    setPendingDraft(null);
+    setDraftStatus("idle");
     initialModifierLinksRef.current = [];
     setModifierLinks([]);
 
@@ -211,25 +221,75 @@ export function ProductFormDialog({
       };
     }
 
+    // Always open immediately with a fresh form. Draft never blocks the dialog.
+    // Valid draft → in-dialog banner (no window.confirm). Do NOT auto-save over it.
     const draft = loadProductDraft();
-    if (draft && !draft.editingId) {
-      const restore = confirm(t("admin.productForm.restoreDraft"));
-      if (restore) {
-        form.reset(draft.values);
-        setGalleryUrls(draft.galleryUrls);
-        setLinkedGroupIds(draft.linkedGroupIds);
-        setModifierLinks([]);
-        initialLinkedGroupIdsRef.current = [...draft.linkedGroupIds];
-        initialModifierLinksRef.current = [];
-        initialFormSnapshotRef.current = draft.values;
-        setManualFields(new Set(draft.manualFields));
-        return;
-      }
-      clearProductDraft();
-    }
-
     resetFormFromProduct(null, productsCount + 1);
-  }, [open, editing, form, productsCount, resetFormFromProduct, t]);
+    if (draft && !draft.editingId) {
+      setPendingDraft(draft);
+      setDraftBanner(true);
+    }
+  }, [open, editing, productsCount, resetFormFromProduct]);
+
+  const applyPendingDraft = useCallback(() => {
+    const draft = pendingDraft ?? loadProductDraft();
+    if (!draft) {
+      setDraftBanner(false);
+      setPendingDraft(null);
+      return;
+    }
+    const durableImage = getDraftDurableImage(draft);
+    const values: ProductInput = {
+      ...DEFAULT_PRODUCT_VALUES,
+      ...draft.values,
+      imageUrl: durableImage ?? "",
+    };
+    form.reset(values);
+    setGalleryUrls(durableImage ? [durableImage] : []);
+    setLinkedGroupIds(draft.linkedGroupIds);
+    setModifierLinks([]);
+    initialLinkedGroupIdsRef.current = [...draft.linkedGroupIds];
+    initialModifierLinksRef.current = [];
+    initialFormSnapshotRef.current = values;
+    setManualFields(new Set(draft.manualFields));
+    setIsDirty(true);
+    setPendingDraft(null);
+    setDraftBanner(false);
+    setDraftStatus("saved");
+  }, [form, pendingDraft]);
+
+  const discardPendingDraft = useCallback(() => {
+    clearProductDraft();
+    setPendingDraft(null);
+    setDraftBanner(false);
+    setDraftStatus("idle");
+    resetFormFromProduct(null, productsCount + 1);
+    setIsDirty(false);
+  }, [productsCount, resetFormFromProduct]);
+
+  const draftPreview = useMemo(() => {
+    if (!pendingDraft) return null;
+    const values = pendingDraft.values;
+    const category = categories.find((c) => c.id === values.categoryId);
+    const categoryLabel =
+      category?.name_he || category?.name_en || category?.name_ar || "";
+    const durableImage = getDraftDurableImage(pendingDraft);
+    const localOnlyImage = !durableImage && draftHadLocalOnlyImage(pendingDraft);
+    let savedLabel = "";
+    try {
+      savedLabel = new Date(pendingDraft.savedAt).toLocaleString();
+    } catch {
+      savedLabel = pendingDraft.savedAt;
+    }
+    return {
+      name: values.nameHe.trim() || values.nameEn.trim() || values.nameAr.trim(),
+      categoryLabel,
+      price: Number(values.price) || 0,
+      durableImage,
+      localOnlyImage,
+      savedLabel,
+    };
+  }, [pendingDraft, categories]);
 
   useEffect(() => {
     if (!open) return;
@@ -256,6 +316,10 @@ export function ProductFormDialog({
       return;
     }
     if (saving) return;
+    // Persist draft on close for create flows — never clear draft here.
+    if (!editing && !draftBanner) {
+      persistDraft();
+    }
     if (isDirty && !confirm(t("admin.productForm.unsavedConfirm"))) return;
     onOpenChange(false);
   };
@@ -267,8 +331,20 @@ export function ProductFormDialog({
   }, [open]);
 
   const persistDraft = useCallback(() => {
-    if (editing) return;
+    if (editing || draftBanner) return;
     const values = form.getValues();
+    // Skip writing empty "noise" drafts that would clobber a richer saved draft.
+    const hasSignal =
+      values.nameHe.trim() ||
+      values.nameEn.trim() ||
+      values.nameAr.trim() ||
+      Number(values.price) > 0 ||
+      Boolean(values.imageUrl) ||
+      galleryUrls.length > 0 ||
+      linkedGroupIds.length > 0;
+    if (!hasSignal) return;
+
+    setDraftStatus("saving");
     saveProductDraft({
       values,
       galleryUrls,
@@ -277,16 +353,23 @@ export function ProductFormDialog({
       editingId: null,
       savedAt: new Date().toISOString(),
     });
-  }, [editing, form, galleryUrls, linkedGroupIds, manualFields]);
+    if (draftStatusClearTimer.current) clearTimeout(draftStatusClearTimer.current);
+    setDraftStatus("saved");
+    draftStatusClearTimer.current = setTimeout(() => setDraftStatus("idle"), 2500);
+  }, [draftBanner, editing, form, galleryUrls, linkedGroupIds, manualFields]);
 
   useEffect(() => {
-    if (!open || editing) return;
+    if (!open || editing || draftBanner) return;
     const sub = form.watch(() => {
+      setDraftStatus("saving");
       if (draftTimer.current) clearTimeout(draftTimer.current);
-      draftTimer.current = setTimeout(persistDraft, 800);
+      draftTimer.current = setTimeout(persistDraft, 700);
     });
-    return () => sub.unsubscribe();
-  }, [open, editing, form, persistDraft]);
+    return () => {
+      sub.unsubscribe();
+      if (draftTimer.current) clearTimeout(draftTimer.current);
+    };
+  }, [open, editing, form, persistDraft, draftBanner]);
 
   const markManual = (field: ManualTranslateField) => {
     setManualFields((prev) => new Set(prev).add(field));
@@ -449,12 +532,12 @@ export function ProductFormDialog({
       <AdminDialogContent
         size="product"
         className={cn(
-          "max-h-[calc(100dvh-48px)] min-h-[min(420px,calc(100dvh-48px))] w-[min(900px,calc(100vw-24px))] rounded-[20px] bg-[#FFFFFF]",
+          "rounded-[20px] bg-[#FFFFFF]",
           dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto [&>button]:end-auto"
         )}
       >
         <AdminDialogHeader className="px-4 py-3 sm:px-6 sm:py-4">
-          <AdminDialogTitle className="flex items-center gap-2 text-start font-display text-lg sm:text-xl">
+          <AdminDialogTitle className="flex flex-wrap items-center gap-2 text-start font-display text-lg sm:text-xl">
             {editing ? t("admin.products.edit") : t("admin.products.new")}
             {isDirty && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
@@ -465,8 +548,81 @@ export function ProductFormDialog({
             {saveState === "saved" && (
               <span className="text-xs font-medium text-emerald-600">{t("admin.productForm.savedLabel")}</span>
             )}
+            {!editing && draftStatus === "saving" && (
+              <span className="text-xs font-medium text-coffee/55">{t("admin.productForm.draftSaving")}</span>
+            )}
+            {!editing && draftStatus === "saved" && (
+              <span className="text-xs font-medium text-turquoise">{t("admin.productForm.draftSaved")}</span>
+            )}
           </AdminDialogTitle>
         </AdminDialogHeader>
+
+        {draftBanner && !editing && draftPreview && (
+          <div className="shrink-0 border-b border-amber-200/80 bg-amber-50 px-4 py-3 sm:px-6 dark:border-amber-900/40 dark:bg-amber-950/40">
+            <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+              {t("admin.productForm.draftBanner")}
+            </p>
+            <div className="mt-3 flex gap-3">
+              {draftPreview.durableImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={draftPreview.durableImage}
+                  alt=""
+                  className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-amber-200/80"
+                />
+              ) : (
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-amber-100/80 text-[10px] text-amber-800/70 ring-1 ring-amber-200/60">
+                  {draftPreview.localOnlyImage
+                    ? t("admin.productForm.draftImageMissingShort")
+                    : "—"}
+                </div>
+              )}
+              <div className="min-w-0 flex-1 space-y-0.5 text-sm text-amber-950/90 dark:text-amber-50/90">
+                {draftPreview.name ? (
+                  <p className="truncate font-semibold">{draftPreview.name}</p>
+                ) : (
+                  <p className="text-amber-800/70 dark:text-amber-200/70">
+                    {t("admin.productForm.draftNoName")}
+                  </p>
+                )}
+                {draftPreview.categoryLabel ? (
+                  <p className="truncate text-xs">
+                    {t("admin.productForm.draftCategory")}: {draftPreview.categoryLabel}
+                  </p>
+                ) : null}
+                {draftPreview.price > 0 ? (
+                  <p className="text-xs">
+                    {t("admin.productForm.draftPrice")}: {formatPrice(draftPreview.price)}
+                  </p>
+                ) : null}
+                {draftPreview.localOnlyImage ? (
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    {t("admin.productForm.draftImageMissing")}
+                  </p>
+                ) : null}
+                {draftPreview.savedLabel ? (
+                  <p className="text-[11px] text-amber-800/65 dark:text-amber-200/65">
+                    {t("admin.productForm.draftSavedAt")}: {draftPreview.savedLabel}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button type="button" size="sm" className="rounded-xl" onClick={applyPendingDraft}>
+                {t("admin.productForm.draftRestore")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-xl"
+                onClick={discardPendingDraft}
+              >
+                {t("admin.productForm.draftDiscard")}
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-beige-dark/20 px-3 py-2 sm:px-4 dark:border-white/10">
           {TABS.map(({ id, icon: Icon, labelKey }) => (

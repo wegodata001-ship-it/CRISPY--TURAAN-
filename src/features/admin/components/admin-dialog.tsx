@@ -13,15 +13,16 @@ import { cn } from "@/lib/utils";
 type AdminDialogSize = "sm" | "md" | "lg" | "xl" | "product";
 
 /**
- * Width tokens — positioning is ALWAYS viewport-centered via Dialog layout="center"
- * (fixed flex shell). Never rely on translate or page-relative absolute.
+ * Width tokens — positioning is ALWAYS via Dialog layout="center"
+ * (Overlay dimmer sibling + fixed Positioner). Never translate centering.
  */
 const SIZE_CLASS: Record<AdminDialogSize, string> = {
   sm: "w-[min(520px,calc(100vw-24px))] max-w-[min(520px,calc(100vw-24px))]",
-  md: "w-[min(680px,calc(100vw-48px))] max-w-[min(680px,calc(100vw-48px))]",
-  lg: "w-[min(820px,calc(100vw-48px))] max-w-[min(820px,calc(100vw-48px))]",
-  xl: "w-[min(900px,calc(100vw-48px))] max-w-[min(900px,calc(100vw-48px))]",
-  product: "w-[min(900px,calc(100vw-48px))] max-w-[min(900px,calc(100vw-48px))]",
+  md: "w-[min(680px,calc(100vw-48px))] max-w-[min(680px,calc(100vw-48px))] max-sm:w-[calc(100vw-24px)] max-sm:max-w-[calc(100vw-24px)]",
+  lg: "w-[min(820px,calc(100vw-48px))] max-w-[min(820px,calc(100vw-48px))] max-sm:w-[calc(100vw-24px)] max-sm:max-w-[calc(100vw-24px)]",
+  xl: "w-[min(900px,calc(100vw-48px))] max-w-[min(900px,calc(100vw-48px))] max-sm:w-[calc(100vw-24px)] max-sm:max-w-[calc(100vw-24px)]",
+  product:
+    "w-[min(900px,calc(100vw-48px))] max-w-[min(900px,calc(100vw-48px))] max-sm:w-[calc(100vw-24px)] max-sm:max-w-[calc(100vw-24px)]",
 };
 
 const AdminDialog = Dialog;
@@ -41,7 +42,7 @@ const AdminDialogContent = React.forwardRef<
       dir={dir}
       className={cn(
         // Opaque white panel — overflow hidden; ONLY AdminDialogBody scrolls
-        "flex max-h-[calc(100dvh-48px)] flex-col gap-0 overflow-hidden rounded-[20px] border border-black/[0.06] bg-[#FFFFFF] p-0 shadow-elevated",
+        "flex max-h-[calc(100dvh-24px)] flex-col gap-0 overflow-hidden rounded-[20px] border border-black/[0.06] bg-[#FFFFFF] p-0 shadow-elevated sm:max-h-[calc(100dvh-48px)]",
         SIZE_CLASS[size],
         dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto [&>button]:end-auto",
         className

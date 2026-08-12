@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  * Single z-index hierarchy for overlays:
  * content/sidebar 0–50 · dropdown 100 · popover 200 ·
  * fullscreen surfaces (kitchen) 900 ·
- * modal overlay 1000 · modal content 1010 · nested select 1020 · toast 1100
+ * modal overlay 1000 · modal positioner/content 1010 · nested select 1020 · toast 1100
  */
 export const DIALOG_Z = {
   overlay: "z-[1000]",
@@ -22,6 +22,7 @@ const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
 
+/** Dimmer only — never a flex centering container, never nests Content. */
 const DialogOverlay = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
@@ -29,7 +30,6 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      // Background alpha only — NEVER use opacity on this node when Content is nested
       "fixed inset-0 bg-black/[0.38] backdrop-blur-[2px]",
       DIALOG_Z.overlay,
       className
@@ -39,11 +39,41 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+/**
+ * Viewport positioner — sibling of Overlay (NOT a child).
+ * Centers Content; overflow scrolls the shell if needed.
+ * pointer-events:none so clicks on empty space hit the Overlay and dismiss.
+ */
+function DialogPositioner({
+  className,
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      data-slot="dialog-positioner"
+      className={cn(
+        // Sibling of Overlay — centers Content in the VIEWPORT.
+        // Content must keep max-h ≤ viewport so items-center cannot push top < 0.
+        "fixed inset-0 flex items-center justify-center overflow-y-auto",
+        "p-3 sm:p-6",
+        "pointer-events-none",
+        DIALOG_Z.content,
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   overlayClassName?: string;
   /**
-   * center — Content nested inside Overlay (Radix scrollable-overlay pattern)
-   * custom — consumer owns positioning (side panels / bottom sheets)
+   * center — Overlay (dimmer) + Positioner (flex center) as siblings
+   * custom — consumer owns all positioning (side panels / bottom sheets)
    */
   layout?: "center" | "custom";
 };
@@ -60,17 +90,12 @@ const DialogContent = React.forwardRef<
   );
 
   if (layout === "custom") {
-    // Consumer owns position (bottom sheet / side panel). Do NOT force white
-    // full-bleed — only keep opacity:1 so parents never wash out the panel.
     return (
       <DialogPortal>
         <DialogOverlay className={overlayClassName} />
         <DialogPrimitive.Content
           ref={ref}
-          className={cn(
-            "fixed z-[1010] outline-none",
-            className
-          )}
+          className={cn("fixed outline-none", DIALOG_Z.content, className)}
           style={{ opacity: 1, ...style }}
           {...props}
         >
@@ -81,21 +106,18 @@ const DialogContent = React.forwardRef<
     );
   }
 
-  // Official Radix pattern: nest Content inside Overlay (viewport center, no translate).
-  // Opaque panel styles are inline so production CSS purge cannot hide the dialog.
+  // ROOT FIX: Overlay and Content are SIBLINGS.
+  // Overlay = dimmer only. Positioner = viewport centering.
   return (
     <DialogPortal>
-      <DialogOverlay
-        className={cn(
-          "flex items-center justify-center overflow-y-auto p-3 sm:p-6",
-          overlayClassName
-        )}
-      >
+      <DialogOverlay className={overlayClassName} />
+      <DialogPositioner>
         <DialogPrimitive.Content
           ref={ref}
           className={cn(
-            "relative my-auto flex w-full max-w-md shrink-0 flex-col gap-4",
-            "max-h-[calc(100dvh-48px)] overflow-hidden rounded-[20px]",
+            "pointer-events-auto relative flex w-full max-w-md shrink-0 flex-col gap-4",
+            "max-h-[calc(100dvh-24px)] sm:max-h-[calc(100dvh-48px)]",
+            "overflow-hidden rounded-[20px]",
             "border border-black/[0.06] p-6 text-dark-brown shadow-elevated outline-none",
             className
           )}
@@ -105,7 +127,7 @@ const DialogContent = React.forwardRef<
           {children}
           {closeButton}
         </DialogPrimitive.Content>
-      </DialogOverlay>
+      </DialogPositioner>
     </DialogPortal>
   );
 });
