@@ -4,13 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import { Button } from "@/components/ui/button";
 import { ProductBuilder } from "@/features/catalog/product-builder";
 import { useProductBuilderConfig } from "@/hooks/useModifiers";
@@ -109,15 +108,14 @@ export function OrderItemExtrasDialog({
   };
 
   return (
-    <AdminDialog open={open} onOpenChange={onOpenChange}>
-      <AdminDialogContent size="sm">
-        <AdminDialogHeader>
-          <AdminDialogTitle className="text-start">
+    <AdminModal open={open} onOpenChange={onOpenChange} size="sm">
+        <AdminModalHeader onClose={() => onOpenChange(false)}>
+          <AdminModalTitle className="text-start">
             {t("admin.orders.editExtras")} — {item?.productName}
-          </AdminDialogTitle>
-        </AdminDialogHeader>
+          </AdminModalTitle>
+        </AdminModalHeader>
 
-        <AdminDialogBody>
+        <AdminModalBody>
         {loadingProduct || loadingConfig ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-turquoise" />
@@ -157,9 +155,9 @@ export function OrderItemExtrasDialog({
         )}
 
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        </AdminDialogBody>
+        </AdminModalBody>
 
-        <AdminDialogFooter>
+        <AdminModalFooter>
           <Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
             {t("admin.action.cancel")}
           </Button>
@@ -171,8 +169,7 @@ export function OrderItemExtrasDialog({
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.action.save")}
           </Button>
-        </AdminDialogFooter>
-      </AdminDialogContent>
-    </AdminDialog>
+        </AdminModalFooter>
+    </AdminModal>
   );
 }

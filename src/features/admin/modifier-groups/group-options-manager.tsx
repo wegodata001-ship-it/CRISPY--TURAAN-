@@ -12,13 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import { useT } from "@/components/providers/locale-provider";
 import { normalizeModifierOptionInput } from "@/lib/validation/modifier-normalize";
 import type { ModifierGroup, ModifierOption } from "@/types/modifiers";
@@ -203,22 +202,22 @@ export function GroupOptionsManager({
         </ul>
       )}
 
-      <AdminDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <AdminDialogContent
-          size="sm"
+      <AdminModal open={dialogOpen} onOpenChange={setDialogOpen} size="sm">
+        <div
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
               void handleSave();
             }
           }}
+          className="flex min-h-0 flex-1 flex-col"
         >
-          <AdminDialogHeader>
-            <AdminDialogTitle>
+          <AdminModalHeader onClose={() => setDialogOpen(false)}>
+            <AdminModalTitle>
               {editing ? t("admin.modifiers.editOption") : t("admin.modifiers.newOption")}
-            </AdminDialogTitle>
-          </AdminDialogHeader>
-          <AdminDialogBody className="space-y-4">
+            </AdminModalTitle>
+          </AdminModalHeader>
+          <AdminModalBody className="space-y-4">
             <div>
               <Label>{t("admin.modifiers.nameHeRequired")}</Label>
               <Input
@@ -241,8 +240,8 @@ export function GroupOptionsManager({
               />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
-          </AdminDialogBody>
-          <AdminDialogFooter>
+          </AdminModalBody>
+          <AdminModalFooter>
             <Button
               type="button"
               variant="outline"
@@ -260,9 +259,9 @@ export function GroupOptionsManager({
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.action.save")}
             </Button>
-          </AdminDialogFooter>
-        </AdminDialogContent>
-      </AdminDialog>
+          </AdminModalFooter>
+        </div>
+      </AdminModal>
     </section>
   );
 }

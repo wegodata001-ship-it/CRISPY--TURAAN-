@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SortableList } from "@/components/admin/sortable-list";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import { AdminToastStack, createToast, type AdminToast } from "@/features/admin/components/admin-toast";
 import { AssistantManagerPreview } from "@/features/admin/assistant-manager/assistant-preview";
 import { LocalizedEditor } from "@/features/admin/assistant-manager/localized-editor";
@@ -470,12 +469,10 @@ export function AssistantManagerAdmin() {
         onOpenChange={(open) => !open && setActionEditor(undefined)}
         onSave={saveAction}
       />
-      <AdminDialog open={mobilePreview} onOpenChange={setMobilePreview}>
-        <AdminDialogContent size="sm">
-          <AdminDialogHeader><AdminDialogTitle>{t("admin.assistant.preview")}</AdminDialogTitle></AdminDialogHeader>
-          <AdminDialogBody className="p-3"><AssistantManagerPreview config={config} /></AdminDialogBody>
-        </AdminDialogContent>
-      </AdminDialog>
+      <AdminModal open={mobilePreview} onOpenChange={setMobilePreview} size="sm">
+        <AdminModalHeader onClose={() => setMobilePreview(false)}><AdminModalTitle>{t("admin.assistant.preview")}</AdminModalTitle></AdminModalHeader>
+        <AdminModalBody className="p-3"><AssistantManagerPreview config={config} /></AdminModalBody>
+      </AdminModal>
       <AdminToastStack toasts={toasts} onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))} />
     </div>
   );

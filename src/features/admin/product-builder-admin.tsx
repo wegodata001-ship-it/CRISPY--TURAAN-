@@ -29,13 +29,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getProductImage } from "@/lib/menu/placeholders";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import {
   AdminToastStack,
   createToast,
@@ -434,22 +433,22 @@ export function ProductBuilderAdmin() {
         </section>
       </div>
 
-      <AdminDialog
+      <AdminModal
         open={linkOpen}
         onOpenChange={(open) => {
           setLinkOpen(open);
           if (!open) resetCreateForm();
         }}
+        size="sm"
       >
-        <AdminDialogContent size="sm">
-          <AdminDialogHeader>
-            <AdminDialogTitle>
-              {createMode
-                ? t("admin.builder.createNewGroup")
-                : t("admin.builder.addModifierGroup")}
-            </AdminDialogTitle>
-          </AdminDialogHeader>
-          <AdminDialogBody>
+        <AdminModalHeader onClose={() => { setLinkOpen(false); resetCreateForm(); }}>
+          <AdminModalTitle>
+            {createMode
+              ? t("admin.builder.createNewGroup")
+              : t("admin.builder.addModifierGroup")}
+          </AdminModalTitle>
+        </AdminModalHeader>
+        <AdminModalBody>
             {createMode ? (
               <div className="space-y-4">
                 <div>
@@ -563,138 +562,131 @@ export function ProductBuilderAdmin() {
                 </button>
               </>
             )}
-          </AdminDialogBody>
-          <AdminDialogFooter className="justify-between">
-            {createMode ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setCreateMode(false);
-                    setCreateError(null);
-                  }}
-                  disabled={creating}
-                >
-                  <ArrowRight className="h-4 w-4" />
-                  {t("admin.builder.backToList")}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={creating || !newGroupName.trim()}
-                  onClick={() => void createAndAssignGroup()}
-                >
-                  {creating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    t("admin.builder.createAndAssign")
-                  )}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setLinkOpen(false)}
-                >
-                  {t("admin.action.cancel")}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={selectedGroupIds.size === 0}
-                  onClick={addSelectedGroups}
-                >
-                  {t("admin.builder.addSelectedGroups")}
-                </Button>
-              </>
-            )}
-          </AdminDialogFooter>
-        </AdminDialogContent>
-      </AdminDialog>
+        </AdminModalBody>
+        <AdminModalFooter className="justify-between">
+          {createMode ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCreateMode(false);
+                  setCreateError(null);
+                }}
+                disabled={creating}
+              >
+                <ArrowRight className="h-4 w-4" />
+                {t("admin.builder.backToList")}
+              </Button>
+              <Button
+                type="button"
+                disabled={creating || !newGroupName.trim()}
+                onClick={() => void createAndAssignGroup()}
+              >
+                {creating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  t("admin.builder.createAndAssign")
+                )}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setLinkOpen(false)}
+              >
+                {t("admin.action.cancel")}
+              </Button>
+              <Button
+                type="button"
+                disabled={selectedGroupIds.size === 0}
+                onClick={addSelectedGroups}
+              >
+                {t("admin.builder.addSelectedGroups")}
+              </Button>
+            </>
+          )}
+        </AdminModalFooter>
+      </AdminModal>
 
-      <AdminDialog open={Boolean(removeLink)} onOpenChange={(open) => !open && setRemoveLink(null)}>
-        <AdminDialogContent size="sm">
-          <AdminDialogHeader><AdminDialogTitle>{t("admin.builder.removeAssignment")}</AdminDialogTitle></AdminDialogHeader>
-          <AdminDialogBody>
-            <p>
-              {t("admin.builder.removeAssignmentQuestion")
-                .replace("{group}", groupById.get(removeLink?.groupId ?? "")?.name_he || "")
-                .replace("{product}", product?.name_he || "")}
-            </p>
-          </AdminDialogBody>
-          <AdminDialogFooter>
-            <Button variant="outline" onClick={() => setRemoveLink(null)}>{t("admin.action.cancel")}</Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (removeLink) {
-                  updateDraft((current) => current.filter((link) => link.id !== removeLink.id));
-                }
-                setRemoveLink(null);
-              }}
-            >
-              {t("admin.builder.removeLinkOnly")}
-            </Button>
-          </AdminDialogFooter>
-        </AdminDialogContent>
-      </AdminDialog>
+      <AdminModal open={Boolean(removeLink)} onOpenChange={(open) => !open && setRemoveLink(null)} size="sm">
+        <AdminModalHeader onClose={() => setRemoveLink(null)}><AdminModalTitle>{t("admin.builder.removeAssignment")}</AdminModalTitle></AdminModalHeader>
+        <AdminModalBody>
+          <p>
+            {t("admin.builder.removeAssignmentQuestion")
+              .replace("{group}", groupById.get(removeLink?.groupId ?? "")?.name_he || "")
+              .replace("{product}", product?.name_he || "")}
+          </p>
+        </AdminModalBody>
+        <AdminModalFooter>
+          <Button variant="outline" onClick={() => setRemoveLink(null)}>{t("admin.action.cancel")}</Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (removeLink) {
+                updateDraft((current) => current.filter((link) => link.id !== removeLink.id));
+              }
+              setRemoveLink(null);
+            }}
+          >
+            {t("admin.builder.removeLinkOnly")}
+          </Button>
+        </AdminModalFooter>
+      </AdminModal>
 
-      <AdminDialog open={Boolean(editLink)} onOpenChange={(open) => !open && setEditLink(null)}>
-        <AdminDialogContent size="sm">
-          <AdminDialogHeader><AdminDialogTitle>{t("admin.builder.editAssignment")}</AdminDialogTitle></AdminDialogHeader>
-          <AdminDialogBody>
-            <label className="text-sm font-medium">{t("admin.builder.requirementForProduct")}</label>
-            <select
-              value={editRequirement}
-              onChange={(event) => setEditRequirement(event.target.value)}
-              className="mt-2 h-11 w-full rounded-xl border border-beige-dark/25 bg-warm-white px-3"
-            >
-              <option value="">{t("admin.builder.useGroupDefault")}</option>
-              <option value="required">{t("admin.modifiers.required")}</option>
-              <option value="optional">{t("admin.modifiers.optional")}</option>
-            </select>
-          </AdminDialogBody>
-          <AdminDialogFooter>
-            <Button variant="outline" onClick={() => setEditLink(null)}>{t("admin.action.cancel")}</Button>
-            <Button
-              onClick={() => {
-                if (editLink) {
-                  updateDraft((current) =>
-                    current.map((link) =>
-                      link.id === editLink.id
-                        ? {
-                            ...link,
-                            requirement:
-                              (editRequirement || undefined) as ProductModifierGroup["requirement"],
-                          }
-                        : link
-                    )
-                  );
-                }
-                setEditLink(null);
-              }}
-            >
-              {t("admin.action.save")}
-            </Button>
-          </AdminDialogFooter>
-        </AdminDialogContent>
-      </AdminDialog>
+      <AdminModal open={Boolean(editLink)} onOpenChange={(open) => !open && setEditLink(null)} size="sm">
+        <AdminModalHeader onClose={() => setEditLink(null)}><AdminModalTitle>{t("admin.builder.editAssignment")}</AdminModalTitle></AdminModalHeader>
+        <AdminModalBody>
+          <label className="text-sm font-medium">{t("admin.builder.requirementForProduct")}</label>
+          <select
+            value={editRequirement}
+            onChange={(event) => setEditRequirement(event.target.value)}
+            className="mt-2 h-11 w-full rounded-xl border border-beige-dark/25 bg-warm-white px-3"
+          >
+            <option value="">{t("admin.builder.useGroupDefault")}</option>
+            <option value="required">{t("admin.modifiers.required")}</option>
+            <option value="optional">{t("admin.modifiers.optional")}</option>
+          </select>
+        </AdminModalBody>
+        <AdminModalFooter>
+          <Button variant="outline" onClick={() => setEditLink(null)}>{t("admin.action.cancel")}</Button>
+          <Button
+            onClick={() => {
+              if (editLink) {
+                updateDraft((current) =>
+                  current.map((link) =>
+                    link.id === editLink.id
+                      ? {
+                          ...link,
+                          requirement:
+                            (editRequirement || undefined) as ProductModifierGroup["requirement"],
+                        }
+                      : link
+                  )
+                );
+              }
+              setEditLink(null);
+            }}
+          >
+            {t("admin.action.save")}
+          </Button>
+        </AdminModalFooter>
+      </AdminModal>
 
-      <AdminDialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <AdminDialogContent size="md">
-          <AdminDialogHeader><AdminDialogTitle>{t("admin.builder.customerPreview")}</AdminDialogTitle></AdminDialogHeader>
-          <AdminDialogBody>
-            {product && config ? (
-              <ProductBuilderPreview product={product} config={config} />
-            ) : (
-              <div className="grid min-h-48 place-items-center">
-                <Loader2 className="h-6 w-6 animate-spin text-turquoise" />
-              </div>
-            )}
-          </AdminDialogBody>
-        </AdminDialogContent>
-      </AdminDialog>
+      <AdminModal open={previewOpen} onOpenChange={setPreviewOpen} size="md">
+        <AdminModalHeader onClose={() => setPreviewOpen(false)}><AdminModalTitle>{t("admin.builder.customerPreview")}</AdminModalTitle></AdminModalHeader>
+        <AdminModalBody>
+          {product && config ? (
+            <ProductBuilderPreview product={product} config={config} />
+          ) : (
+            <div className="grid min-h-48 place-items-center">
+              <Loader2 className="h-6 w-6 animate-spin text-turquoise" />
+            </div>
+          )}
+        </AdminModalBody>
+      </AdminModal>
 
       <AdminToastStack
         toasts={toasts}

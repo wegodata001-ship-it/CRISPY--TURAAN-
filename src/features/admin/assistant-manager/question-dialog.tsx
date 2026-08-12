@@ -3,13 +3,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import { LocalizedEditor } from "@/features/admin/assistant-manager/localized-editor";
 import { useT } from "@/components/providers/locale-provider";
 import type { LocalizedText } from "@/lib/assistant/types";
@@ -35,31 +34,29 @@ export function SuggestedQuestionDialog({
   }, [initial, open]);
 
   return (
-    <AdminDialog open={open} onOpenChange={onOpenChange}>
-      <AdminDialogContent size="sm">
-        <AdminDialogHeader>
-          <AdminDialogTitle>
-            {initial ? t("admin.assistant.editQuestion") : t("admin.assistant.addQuestion")}
-          </AdminDialogTitle>
-        </AdminDialogHeader>
-        <AdminDialogBody>
-          <LocalizedEditor value={question} onChange={setQuestion} requiredHe />
-        </AdminDialogBody>
-        <AdminDialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t("admin.action.cancel")}
-          </Button>
-          <Button
-            disabled={!question.he.trim()}
-            onClick={() => {
-              onSave(question);
-              onOpenChange(false);
-            }}
-          >
-            {initial ? t("admin.action.save") : t("admin.assistant.addQuestion")}
-          </Button>
-        </AdminDialogFooter>
-      </AdminDialogContent>
-    </AdminDialog>
+    <AdminModal open={open} onOpenChange={onOpenChange} size="sm">
+      <AdminModalHeader onClose={() => onOpenChange(false)}>
+        <AdminModalTitle>
+          {initial ? t("admin.assistant.editQuestion") : t("admin.assistant.addQuestion")}
+        </AdminModalTitle>
+      </AdminModalHeader>
+      <AdminModalBody>
+        <LocalizedEditor value={question} onChange={setQuestion} requiredHe />
+      </AdminModalBody>
+      <AdminModalFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)}>
+          {t("admin.action.cancel")}
+        </Button>
+        <Button
+          disabled={!question.he.trim()}
+          onClick={() => {
+            onSave(question);
+            onOpenChange(false);
+          }}
+        >
+          {initial ? t("admin.action.save") : t("admin.assistant.addQuestion")}
+        </Button>
+      </AdminModalFooter>
+    </AdminModal>
   );
 }

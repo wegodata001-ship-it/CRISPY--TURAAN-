@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocalizedCategory } from "@/hooks/useLocalizedContent";
 import { useCategories, useAllProducts } from "@/hooks/useProducts";
@@ -23,9 +24,21 @@ function SubChip({
   onSelect: (id: string) => void;
 }) {
   const localized = useLocalizedCategory(cat);
+  const ref = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (selected && ref.current) {
+      ref.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [selected]);
 
   return (
     <motion.button
+      ref={ref}
       type="button"
       layout
       initial={{ opacity: 0, scale: 0.92 }}
@@ -34,15 +47,17 @@ function SubChip({
       whileTap={{ scale: 0.96 }}
       onClick={() => onSelect(cat.id)}
       className={cn(
-        "inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-200",
+        "inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full font-medium transition-all duration-200",
+        "h-9 px-3.5 text-sm",
+        "md:h-8 md:px-3 md:text-sm",
         selected
-          ? "border-2 border-turquoise bg-turquoise/8 text-dark-brown"
-          : "border border-beige-dark/25 bg-warm-white text-coffee/75 hover:border-turquoise/35"
+          ? "bg-turquoise/15 text-dark-brown ring-1 ring-turquoise"
+          : "border border-beige-dark/25 bg-white text-coffee/75 hover:border-turquoise/35"
       )}
     >
       <span dir={localized.dir}>{localized.name}</span>
-      <span className={cn("text-xs", selected ? "text-warm-white/80" : "text-coffee/45")}>
-        ({count})
+      <span className={cn("text-xs", selected ? "text-turquoise" : "text-coffee/40")}>
+        · {count}
       </span>
     </motion.button>
   );
@@ -63,7 +78,7 @@ export function SubcategoryChips({ parentId, selectedSubId, onSelect }: Subcateg
   const subs = getSubcategories(categories, parentId);
 
   return (
-    <div className="border-b border-beige-dark/10 px-4 pb-3 md:px-6">
+    <div className="border-b border-beige-dark/10 pb-2 md:px-0">
       <AnimatePresence mode="popLayout">
         <motion.div
           key={parentId}

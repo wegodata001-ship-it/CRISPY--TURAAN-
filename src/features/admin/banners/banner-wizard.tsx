@@ -6,13 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import { ImageUpload } from "@/features/admin/image-upload";
 import { BannerHero } from "@/features/catalog/banner-hero";
 import { uploadBannerImage } from "@/services/storageService";
@@ -149,12 +148,11 @@ export function BannerWizard({
   };
 
   return (
-    <AdminDialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <AdminDialogContent size="product">
-        <AdminDialogHeader>
-          <AdminDialogTitle>
+    <AdminModal open={open} onOpenChange={(next) => !saving && onOpenChange(next)} size="product">
+        <AdminModalHeader onClose={() => onOpenChange(false)}>
+          <AdminModalTitle>
             {editing ? t("admin.banners.edit") : t("admin.banners.createTitle")}
-          </AdminDialogTitle>
+          </AdminModalTitle>
           <div className="mt-3 grid grid-cols-4 gap-1">
             {STEPS.map((name, index) => (
               <button
@@ -174,9 +172,9 @@ export function BannerWizard({
               </button>
             ))}
           </div>
-        </AdminDialogHeader>
+        </AdminModalHeader>
 
-        <AdminDialogBody>
+        <AdminModalBody>
           {step === 0 && (
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="space-y-4">
@@ -404,9 +402,9 @@ export function BannerWizard({
               {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             </div>
           )}
-        </AdminDialogBody>
+        </AdminModalBody>
 
-        <AdminDialogFooter className="justify-between">
+        <AdminModalFooter className="justify-between">
           <Button
             type="button"
             variant="outline"
@@ -426,8 +424,7 @@ export function BannerWizard({
               {editing ? t("admin.action.save") : t("admin.banners.publishBanner")}
             </Button>
           )}
-        </AdminDialogFooter>
-      </AdminDialogContent>
-    </AdminDialog>
+        </AdminModalFooter>
+    </AdminModal>
   );
 }

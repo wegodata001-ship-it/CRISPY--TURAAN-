@@ -9,13 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import { AdminToastStack, createToast, type AdminToast } from "@/features/admin/components/admin-toast";
 import { BannerWizard } from "@/features/admin/banners/banner-wizard";
 import { BannerHero } from "@/features/catalog/banner-hero";
@@ -314,10 +313,9 @@ export function BannersAdmin() {
         onSave={(draft, initial) => void saveBanner(draft, initial)}
       />
 
-      <AdminDialog open={preview != null} onOpenChange={(open) => !open && setPreview(null)}>
-        <AdminDialogContent size="product">
-          <AdminDialogHeader>
-            <AdminDialogTitle>{t("admin.banners.preview")}</AdminDialogTitle>
+      <AdminModal open={preview != null} onOpenChange={(open) => !open && setPreview(null)} size="product">
+          <AdminModalHeader onClose={() => setPreview(null)}>
+            <AdminModalTitle>{t("admin.banners.preview")}</AdminModalTitle>
             <div className="mt-2 flex max-w-xs gap-2">
               {(["desktop", "mobile"] as const).map((device) => (
                 <button key={device} onClick={() => setPreviewDevice(device)} className={cn("flex-1 rounded-lg px-3 py-2 text-sm", previewDevice === device ? "bg-turquoise text-white" : "bg-beige/30")}>
@@ -325,26 +323,23 @@ export function BannersAdmin() {
                 </button>
               ))}
             </div>
-          </AdminDialogHeader>
-          <AdminDialogBody>
+          </AdminModalHeader>
+          <AdminModalBody>
             {preview && <div className={cn("mx-auto", previewDevice === "mobile" ? "max-w-[360px]" : "max-w-5xl")}><BannerHero banner={preview} device={previewDevice} interactive={false} /></div>}
-          </AdminDialogBody>
-        </AdminDialogContent>
-      </AdminDialog>
+          </AdminModalBody>
+      </AdminModal>
 
-      <AdminDialog open={deleteTarget != null} onOpenChange={(open) => !saving && !open && setDeleteTarget(null)}>
-        <AdminDialogContent size="sm">
-          <AdminDialogHeader><AdminDialogTitle>{t("admin.banners.deleteTitle")}</AdminDialogTitle></AdminDialogHeader>
-          <AdminDialogBody>
+      <AdminModal open={deleteTarget != null} onOpenChange={(open) => !saving && !open && setDeleteTarget(null)} size="sm">
+          <AdminModalHeader onClose={() => setDeleteTarget(null)}><AdminModalTitle>{t("admin.banners.deleteTitle")}</AdminModalTitle></AdminModalHeader>
+          <AdminModalBody>
             <p>{t("admin.banners.deleteQuestion").replace("{title}", deleteTarget?.title ?? "")}</p>
             <p className="mt-2 text-sm text-coffee/55">{t("admin.banners.deleteHint")}</p>
-          </AdminDialogBody>
-          <AdminDialogFooter>
+          </AdminModalBody>
+          <AdminModalFooter>
             <Button variant="outline" disabled={saving} onClick={() => setDeleteTarget(null)}>{t("admin.action.cancel")}</Button>
             <Button variant="destructive" disabled={saving} onClick={() => void handleDelete()}>{t("admin.action.delete")}</Button>
-          </AdminDialogFooter>
-        </AdminDialogContent>
-      </AdminDialog>
+          </AdminModalFooter>
+      </AdminModal>
 
       <AdminToastStack toasts={toasts} onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))} />
     </div>

@@ -22,13 +22,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import {
   AdminToastStack,
   createToast,
@@ -464,11 +463,10 @@ export function UsersAdmin() {
         </>
       )}
 
-      <AdminDialog open={dialogUser !== undefined} onOpenChange={(open) => !open && setDialogUser(undefined)}>
-        <AdminDialogContent size="sm">
+      <AdminModal open={dialogUser !== undefined} onOpenChange={(open) => !open && setDialogUser(undefined)} size="sm">
           <form onSubmit={saveUser} className="flex min-h-0 flex-1 flex-col">
-            <AdminDialogHeader><AdminDialogTitle>{dialogUser ? t("admin.users.edit") : t("admin.users.create")}</AdminDialogTitle></AdminDialogHeader>
-            <AdminDialogBody className="space-y-4">
+            <AdminModalHeader onClose={() => setDialogUser(undefined)}><AdminModalTitle>{dialogUser ? t("admin.users.edit") : t("admin.users.create")}</AdminModalTitle></AdminModalHeader>
+            <AdminModalBody className="space-y-4">
               <div><Label>{t("admin.users.displayName")} *</Label><Input value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} className="mt-1 h-11" required /></div>
               <div><Label>{t("admin.email")} *</Label><Input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="mt-1 h-11" required disabled={Boolean(dialogUser)} /></div>
               {!dialogUser && <div><Label>{t("admin.password")} *</Label><Input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} className="mt-1 h-11" required minLength={6} autoComplete="new-password" /></div>}
@@ -476,15 +474,14 @@ export function UsersAdmin() {
               <div className="rounded-xl bg-beige/20 p-3"><StatusSwitch checked={form.active} disabled={dialogUser?.id === currentUser.uid} label={form.active ? t("admin.status.active") : t("admin.status.disabled")} onChange={() => setForm({ ...form, active: !form.active })} /></div>
               {dialogUser?.id === currentUser.uid && <p className="text-xs text-amber-700">{t("admin.users.selfGuardHint")}</p>}
               {formError && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{formError}</p>}
-            </AdminDialogBody>
-            <AdminDialogFooter><Button type="button" variant="outline" onClick={() => setDialogUser(undefined)} disabled={saving}>{t("admin.action.cancel")}</Button><Button type="submit" disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : dialogUser ? t("admin.action.save") : t("admin.users.create")}</Button></AdminDialogFooter>
+            </AdminModalBody>
+            <AdminModalFooter><Button type="button" variant="outline" onClick={() => setDialogUser(undefined)} disabled={saving}>{t("admin.action.cancel")}</Button><Button type="submit" disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : dialogUser ? t("admin.action.save") : t("admin.users.create")}</Button></AdminModalFooter>
           </form>
-        </AdminDialogContent>
-      </AdminDialog>
+      </AdminModal>
 
-      <AdminDialog open={Boolean(deleteUser)} onOpenChange={(open) => !open && setDeleteUser(null)}>
-        <AdminDialogContent size="sm"><AdminDialogHeader><AdminDialogTitle>{t("admin.users.deleteTitle")}</AdminDialogTitle></AdminDialogHeader><AdminDialogBody><p className="text-sm text-coffee/65">{t("admin.users.deleteQuestion").replace("{name}", deleteUser?.displayName || deleteUser?.email || "")}</p></AdminDialogBody><AdminDialogFooter><Button variant="outline" onClick={() => setDeleteUser(null)} disabled={saving}>{t("admin.action.cancel")}</Button><Button variant="destructive" onClick={() => void confirmDelete()} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.action.delete")}</Button></AdminDialogFooter></AdminDialogContent>
-      </AdminDialog>
+      <AdminModal open={Boolean(deleteUser)} onOpenChange={(open) => !open && setDeleteUser(null)} size="sm">
+        <AdminModalHeader onClose={() => setDeleteUser(null)}><AdminModalTitle>{t("admin.users.deleteTitle")}</AdminModalTitle></AdminModalHeader><AdminModalBody><p className="text-sm text-coffee/65">{t("admin.users.deleteQuestion").replace("{name}", deleteUser?.displayName || deleteUser?.email || "")}</p></AdminModalBody><AdminModalFooter><Button variant="outline" onClick={() => setDeleteUser(null)} disabled={saving}>{t("admin.action.cancel")}</Button><Button variant="destructive" onClick={() => void confirmDelete()} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.action.delete")}</Button></AdminModalFooter>
+      </AdminModal>
 
       <AdminToastStack toasts={toasts} onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))} />
     </div>

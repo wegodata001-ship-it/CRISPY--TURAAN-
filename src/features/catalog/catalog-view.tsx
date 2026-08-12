@@ -151,18 +151,21 @@ export function CatalogView() {
       <div className="mx-auto max-w-[1280px] px-4 md:px-8 lg:px-10">
         <div className="mt-6">
           <div className="min-w-0 pb-28 lg:pb-12">
+            {/* Mobile: Sticky categories + search bar */}
             {!isSearchMode && (
-              <section className="space-y-3">
-                <MenuCategoryStrip
-                  selectedId={selectedCategoryId}
-                  onSelect={handleCategorySelect}
-                />
-                <SubcategoryChips
-                  parentId={selectedCategoryId}
-                  selectedSubId={selectedSubcategoryId}
-                  onSelect={handleSubcategorySelect}
-                />
-              </section>
+              <div className="sticky top-[52px] z-30 -mx-4 bg-cream/95 px-4 pb-2 pt-1 backdrop-blur-md md:static md:mx-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0 md:backdrop-blur-none">
+                <section className="space-y-3">
+                  <MenuCategoryStrip
+                    selectedId={selectedCategoryId}
+                    onSelect={handleCategorySelect}
+                  />
+                  <SubcategoryChips
+                    parentId={selectedCategoryId}
+                    selectedSubId={selectedSubcategoryId}
+                    onSelect={handleSubcategorySelect}
+                  />
+                </section>
+              </div>
             )}
 
             {/* Search */}

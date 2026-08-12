@@ -5,13 +5,12 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import { useT } from "@/components/providers/locale-provider";
 import type { Order } from "@/types";
 
@@ -41,14 +40,13 @@ export function CancelOrderDialog({
   }, [open, order?.id]);
 
   return (
-    <AdminDialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <AdminDialogContent size="sm">
-        <AdminDialogHeader>
-          <AdminDialogTitle>
+    <AdminModal open={open} onOpenChange={(next) => !saving && onOpenChange(next)} size="sm">
+        <AdminModalHeader onClose={() => onOpenChange(false)}>
+          <AdminModalTitle>
             {t("admin.orders.cancelTitle").replace("{number}", order?.orderNumber ?? "")}
-          </AdminDialogTitle>
-        </AdminDialogHeader>
-        <AdminDialogBody className="space-y-3">
+          </AdminModalTitle>
+        </AdminModalHeader>
+        <AdminModalBody className="space-y-3">
           {REASONS.map((value) => (
             <label
               key={value}
@@ -72,8 +70,8 @@ export function CancelOrderDialog({
               className="min-h-20"
             />
           )}
-        </AdminDialogBody>
-        <AdminDialogFooter>
+        </AdminModalBody>
+        <AdminModalFooter>
           <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
             {t("common.back")}
           </Button>
@@ -88,8 +86,7 @@ export function CancelOrderDialog({
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             {t("admin.orders.cancel")}
           </Button>
-        </AdminDialogFooter>
-      </AdminDialogContent>
-    </AdminDialog>
+        </AdminModalFooter>
+    </AdminModal>
   );
 }

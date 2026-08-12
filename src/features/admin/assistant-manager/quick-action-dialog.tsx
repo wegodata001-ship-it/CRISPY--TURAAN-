@@ -5,13 +5,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import { LocalizedEditor } from "@/features/admin/assistant-manager/localized-editor";
 import { ASSISTANT_QUICK_ICONS, resolveAssistantIcon } from "@/lib/icons/assistant-icons";
 import { useLocale, useT } from "@/components/providers/locale-provider";
@@ -82,19 +81,18 @@ export function QuickActionDialog({
             : true;
 
   return (
-    <AdminDialog open={open} onOpenChange={onOpenChange}>
-      <AdminDialogContent size="md">
-        <AdminDialogHeader>
-          <AdminDialogTitle>
-            {initial ? t("admin.assistant.editAction") : t("admin.assistant.addAction")}
-          </AdminDialogTitle>
-          <p className="text-sm text-coffee/50">
-            {t("admin.assistant.stepOf")
-              .replace("{step}", String(step + 1))
-              .replace("{count}", "4")}
-          </p>
-        </AdminDialogHeader>
-        <AdminDialogBody>
+    <AdminModal open={open} onOpenChange={onOpenChange} size="md">
+      <AdminModalHeader onClose={() => onOpenChange(false)}>
+        <AdminModalTitle>
+          {initial ? t("admin.assistant.editAction") : t("admin.assistant.addAction")}
+        </AdminModalTitle>
+        <p className="text-sm text-coffee/50">
+          {t("admin.assistant.stepOf")
+            .replace("{step}", String(step + 1))
+            .replace("{count}", "4")}
+        </p>
+      </AdminModalHeader>
+      <AdminModalBody>
           {step === 0 && (
             <div className="grid gap-3 sm:grid-cols-2">
               {NEW_TYPES.map((type) => (
@@ -216,35 +214,34 @@ export function QuickActionDialog({
               })}
             </div>
           )}
-        </AdminDialogBody>
-        <AdminDialogFooter className="justify-between">
+      </AdminModalBody>
+      <AdminModalFooter className="justify-between">
+        <Button
+          variant="outline"
+          onClick={() => (step === 0 ? onOpenChange(false) : setStep((current) => current - 1))}
+        >
+          {step === 0 ? t("admin.action.cancel") : t("common.back")}
+        </Button>
+        {step < 3 ? (
           <Button
-            variant="outline"
-            onClick={() => (step === 0 ? onOpenChange(false) : setStep((current) => current - 1))}
+            disabled={(step === 1 && !targetValid) || (step === 2 && !action.label.he.trim())}
+            onClick={() => setStep((current) => current + 1)}
           >
-            {step === 0 ? t("admin.action.cancel") : t("common.back")}
+            {t("common.continue")}
+            {dir === "rtl" ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
-          {step < 3 ? (
-            <Button
-              disabled={(step === 1 && !targetValid) || (step === 2 && !action.label.he.trim())}
-              onClick={() => setStep((current) => current + 1)}
-            >
-              {t("common.continue")}
-              {dir === "rtl" ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </Button>
-          ) : (
-            <Button
-              disabled={!action.label.he.trim()}
-              onClick={() => {
-                onSave(action);
-                onOpenChange(false);
-              }}
-            >
-              {initial ? t("admin.action.save") : t("admin.assistant.addAction")}
-            </Button>
-          )}
-        </AdminDialogFooter>
-      </AdminDialogContent>
-    </AdminDialog>
+        ) : (
+          <Button
+            disabled={!action.label.he.trim()}
+            onClick={() => {
+              onSave(action);
+              onOpenChange(false);
+            }}
+          >
+            {initial ? t("admin.action.save") : t("admin.assistant.addAction")}
+          </Button>
+        )}
+      </AdminModalFooter>
+    </AdminModal>
   );
 }

@@ -16,13 +16,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import { Badge } from "@/components/ui/badge";
 import { getInitials, formatDateShort, formatPrice } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
@@ -185,19 +184,18 @@ export function CustomersAdmin() {
         </div>
       )}
 
-      <AdminDialog open={!!profile} onOpenChange={(v) => !v && setProfile(null)}>
-        <AdminDialogContent size="sm">
+      <AdminModal open={!!profile} onOpenChange={(v) => !v && setProfile(null)} size="sm">
           {profile && (
             <>
-              <AdminDialogHeader>
-                <AdminDialogTitle className="flex items-center gap-3">
+              <AdminModalHeader onClose={() => setProfile(null)}>
+                <AdminModalTitle className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
                     <AvatarFallback>{getInitials(profile.name)}</AvatarFallback>
                   </Avatar>
                   {profile.name}
-                </AdminDialogTitle>
-              </AdminDialogHeader>
-              <AdminDialogBody className="space-y-4">
+                </AdminModalTitle>
+              </AdminModalHeader>
+              <AdminModalBody className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-beige/30 p-3 dark:bg-white/5">
                   <p className="text-xs text-coffee/50">{t("admin.customers.totalOrders")}</p>
@@ -254,19 +252,17 @@ export function CustomersAdmin() {
                   </div>
                 )}
               </div>
-              </AdminDialogBody>
+              </AdminModalBody>
             </>
           )}
-        </AdminDialogContent>
-      </AdminDialog>
+      </AdminModal>
 
-      <AdminDialog open={open} onOpenChange={setOpen}>
-        <AdminDialogContent size="sm">
+      <AdminModal open={open} onOpenChange={setOpen} size="sm">
           <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-          <AdminDialogHeader>
-            <AdminDialogTitle>{editing ? t("admin.customers.edit") : t("admin.customers.new")}</AdminDialogTitle>
-          </AdminDialogHeader>
-          <AdminDialogBody className="space-y-4">
+          <AdminModalHeader onClose={() => setOpen(false)}>
+            <AdminModalTitle>{editing ? t("admin.customers.edit") : t("admin.customers.new")}</AdminModalTitle>
+          </AdminModalHeader>
+          <AdminModalBody className="space-y-4">
             <div>
               <Label htmlFor="name">{t("admin.customers.name")}</Label>
               <Input id="name" {...form.register("name")} className="mt-1" />
@@ -288,18 +284,17 @@ export function CustomersAdmin() {
               <Textarea id="notes" {...form.register("notes")} className="mt-1" rows={3} />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
-          </AdminDialogBody>
-          <AdminDialogFooter>
+          </AdminModalBody>
+          <AdminModalFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={saving}>
               {t("admin.action.cancel")}
             </Button>
             <Button type="submit" disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? t("admin.action.save") : t("admin.action.create")}
             </Button>
-          </AdminDialogFooter>
+          </AdminModalFooter>
           </form>
-        </AdminDialogContent>
-      </AdminDialog>
+      </AdminModal>
     </div>
   );
 }

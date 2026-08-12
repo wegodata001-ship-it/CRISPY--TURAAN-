@@ -25,13 +25,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import {
   AdminToastStack,
   createToast,
@@ -322,13 +321,12 @@ export function BusinessRulesAdmin() {
         </div>
       )}
 
-      <AdminDialog open={open} onOpenChange={setOpen}>
-        <AdminDialogContent size="md">
-          <AdminDialogHeader>
-            <AdminDialogTitle>{editing ? t("admin.rules.edit") : t("admin.rules.newSelectionRule")}</AdminDialogTitle>
-            <p className="text-sm text-coffee/50">{t("admin.rules.stepOf").replace("{step}", String(step + 1)).replace("{count}", "3")}</p>
-          </AdminDialogHeader>
-          <AdminDialogBody>
+      <AdminModal open={open} onOpenChange={setOpen} size="md">
+        <AdminModalHeader onClose={() => setOpen(false)}>
+          <AdminModalTitle>{editing ? t("admin.rules.edit") : t("admin.rules.newSelectionRule")}</AdminModalTitle>
+          <p className="text-sm text-coffee/50">{t("admin.rules.stepOf").replace("{step}", String(step + 1)).replace("{count}", "3")}</p>
+        </AdminModalHeader>
+        <AdminModalBody>
             {step === 0 && (
               <div className="space-y-5">
                 <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
@@ -394,17 +392,18 @@ export function BusinessRulesAdmin() {
                 </div>
               </div>
             )}
-          </AdminDialogBody>
-          <AdminDialogFooter className="justify-between">
-            <Button variant="outline" onClick={() => step === 0 ? setOpen(false) : setStep((current) => current - 1)}>{step === 0 ? t("admin.action.cancel") : t("common.back")}</Button>
-            {step < 2 ? <Button disabled={(step === 0 && !conditionValid) || (step === 1 && !actionValid)} onClick={() => setStep((current) => current + 1)}>{t("common.continue")}<span aria-hidden>{dir === "rtl" ? "←" : "→"}</span></Button> : <Button disabled={!targetValid || saving} onClick={() => void saveRule()}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.rules.saveRule")}</Button>}
-          </AdminDialogFooter>
-        </AdminDialogContent>
-      </AdminDialog>
+        </AdminModalBody>
+        <AdminModalFooter className="justify-between">
+          <Button variant="outline" onClick={() => step === 0 ? setOpen(false) : setStep((current) => current - 1)}>{step === 0 ? t("admin.action.cancel") : t("common.back")}</Button>
+          {step < 2 ? <Button disabled={(step === 0 && !conditionValid) || (step === 1 && !actionValid)} onClick={() => setStep((current) => current + 1)}>{t("common.continue")}<span aria-hidden>{dir === "rtl" ? "←" : "→"}</span></Button> : <Button disabled={!targetValid || saving} onClick={() => void saveRule()}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.rules.saveRule")}</Button>}
+        </AdminModalFooter>
+      </AdminModal>
 
-      <AdminDialog open={Boolean(deleteRule)} onOpenChange={(value) => !value && setDeleteRule(null)}>
-        <AdminDialogContent size="sm"><AdminDialogHeader><AdminDialogTitle>{t("admin.rules.deleteTitle")}</AdminDialogTitle></AdminDialogHeader><AdminDialogBody>{t("admin.rules.deleteQuestion").replace("{name}", deleteRule?.name || "")}</AdminDialogBody><AdminDialogFooter><Button variant="outline" onClick={() => setDeleteRule(null)}>{t("admin.action.cancel")}</Button><Button variant="destructive" onClick={async () => { if (!deleteRule) return; const result = await deleteBusinessRule(deleteRule.id); if (!result.success) setToasts((current) => [...current, createToast(result.error, "error")]); setDeleteRule(null); }}>{t("admin.action.delete")}</Button></AdminDialogFooter></AdminDialogContent>
-      </AdminDialog>
+      <AdminModal open={Boolean(deleteRule)} onOpenChange={(value) => !value && setDeleteRule(null)} size="sm">
+        <AdminModalHeader onClose={() => setDeleteRule(null)}><AdminModalTitle>{t("admin.rules.deleteTitle")}</AdminModalTitle></AdminModalHeader>
+        <AdminModalBody>{t("admin.rules.deleteQuestion").replace("{name}", deleteRule?.name || "")}</AdminModalBody>
+        <AdminModalFooter><Button variant="outline" onClick={() => setDeleteRule(null)}>{t("admin.action.cancel")}</Button><Button variant="destructive" onClick={async () => { if (!deleteRule) return; const result = await deleteBusinessRule(deleteRule.id); if (!result.success) setToasts((current) => [...current, createToast(result.error, "error")]); setDeleteRule(null); }}>{t("admin.action.delete")}</Button></AdminModalFooter>
+      </AdminModal>
 
       <AdminToastStack toasts={toasts} onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))} />
     </div>

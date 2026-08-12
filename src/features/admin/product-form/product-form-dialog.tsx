@@ -24,13 +24,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  AdminDialog,
-  AdminDialogBody,
-  AdminDialogContent,
-  AdminDialogFooter,
-  AdminDialogHeader,
-  AdminDialogTitle,
-} from "@/features/admin/components/admin-dialog";
+  AdminModal,
+  AdminModalBody,
+  AdminModalFooter,
+  AdminModalHeader,
+  AdminModalTitle,
+} from "@/features/admin/components/admin-modal";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import { cn, formatPrice } from "@/lib/utils";
 import { CategorySearchSelect } from "./category-search-select";
@@ -528,16 +527,9 @@ export function ProductFormDialog({
   };
 
   return (
-    <AdminDialog open={open} onOpenChange={handleCloseRequest}>
-      <AdminDialogContent
-        size="product"
-        className={cn(
-          "rounded-[20px] bg-[#FFFFFF]",
-          dir === "rtl" && "[&>button]:left-4 [&>button]:right-auto [&>button]:end-auto"
-        )}
-      >
-        <AdminDialogHeader className="px-4 py-3 sm:px-6 sm:py-4">
-          <AdminDialogTitle className="flex flex-wrap items-center gap-2 text-start font-display text-lg sm:text-xl">
+    <AdminModal open={open} onOpenChange={handleCloseRequest} size="product">
+        <AdminModalHeader onClose={() => handleCloseRequest(false)} className="px-4 py-3 sm:px-6 sm:py-4">
+          <AdminModalTitle className="flex flex-wrap items-center gap-2 text-start font-display text-lg sm:text-xl">
             {editing ? t("admin.products.edit") : t("admin.products.new")}
             {isDirty && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
@@ -554,8 +546,8 @@ export function ProductFormDialog({
             {!editing && draftStatus === "saved" && (
               <span className="text-xs font-medium text-turquoise">{t("admin.productForm.draftSaved")}</span>
             )}
-          </AdminDialogTitle>
-        </AdminDialogHeader>
+          </AdminModalTitle>
+        </AdminModalHeader>
 
         {draftBanner && !editing && draftPreview && (
           <div className="shrink-0 border-b border-amber-200/80 bg-amber-50 px-4 py-3 sm:px-6 dark:border-amber-900/40 dark:bg-amber-950/40">
@@ -643,7 +635,7 @@ export function ProductFormDialog({
           ))}
         </div>
 
-        <AdminDialogBody className="px-4 py-4 sm:px-6 sm:py-5">
+        <AdminModalBody className="px-4 py-4 sm:px-6 sm:py-5">
           {translateError && (
             <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
               {translateError}
@@ -882,9 +874,9 @@ export function ProductFormDialog({
           )}
 
           {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-        </AdminDialogBody>
+        </AdminModalBody>
 
-        <AdminDialogFooter className="justify-between px-4 py-3 sm:px-6 sm:py-4">
+        <AdminModalFooter className="justify-between px-4 py-3 sm:px-6 sm:py-4">
           <Button
             type="button"
             variant="outline"
@@ -911,9 +903,8 @@ export function ProductFormDialog({
               t("admin.productForm.saveChanges")
             )}
           </Button>
-        </AdminDialogFooter>
-      </AdminDialogContent>
+        </AdminModalFooter>
       <AdminToastStack toasts={toasts} onDismiss={dismissToast} />
-    </AdminDialog>
+    </AdminModal>
   );
 }

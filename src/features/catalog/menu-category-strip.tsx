@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Coffee,
@@ -57,32 +58,52 @@ function CategoryPill({
 }) {
   const localized = useLocalizedCategory(cat);
   const Icon = iconMap[cat.icon] ?? Coffee;
+  const ref = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (selected && ref.current) {
+      ref.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [selected]);
 
   return (
     <motion.button
+      ref={ref}
       type="button"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.025, duration: 0.22 }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.97 }}
+      whileTap={{ scale: 0.96 }}
       onClick={() => onSelect(cat.id)}
       className={cn(
-        "inline-flex shrink-0 snap-start items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-all duration-200",
+        // Mobile: large prominent pills (44px height)
+        "inline-flex shrink-0 snap-start items-center gap-2 rounded-full font-medium transition-all duration-200",
+        "h-11 px-4 text-sm",
+        // Desktop: compact
+        "md:h-9 md:px-3 md:py-1.5 md:text-sm",
         selected
-          ? "border-2 border-turquoise bg-turquoise/8 text-dark-brown shadow-soft"
-          : "border border-beige-dark/25 bg-warm-white text-coffee/75 hover:border-turquoise/35 hover:bg-cream"
+          ? "bg-turquoise text-white shadow-soft"
+          : "border border-beige-dark/25 bg-white text-coffee/80 hover:border-turquoise/40 hover:bg-cream"
       )}
     >
       <Icon
-        className={cn("h-4 w-4 shrink-0", selected ? "text-turquoise" : "text-coffee/45")}
+        className={cn("h-4 w-4 shrink-0", selected ? "text-white" : "text-coffee/45")}
         strokeWidth={1.75}
       />
-      <span dir={localized.dir} className="whitespace-nowrap font-medium">
+      <span dir={localized.dir} className="whitespace-nowrap">
         {localized.name}
       </span>
-      <span className="text-caption tabular-nums">
-        {count}
+      <span
+        className={cn(
+          "text-xs tabular-nums",
+          selected ? "text-white/75" : "text-coffee/40"
+        )}
+      >
+        · {count}
       </span>
     </motion.button>
   );
@@ -102,7 +123,7 @@ export function MenuCategoryStrip({ selectedId, onSelect }: MenuCategoryStripPro
     return (
       <div className="hide-scrollbar flex gap-2 overflow-x-auto py-1">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-9 w-24 shrink-0 rounded-full" />
+          <Skeleton key={i} className="h-11 w-28 shrink-0 rounded-full md:h-9 md:w-24" />
         ))}
       </div>
     );
@@ -111,7 +132,13 @@ export function MenuCategoryStrip({ selectedId, onSelect }: MenuCategoryStripPro
   if (rootCategories.length === 0) return null;
 
   return (
-    <div className="hide-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto py-1 md:flex-wrap md:overflow-visible">
+    <nav
+      aria-label="Categories"
+      className={cn(
+        "hide-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto py-1",
+        "md:flex-wrap md:overflow-visible"
+      )}
+    >
       {rootCategories.map((cat, index) => (
         <CategoryPill
           key={cat.id}
@@ -122,6 +149,6 @@ export function MenuCategoryStrip({ selectedId, onSelect }: MenuCategoryStripPro
           onSelect={onSelect}
         />
       ))}
-    </div>
+    </nav>
   );
 }

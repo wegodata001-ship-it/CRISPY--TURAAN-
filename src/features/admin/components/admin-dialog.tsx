@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * @deprecated Use AdminModal from "@/features/admin/components/admin-modal" instead.
+ * This file is kept for reference only — all admin features have been migrated.
+ */
+
 import * as React from "react";
 import {
   Dialog,
