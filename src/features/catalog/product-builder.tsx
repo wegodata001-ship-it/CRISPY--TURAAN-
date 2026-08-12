@@ -19,7 +19,6 @@ import {
 } from "@/lib/product-builder/engine";
 import type { ProductBuilderConfig, SelectionState } from "@/types/modifiers";
 import type { Product } from "@/types";
-import { getProductImage } from "@/lib/menu/placeholders";
 
 function localizedGroupName(
   group: { name_he: string; name_ar: string; name_en: string },

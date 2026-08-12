@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Heart, Minus, Plus, ShoppingBag, X, Share2, Sparkles } from "lucide-react";
+import { Heart, Minus, Plus, ShoppingBag, X, Share2, Sparkles, ImageIcon } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   Dialog,
@@ -23,7 +23,7 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { useProducts } from "@/hooks/useProducts";
 import { useProductBuilderConfig } from "@/hooks/useModifiers";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { getProductImage } from "@/lib/menu/placeholders";
+import { getProductImage, hasRealProductImage } from "@/lib/menu/placeholders";
 import {
   calculateLineTotal,
   productHasBuilder,
@@ -119,14 +119,21 @@ function ProductDetailContent({
         className="relative h-[clamp(180px,25dvh,220px)] w-full shrink-0 overflow-hidden bg-beige/20 lg:h-full lg:min-h-0"
         onClick={() => setZoomed(!zoomed)}
       >
-        <Image
-          src={imageSrc}
-          alt={localized.name}
-          fill
-          className={cn("object-cover transition-transform", zoomed && "scale-110")}
-          sizes="(min-width: 1024px) 380px, 100vw"
-          priority
-        />
+        {imageSrc ? (
+          <Image
+            src={imageSrc}
+            alt={localized.name}
+            fill
+            unoptimized={imageSrc.includes("firebasestorage")}
+            className={cn("object-cover transition-transform", zoomed && "scale-110")}
+            sizes="(min-width: 1024px) 380px, 100vw"
+            priority
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-beige/60 via-cream to-beige/40">
+            <ImageIcon className="h-12 w-12 text-coffee/20" strokeWidth={1.5} />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-dark-brown/60 via-transparent to-transparent" />
         <div className="absolute top-4 start-4 flex gap-2">
           <button

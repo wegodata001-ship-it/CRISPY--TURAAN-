@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Plus, Minus, Trash2, ShoppingBag, X, Star, Sparkles } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingBag, X, Star, Sparkles, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatPrice, cn } from "@/lib/utils";
 import { calculateLineTotal } from "@/lib/product-builder/engine";
@@ -70,7 +70,11 @@ export function AssistantProductCard({
         className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-beige/50"
         aria-label={t("assistant.viewProduct")}
       >
-        <Image src={imageSrc} alt={product.name} fill className="object-cover" sizes="64px" />
+        {imageSrc ? (
+          <Image src={imageSrc} alt={product.name} fill unoptimized={imageSrc.includes("firebasestorage")} className="object-cover" sizes="64px" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center"><ImageIcon className="h-5 w-5 text-coffee/20" strokeWidth={1.5} /></div>
+        )}
         {product.isPopular && (
           <span className="absolute bottom-0.5 start-0.5 rounded bg-gold/90 px-1 py-0.5">
             <Star className="h-2.5 w-2.5 text-warm-white" strokeWidth={2} fill="currentColor" />
@@ -137,8 +141,12 @@ export function AssistantProductDetail({
           <X className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </div>
-      <div className="relative mt-2 aspect-[16/10] overflow-hidden rounded-xl">
-        <Image src={imageSrc} alt={product.name} fill className="object-cover" sizes="360px" />
+      <div className="relative mt-2 aspect-[16/10] overflow-hidden rounded-xl bg-beige/30">
+        {imageSrc ? (
+          <Image src={imageSrc} alt={product.name} fill unoptimized={imageSrc.includes("firebasestorage")} className="object-cover" sizes="360px" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center"><ImageIcon className="h-8 w-8 text-coffee/20" strokeWidth={1.5} /></div>
+        )}
       </div>
       <h3 className="mt-3 font-display text-lg font-bold text-dark-brown">{product.name}</h3>
       {product.categoryName && <p className="text-xs text-coffee/45">{product.categoryName}</p>}
@@ -189,8 +197,12 @@ function CartLine({ item }: { item: import("@/types").CartItem }) {
 
   return (
     <div className="flex gap-3 rounded-xl border border-beige-dark/20 bg-warm-white/80 p-2.5">
-      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg">
-        <Image src={imageSrc} alt={localized.name} fill className="object-cover" sizes="48px" />
+      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-beige/30">
+        {imageSrc ? (
+          <Image src={imageSrc} alt={localized.name} fill unoptimized={imageSrc.includes("firebasestorage")} className="object-cover" sizes="48px" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center"><ImageIcon className="h-4 w-4 text-coffee/20" strokeWidth={1.5} /></div>
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold" dir={localized.dir}>

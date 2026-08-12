@@ -2,13 +2,14 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
+import { ImageIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { getProductImage, PRODUCT_IMAGE_FALLBACK } from "@/lib/menu/placeholders";
+import { hasRealProductImage } from "@/lib/menu/placeholders";
 
 interface ProductImageProps {
   image?: string | null;
-  categoryId: string;
+  categoryId?: string;
   alt: string;
   compact?: boolean;
   thumbnail?: boolean;
@@ -17,9 +18,29 @@ interface ProductImageProps {
   className?: string;
 }
 
+function isFirebaseUrl(url: string): boolean {
+  return (
+    url.includes("firebasestorage.googleapis.com") ||
+    url.includes("firebasestorage.app")
+  );
+}
+
+function ProductImagePlaceholder({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "absolute inset-0 flex items-center justify-center bg-gradient-to-br from-beige/60 via-cream to-beige/40",
+        className
+      )}
+      aria-hidden
+    >
+      <ImageIcon className="h-8 w-8 text-coffee/20" strokeWidth={1.5} />
+    </div>
+  );
+}
+
 export function ProductImage({
   image,
-  categoryId,
   alt,
   compact,
   thumbnail,
@@ -27,42 +48,31 @@ export function ProductImage({
   priority,
   className,
 }: ProductImageProps) {
-  const initialSrc = getProductImage(image, categoryId);
-  const [src, setSrc] = useState(initialSrc);
+  const hasImage = hasRealProductImage(image);
+  const [src, setSrc] = useState(hasImage ? image!.trim() : "");
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    const next = getProductImage(image, categoryId);
+    const next = hasRealProductImage(image) ? image!.trim() : "";
     setSrc(next);
     setLoaded(false);
     setFailed(false);
-  }, [image, categoryId]);
+  }, [image]);
 
   const handleError = useCallback(() => {
-    if (src !== PRODUCT_IMAGE_FALLBACK) {
-      setSrc(PRODUCT_IMAGE_FALLBACK);
-      setLoaded(false);
-      return;
-    }
     setFailed(true);
-  }, [src]);
+  }, []);
 
-  if (failed) {
-    return (
-      <div
-        className={cn(
-          "absolute inset-0 bg-gradient-to-br from-coffee/20 via-beige/40 to-turquoise/15",
-          className
-        )}
-        aria-hidden
-      />
-    );
+  if (!src || failed) {
+    return <ProductImagePlaceholder className={className} />;
   }
 
   const resolvedSizes =
     sizes ??
     (thumbnail ? "56px" : compact ? "220px" : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px");
+
+  const useUnoptimized = isFirebaseUrl(src);
 
   return (
     <>
@@ -72,6 +82,7 @@ export function ProductImage({
         src={src}
         alt={alt}
         fill
+        unoptimized={useUnoptimized}
         priority={priority}
         loading={priority ? undefined : "lazy"}
         sizes={resolvedSizes}

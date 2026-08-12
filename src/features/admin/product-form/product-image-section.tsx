@@ -79,7 +79,7 @@ export function ProductImageSection({
       >
         {hasDisplayImage ? (
           <div className="relative aspect-square w-full">
-            <Image src={imageUrl} alt="" fill className="object-cover" sizes="400px" priority />
+            <Image src={imageUrl} alt="" fill unoptimized={imageUrl.includes("firebasestorage")} className="object-cover" sizes="400px" priority />
             {uploading && (
               <div className="absolute inset-0 flex items-center justify-center bg-dark-brown/40">
                 <Loader2 className="h-10 w-10 animate-spin text-warm-white" />

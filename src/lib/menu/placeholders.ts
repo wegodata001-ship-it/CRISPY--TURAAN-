@@ -66,12 +66,10 @@ export function getCategoryHeroImage(
   return image!.trim();
 }
 
-/** Returns product image or a local category placeholder — never empty, never external fallback */
-export function getProductImage(image: string | undefined | null, categoryId: string): string {
-  if (image && isAllowedProductImageUrl(image) && !image.includes("placeholder")) {
-    return image.trim();
-  }
-  return getCategoryPlaceholder(categoryId);
+/** Returns the product's own image URL, or empty string if none exists */
+export function getProductImage(image: string | undefined | null, _categoryId?: string): string {
+  if (hasRealProductImage(image)) return image!.trim();
+  return "";
 }
 
-export const PRODUCT_IMAGE_FALLBACK = LOCAL_DEFAULT;
+export const PRODUCT_IMAGE_FALLBACK = "";

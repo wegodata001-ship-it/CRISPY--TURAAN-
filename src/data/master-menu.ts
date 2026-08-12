@@ -235,7 +235,7 @@ function buildProducts(): MasterMenuProduct[] {
         popular: false,
         available: true,
         hidden: raw.hidden,
-        image: getCategoryPlaceholder(group.categoryId),
+        image: "",
         sortOrder: raw.sortOrder,
         active: !raw.hidden,
         menuCode: raw.menuCode,
