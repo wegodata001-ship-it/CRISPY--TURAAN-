@@ -107,7 +107,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
           )}
         </button>
 
-        <LanguageSwitcher compact />
+        <LanguageSwitcher variant="dropdown" className="sm:hidden" />
+        <LanguageSwitcher compact className="hidden sm:inline-flex" />
 
         <div className="relative">
           <button

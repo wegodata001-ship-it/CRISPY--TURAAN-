@@ -78,6 +78,7 @@ export function SiteHeader() {
 
         {/* Actions — end (left in RTL) */}
         <div className="ms-auto flex items-center gap-2 md:gap-3">
+          <LanguageSwitcher variant="dropdown" className="sm:hidden" />
           <LanguageSwitcher compact className="hidden sm:inline-flex" />
 
           <Link
