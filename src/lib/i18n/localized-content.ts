@@ -82,9 +82,9 @@ export function getLocalizedBannerField(
   const localized = banner[localizedKey];
   if (typeof localized === "string" && localized.trim()) return localized;
 
-  if (field === "button") return banner.cta ?? banner.button_he ?? banner.button_en ?? "";
-  if (field === "title") return banner.title_he ?? banner.title ?? banner.title_en ?? "";
-  return banner.subtitle_he ?? banner.subtitle ?? banner.subtitle_en ?? "";
+  if (field === "button") return banner.cta ?? banner.button_ar ?? banner.button_he ?? banner.button_en ?? "";
+  if (field === "title") return banner.title_ar ?? banner.title ?? banner.title_he ?? banner.title_en ?? "";
+  return banner.subtitle_ar ?? banner.subtitle ?? banner.subtitle_he ?? banner.subtitle_en ?? "";
 }
 
 /** Legacy compat — maps old name_ar (was Hebrew) to name_he when needed */

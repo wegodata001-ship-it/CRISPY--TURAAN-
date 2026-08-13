@@ -102,7 +102,7 @@ export default function RootLayout({
 }) {
   return (
     <html
-      lang="he"
+      lang="ar"
       dir="rtl"
       suppressHydrationWarning
       className={`${inter.variable} ${playfair.variable} ${heebo.variable} ${assistant.variable} ${cairo.variable} ${tajawal.variable} ${atkinson.variable}`}
