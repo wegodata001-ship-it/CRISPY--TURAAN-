@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BRAND, getStoreImageSrc } from "@/lib/brand";
+import { normalizeImageUrl } from "@/lib/menu/placeholders";
 import { useT } from "@/components/providers/locale-provider";
 import { useSettings } from "@/hooks/useSettings";
 import { useBanners } from "@/hooks/useProducts";
@@ -70,7 +71,8 @@ export function HeroBanner() {
     );
   }
 
-  const imageSrc = getStoreImageSrc(settings?.storeImageUrl);
+  const rawImageSrc = getStoreImageSrc(settings?.storeImageUrl);
+  const imageSrc = normalizeImageUrl(rawImageSrc) || rawImageSrc;
 
   return (
     <section className="mx-4 mt-6 md:mx-8 md:mt-8 lg:mx-auto lg:max-w-[1400px]">
@@ -118,6 +120,7 @@ export function HeroBanner() {
               src={imageSrc}
               alt={settings?.storeName ?? BRAND.name}
               fill
+              unoptimized={imageSrc.includes("firebasestorage")}
               priority
               className="object-cover"
               sizes="(max-width: 1024px) 100vw, 50vw"

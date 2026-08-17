@@ -81,7 +81,7 @@ export function ImageUpload({
             compact ? "h-28" : "aspect-video"
           )}
         >
-          <Image src={value} alt={t("admin.upload.preview")} fill className="object-cover" sizes="400px" />
+          <Image src={value} alt={t("admin.upload.preview")} fill unoptimized={value.includes("firebasestorage")} className="object-cover" sizes="400px" />
           {!uploading && (
             <button
               type="button"
