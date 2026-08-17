@@ -20,6 +20,7 @@ import { bannerSchema, type BannerInput } from "@/lib/validation/schemas";
 import type { BannerSlide } from "@/types";
 import type { FirestoreBanner, FirestoreDoc } from "@/types/firestore";
 import { sanitizeFirestoreData } from "@/lib/firebase/sanitize-firestore-data";
+import { normalizeImageUrl } from "@/lib/menu/placeholders";
 
 function docToBanner(id: string, data: DocumentData): FirestoreDoc<FirestoreBanner> {
   return { id, ...(data as FirestoreBanner) };
@@ -115,6 +116,8 @@ export async function reorderBanners(
 export async function createBanner(input: BannerInput): Promise<ServiceResult<BannerSlide>> {
   try {
     const parsed = bannerSchema.parse(input);
+    if (parsed.imageUrl) parsed.imageUrl = normalizeImageUrl(parsed.imageUrl) ?? parsed.imageUrl;
+    if (parsed.mobileImageUrl) parsed.mobileImageUrl = normalizeImageUrl(parsed.mobileImageUrl) ?? parsed.mobileImageUrl;
     const db = getDb();
     const data = sanitizeFirestoreData(parsed) as FirestoreBanner;
     const ref = await addDoc(collection(db, COLLECTIONS.banners), data);
@@ -129,6 +132,8 @@ export async function updateBanner(
   input: Partial<BannerInput>
 ): Promise<ServiceResult<void>> {
   try {
+    if (input.imageUrl) input.imageUrl = normalizeImageUrl(input.imageUrl) ?? input.imageUrl;
+    if (input.mobileImageUrl) input.mobileImageUrl = normalizeImageUrl(input.mobileImageUrl) ?? input.mobileImageUrl;
     const db = getDb();
     await updateDoc(doc(db, COLLECTIONS.banners, id), sanitizeFirestoreData(input));
     return success(undefined);

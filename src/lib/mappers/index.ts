@@ -7,6 +7,7 @@ import type {
   FirestoreDoc,
 } from "@/types/firestore";
 import { timestampToIso } from "@/types/firestore";
+import { normalizeImageUrl } from "@/lib/menu/placeholders";
 import type {
   Category,
   Product,
@@ -48,7 +49,7 @@ export function mapCategory(doc: FirestoreDoc<FirestoreCategory>): Category {
     name_ar: readNameAr(doc),
     name_en: doc.nameEn ?? "",
     icon: doc.icon,
-    image: doc.imageUrl ?? "",
+    image: normalizeImageUrl(doc.imageUrl) ?? "",
     color: doc.color ?? "#8B6914",
     sortOrder: doc.sortOrder,
     active: doc.active,
@@ -71,7 +72,7 @@ export function mapProduct(doc: FirestoreDoc<FirestoreProduct>): Product {
     cost: doc.cost ?? 0,
     profit: doc.profit ?? 0,
     businessType: (doc.businessType ?? "food") as BusinessType,
-    image: doc.imageUrl,
+    image: normalizeImageUrl(doc.imageUrl) ?? "",
     isPopular: doc.popular,
     isNew: doc.newProduct,
     available: doc.available,
@@ -159,8 +160,8 @@ export function mapBanner(doc: FirestoreDoc<FirestoreBanner>): BannerSlide {
     button_he: doc.buttonHe,
     button_ar: doc.buttonAr,
     button_en: doc.buttonEn,
-    image: doc.imageUrl,
-    mobileImage: doc.mobileImageUrl,
+    image: normalizeImageUrl(doc.imageUrl) ?? "",
+    mobileImage: normalizeImageUrl(doc.mobileImageUrl) ?? undefined,
     cta: doc.cta,
     ctaUrl: doc.ctaUrl,
     ctaAction: doc.ctaAction ?? (doc.ctaUrl ? "link" : doc.cta ? "link" : "none"),

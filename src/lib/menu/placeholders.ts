@@ -1,6 +1,23 @@
 import { BRAND } from "@/lib/brand";
 
 /**
+ * Normalizes any image value into a usable URL:
+ * - Firebase URLs pass through unchanged
+ * - Local filenames get prepended with "/"
+ * - "public/" prefix is stripped
+ * - Empty/null returns null
+ */
+export function normalizeImageUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  let trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  trimmed = trimmed.replace(/^\/?(public\/)/i, "");
+  if (!trimmed.startsWith("/")) trimmed = `/${trimmed}`;
+  return trimmed;
+}
+
+/**
  * Local-only product placeholders — never use external URLs here.
  * External images (Unsplash etc.) can 404 and break Next.js image optimization.
  */
@@ -27,22 +44,21 @@ export function getCategoryPlaceholder(categoryId: string): string {
 }
 
 export function isAllowedProductImageUrl(url: string): boolean {
-  const trimmed = url.trim();
-  if (!trimmed) return false;
-  // Broken external hosts (e.g. deleted Unsplash assets) must never hit next/image.
-  if (/unsplash\.com|images\.unsplash\.com/i.test(trimmed)) return false;
-  if (trimmed.startsWith("/")) return true;
-  if (trimmed.includes("firebasestorage.googleapis.com")) return true;
-  if (trimmed.includes("firebasestorage.app")) return true;
+  const normalized = normalizeImageUrl(url);
+  if (!normalized) return false;
+  if (/unsplash\.com|images\.unsplash\.com/i.test(normalized)) return false;
+  if (normalized.startsWith("/")) return true;
+  if (normalized.includes("firebasestorage.googleapis.com")) return true;
+  if (normalized.includes("firebasestorage.app")) return true;
   return false;
 }
 
 /** True when the product has a real uploaded image worth showing as a thumbnail */
 export function hasRealProductImage(image: string | undefined | null): boolean {
-  if (!image || !isAllowedProductImageUrl(image)) return false;
-  const trimmed = image.trim();
-  if (!trimmed || trimmed.includes("placeholder")) return false;
-  if (trimmed === LOCAL_DEFAULT || trimmed === BRAND.store) return false;
+  const normalized = normalizeImageUrl(image);
+  if (!normalized || !isAllowedProductImageUrl(normalized)) return false;
+  if (normalized.includes("placeholder")) return false;
+  if (normalized === LOCAL_DEFAULT || normalized === BRAND.store) return false;
   return true;
 }
 
@@ -68,7 +84,7 @@ export function getCategoryHeroImage(
 
 /** Returns the product's own image URL, or empty string if none exists */
 export function getProductImage(image: string | undefined | null, _categoryId?: string): string {
-  if (hasRealProductImage(image)) return image!.trim();
+  if (hasRealProductImage(image)) return normalizeImageUrl(image)!;
   return "";
 }
 

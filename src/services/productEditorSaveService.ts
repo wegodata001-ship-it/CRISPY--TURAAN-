@@ -9,6 +9,7 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { sanitizeFirestoreData } from "@/lib/firebase/sanitize-firestore-data";
 import { failure, success, type ServiceResult } from "@/lib/errors";
 import { productSchema, type ProductInput } from "@/lib/validation/schemas";
+import { normalizeImageUrl } from "@/lib/menu/placeholders";
 import {
   modifierGroupSchema,
   modifierOptionSchema,
@@ -52,6 +53,7 @@ export async function saveProductEditorChanges(
 
     if (!input.productId) {
       const parsed = productSchema.parse(input.productValues);
+      if (parsed.imageUrl) parsed.imageUrl = normalizeImageUrl(parsed.imageUrl) ?? "";
       batch.set(
         productRef,
         sanitizeFirestoreData({
@@ -63,11 +65,13 @@ export async function saveProductEditorChanges(
       );
       writes += 1;
     } else if (Object.keys(input.productPatch).length > 0) {
+      const patch = { ...input.productPatch };
+      if (patch.imageUrl !== undefined) patch.imageUrl = normalizeImageUrl(patch.imageUrl) ?? "";
       batch.update(
         productRef,
         sanitizeFirestoreData({
-          ...input.productPatch,
-          ...(input.productPatch.subcategoryId === ""
+          ...patch,
+          ...(patch.subcategoryId === ""
             ? { subcategoryId: null }
             : {}),
           updatedAt: now,

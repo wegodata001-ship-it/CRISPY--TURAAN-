@@ -5,7 +5,7 @@ import Image from "next/image";
 import { ImageIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { hasRealProductImage } from "@/lib/menu/placeholders";
+import { hasRealProductImage, normalizeImageUrl } from "@/lib/menu/placeholders";
 
 interface ProductImageProps {
   image?: string | null;
@@ -49,12 +49,12 @@ export function ProductImage({
   className,
 }: ProductImageProps) {
   const hasImage = hasRealProductImage(image);
-  const [src, setSrc] = useState(hasImage ? image!.trim() : "");
+  const [src, setSrc] = useState(hasImage ? normalizeImageUrl(image)! : "");
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    const next = hasRealProductImage(image) ? image!.trim() : "";
+    const next = hasRealProductImage(image) ? normalizeImageUrl(image)! : "";
     setSrc(next);
     setLoaded(false);
     setFailed(false);

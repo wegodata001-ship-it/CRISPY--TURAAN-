@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
+import { normalizeImageUrl } from "@/lib/menu/placeholders";
 import type { BannerSlide } from "@/types";
 
 function localizedBanner(banner: BannerSlide, locale: "he" | "ar" | "en") {
@@ -54,7 +55,8 @@ export function BannerHero({
   const { locale } = useLocale();
   const content = localizedBanner(banner, locale);
   const mobile = device === "mobile";
-  const image = mobile ? banner.mobileImage || banner.image : banner.image;
+  const rawImage = mobile ? banner.mobileImage || banner.image : banner.image;
+  const image = normalizeImageUrl(rawImage) || rawImage;
   const x = mobile ? banner.mobilePositionX : banner.desktopPositionX;
   const y = mobile ? banner.mobilePositionY : banner.desktopPositionY;
   const zoom = mobile ? banner.mobileZoom : banner.desktopZoom;
@@ -72,6 +74,7 @@ export function BannerHero({
         src={image}
         alt={content.title}
         fill
+        unoptimized={image.includes("firebasestorage")}
         priority={!interactive}
         className="object-cover"
         style={{
