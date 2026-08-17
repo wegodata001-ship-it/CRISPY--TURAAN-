@@ -173,6 +173,11 @@ function GroupStep({
     );
   };
 
+  const maxSel = group.group.maxSelections;
+  const minSel = group.group.minSelections;
+  const totalQty = selected.reduce((sum, s) => sum + s.quantity, 0);
+  const atMax = maxSel > 0 && totalQty >= maxSel;
+
   return (
     <div className="space-y-4">
       <div>
@@ -181,7 +186,9 @@ function GroupStep({
         </h3>
         <p className="mt-1 text-sm text-coffee/55">
           {group.selectionType === "multiple"
-            ? t("builder.multipleHint")
+            ? maxSel > 1
+              ? `${t("builder.multipleHint")} · ${t("builder.maxHint").replace("{0}", String(maxSel))}`
+              : t("builder.multipleHint")
             : group.selectionType === "single"
               ? t("builder.singleHint")
               : t("builder.quantityHint")}
@@ -189,6 +196,12 @@ function GroupStep({
             ? ` · ${t("builder.required")}`
             : ` · ${t("builder.optional")}`}
         </p>
+        {group.selectionType === "multiple" && maxSel > 1 && (
+          <p className={cn("mt-1 text-xs font-medium", atMax ? "text-turquoise" : "text-coffee/40")}>
+            {totalQty}/{maxSel}
+            {atMax && ` ✓`}
+          </p>
+        )}
       </div>
 
       {group.requirement !== "required" && (
@@ -223,6 +236,7 @@ function GroupStep({
             (selection) => selection.optionId === option.id
           );
           const isSelected = Boolean(entry);
+          const optDisabled = atMax && !isSelected;
 
           return (
             <div
@@ -231,14 +245,16 @@ function GroupStep({
                 "relative overflow-hidden rounded-2xl border transition-all",
                 isSelected
                   ? "border-turquoise bg-turquoise/10 shadow-soft"
-                  : "border-beige-dark/25 bg-warm-white hover:border-turquoise/50"
+                  : "border-beige-dark/25 bg-warm-white hover:border-turquoise/50",
+                optDisabled && "opacity-40"
               )}
             >
               <button
                 type="button"
+                disabled={optDisabled}
                 onClick={() => toggle(option.id)}
                 aria-pressed={isSelected}
-                className="flex min-h-14 w-full items-center gap-3 px-3 py-3 text-start"
+                className={cn("flex min-h-14 w-full items-center gap-3 px-3 py-3 text-start", optDisabled && "cursor-not-allowed")}
               >
                 {option.image && (
                   <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl">

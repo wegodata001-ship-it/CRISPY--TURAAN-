@@ -49,6 +49,10 @@ function ModifierGroupRenderer({
     onChange(group.group.id, [{ optionId, quantity: 1 }]);
   };
 
+  const maxSelections = group.group.maxSelections;
+  const totalSelected = selected.reduce((sum, s) => sum + s.quantity, 0);
+  const reachedMax = maxSelections > 0 && totalSelected >= maxSelections;
+
   const toggleMultiple = (optionId: string) => {
     const exists = selected.find((s) => s.optionId === optionId);
     if (exists) {
@@ -57,6 +61,7 @@ function ModifierGroupRenderer({
         selected.filter((s) => s.optionId !== optionId)
       );
     } else {
+      if (reachedMax) return;
       onChange(group.group.id, [...selected, { optionId, quantity: 1 }]);
     }
   };
@@ -71,10 +76,15 @@ function ModifierGroupRenderer({
       );
       return;
     }
-    onChange(
-      group.group.id,
-      selected.map((s) => (s.optionId === optionId ? { ...s, quantity: nextQty } : s))
-    );
+    if (delta > 0 && reachedMax) return;
+    if (current) {
+      onChange(
+        group.group.id,
+        selected.map((s) => (s.optionId === optionId ? { ...s, quantity: nextQty } : s))
+      );
+    } else {
+      onChange(group.group.id, [...selected, { optionId, quantity: nextQty }]);
+    }
   };
 
   if (visibleOptions.length === 0) return null;
@@ -87,6 +97,11 @@ function ModifierGroupRenderer({
           <Badge variant="outline" className="text-[10px]">
             {t("builder.required")}
           </Badge>
+        )}
+        {group.selectionType === "multiple" && maxSelections > 1 && (
+          <span className={cn("text-xs", reachedMax ? "font-medium text-turquoise" : "text-coffee/50")}>
+            {totalSelected}/{maxSelections}
+          </span>
         )}
       </div>
 
@@ -117,11 +132,13 @@ function ModifierGroupRenderer({
             const qty = selected.find((s) => s.optionId === option.id)?.quantity ?? 0;
             const isQtyType =
               group.selectionType === "quantity" || group.selectionType === "counter";
+            const isDisabled = reachedMax && !isSelected;
 
             return (
               <div key={option.id} className="flex flex-col gap-1">
                 <button
                   type="button"
+                  disabled={isDisabled}
                   onClick={() => {
                     if (isQtyType) adjustQty(option.id, 1);
                     else if (group.selectionType === "multiple") toggleMultiple(option.id);
@@ -131,7 +148,8 @@ function ModifierGroupRenderer({
                     "rounded-xl border px-3 py-2 text-start text-sm transition-all",
                     isSelected
                       ? "border-turquoise bg-turquoise/10 text-dark-brown shadow-soft"
-                      : "border-beige-dark/25 bg-warm-white/80 hover:border-turquoise/40"
+                      : "border-beige-dark/25 bg-warm-white/80 hover:border-turquoise/40",
+                    isDisabled && "cursor-not-allowed opacity-40"
                   )}
                 >
                   {group.displayType === "images" && option.image && (
