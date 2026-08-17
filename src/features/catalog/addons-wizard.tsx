@@ -140,8 +140,8 @@ function GroupStep({
         );
         return;
       }
-      const max = Math.max(1, group.group.maxSelections);
-      if (selected.length >= max) return;
+      const max = group.group.maxSelections;
+      if (max > 0 && selected.length >= max) return;
       onChange(group.group.id, [
         ...selected,
         { optionId, quantity: 1 },
@@ -177,6 +177,7 @@ function GroupStep({
   const minSel = group.group.minSelections;
   const totalQty = selected.reduce((sum, s) => sum + s.quantity, 0);
   const atMax = maxSel > 0 && totalQty >= maxSel;
+  const exactRequired = minSel > 0 && minSel === maxSel;
 
   return (
     <div className="space-y-4">
@@ -186,9 +187,11 @@ function GroupStep({
         </h3>
         <p className="mt-1 text-sm text-coffee/55">
           {group.selectionType === "multiple"
-            ? maxSel > 1
-              ? `${t("builder.multipleHint")} · ${t("builder.maxHint").replace("{0}", String(maxSel))}`
-              : t("builder.multipleHint")
+            ? exactRequired
+              ? locale === "ar" ? `اختر ${maxSel}` : locale === "he" ? `בחרו ${maxSel}` : `Choose ${maxSel}`
+              : maxSel > 1
+                ? `${t("builder.multipleHint")} · ${t("builder.maxHint").replace("{0}", String(maxSel))}`
+                : t("builder.multipleHint")
             : group.selectionType === "single"
               ? t("builder.singleHint")
               : t("builder.quantityHint")}
@@ -196,10 +199,15 @@ function GroupStep({
             ? ` · ${t("builder.required")}`
             : ` · ${t("builder.optional")}`}
         </p>
-        {group.selectionType === "multiple" && maxSel > 1 && (
-          <p className={cn("mt-1 text-xs font-medium", atMax ? "text-turquoise" : "text-coffee/40")}>
+        {group.selectionType === "multiple" && maxSel > 0 && (
+          <p className={cn("mt-1.5 text-sm font-semibold", atMax ? "text-turquoise" : "text-coffee/50")}>
             {totalQty}/{maxSel}
-            {atMax && ` ✓`}
+            {atMax && " ✓"}
+            {!atMax && minSel > 0 && totalQty < minSel && (
+              <span className="ms-2 text-xs font-normal text-amber-600">
+                {locale === "ar" ? `يجب اختيار ${minSel} على الأقل` : locale === "he" ? `יש לבחור לפחות ${minSel}` : `Select at least ${minSel}`}
+              </span>
+            )}
           </p>
         )}
       </div>

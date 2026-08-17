@@ -6,9 +6,9 @@ export const BRAND = {
   logoOriginal: "/logo.png",
   /** width / height from public/logo.png */
   logoAspect: 1059 / 931,
-  store: "/store.jpg",
+  store: "/meskahphoto.png",
   /** Local fallback when remote store image fails */
-  storeFallback: "/store.jpg",
+  storeFallback: "/meskahphoto.png",
   name: "MISHKAT CAFÉ",
   nameShort: "Mishkat",
   tagline: "Coffee • Crêpes • Desserts",

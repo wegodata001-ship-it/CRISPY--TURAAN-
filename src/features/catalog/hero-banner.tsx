@@ -72,7 +72,8 @@ export function HeroBanner() {
   }
 
   const rawImageSrc = getStoreImageSrc(settings?.storeImageUrl);
-  const imageSrc = normalizeImageUrl(rawImageSrc) || rawImageSrc;
+  let imageSrc = normalizeImageUrl(rawImageSrc) || "/meskahphoto.png";
+  if (imageSrc === "/store.jpg") imageSrc = "/meskahphoto.png";
 
   return (
     <section className="mx-4 mt-6 md:mx-8 md:mt-8 lg:mx-auto lg:max-w-[1400px]">

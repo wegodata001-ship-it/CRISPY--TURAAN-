@@ -51,7 +51,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json(response);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Assistant request failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Assistant request failed";
+    console.error("[CHATBOT_API_ERROR]", {
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

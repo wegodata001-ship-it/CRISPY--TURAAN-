@@ -6,7 +6,6 @@ import { Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SiteHeader } from "@/components/layout/header";
 import { HeroBanner } from "@/features/catalog/hero-banner";
-import { CategoryHeroBanner } from "@/features/catalog/category-hero-banner";
 import { MenuCategoryStrip } from "@/features/catalog/menu-category-strip";
 import { SubcategoryChips } from "@/features/catalog/subcategory-chips";
 import { ProductFiltersBar } from "@/features/catalog/product-filters-bar";
@@ -184,11 +183,6 @@ export function CatalogView() {
               />
             </div>
 
-            {!isSearchMode && showProducts && !needsSubcategoryPick && (
-              <div className="mt-5">
-                <CategoryHeroBanner category={heroCategory} />
-              </div>
-            )}
 
             <ProductFiltersBar
               filters={combinedFilters}

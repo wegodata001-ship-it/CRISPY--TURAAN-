@@ -56,7 +56,8 @@ export function BannerHero({
   const content = localizedBanner(banner, locale);
   const mobile = device === "mobile";
   const rawImage = mobile ? banner.mobileImage || banner.image : banner.image;
-  const image = normalizeImageUrl(rawImage) || rawImage;
+  let image = normalizeImageUrl(rawImage) || "/meskahphoto.png";
+  if (image === "/store.jpg") image = "/meskahphoto.png";
   const x = mobile ? banner.mobilePositionX : banner.desktopPositionX;
   const y = mobile ? banner.mobilePositionY : banner.desktopPositionY;
   const zoom = mobile ? banner.mobileZoom : banner.desktopZoom;

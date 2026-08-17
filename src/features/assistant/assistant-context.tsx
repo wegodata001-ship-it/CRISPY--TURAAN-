@@ -20,7 +20,9 @@ import { subscribeToAssistantConfig } from "@/services/assistantService";
 import { subscribeToSettings, type AppSettings } from "@/services/settingsService";
 import { useCart } from "@/features/cart/cart-context";
 import { useLocale, useT } from "@/components/providers/locale-provider";
-import { useAllProducts } from "@/hooks/useProducts";
+import { useAllProducts, useAllCategories } from "@/hooks/useProducts";
+import { getLocalizedName } from "@/lib/i18n/localized-content";
+import type { Locale } from "@/lib/i18n/types";
 
 const STORAGE_KEY = "mishkat-assistant-chat";
 
@@ -68,12 +70,112 @@ function loadMessages(): AssistantMessage[] {
   }
 }
 
+function clientFallback(
+  actionId: string | undefined,
+  message: string,
+  locale: Locale,
+  products: import("@/types").Product[],
+  categories: import("@/types").Category[],
+  config: AssistantConfig,
+  settings: AppSettings | null
+): AssistantChatResponse {
+  const loc = locale;
+  const respond = (msg: string, prods: AssistantProduct[] = [], extra?: Partial<AssistantChatResponse>): AssistantChatResponse => ({
+    message: msg,
+    products: prods,
+    suggestions: [],
+    ...extra,
+  });
+
+  const toAssistantProduct = (p: import("@/types").Product): AssistantProduct => ({
+    id: p.id,
+    name: getLocalizedName(p, loc),
+    description: "",
+    price: p.price,
+    image: p.image,
+    categoryId: p.categoryId,
+    available: p.available,
+    isPopular: p.isPopular,
+    isNew: p.isNew,
+  });
+
+  const available = products.filter((p) => p.available && p.active !== false);
+
+  if (actionId) {
+    const action = config.quickActions.find((a) => a.id === actionId);
+    if (action) {
+      switch (action.action) {
+        case "category": {
+          const catProducts = available.filter((p) => p.categoryId === action.categoryId).slice(0, 8);
+          const cat = categories.find((c) => c.id === action.categoryId);
+          const catName = cat ? getLocalizedName(cat, loc) : action.label[loc];
+          return respond(catName, catProducts.map(toAssistantProduct));
+        }
+        case "categories": {
+          const catProducts = available.filter((p) => action.categoryIds?.includes(p.categoryId)).slice(0, 8);
+          return respond(action.label[loc], catProducts.map(toAssistantProduct));
+        }
+        case "popular": {
+          const pop = available.filter((p) => p.isPopular).slice(0, 8);
+          return respond(action.label[loc], pop.map(toAssistantProduct));
+        }
+        case "cart":
+          return respond(loc === "ar" ? "سلتك" : loc === "he" ? "העגלה שלך" : "Your cart", [], { showCart: true });
+        case "checkout":
+          return respond(loc === "ar" ? "انتقل إلى الدفع" : loc === "he" ? "מעבר לתשלום" : "Go to checkout", [], { clientAction: { type: "checkout" } });
+        case "contact": {
+          const phone = settings?.phone || config.links.phone || "";
+          const address = settings?.address || "";
+          const msg = loc === "ar"
+            ? `تواصل معنا${phone ? `\n📞 ${phone}` : ""}${address ? `\n📍 ${address}` : ""}`
+            : loc === "he"
+              ? `צרו קשר${phone ? `\n📞 ${phone}` : ""}${address ? `\n📍 ${address}` : ""}`
+              : `Contact us${phone ? `\n📞 ${phone}` : ""}${address ? `\n📍 ${address}` : ""}`;
+          return respond(msg, [], { showContact: true });
+        }
+        default:
+          return respond(action.label[loc]);
+      }
+    }
+  }
+
+  if (message) {
+    const lower = message.toLowerCase();
+    if (lower.includes("عنوان") || lower.includes("כתובת") || lower.includes("address") || lower.includes("موقع")) {
+      const address = settings?.address || "";
+      return respond(address || (loc === "ar" ? "لا يوجد عنوان محدد حالياً." : loc === "he" ? "אין כתובת מוגדרת כרגע." : "No address available."));
+    }
+    if (lower.includes("هاتف") || lower.includes("טלפון") || lower.includes("phone") || lower.includes("اتصل")) {
+      const phone = settings?.phone || "";
+      return respond(phone ? `📞 ${phone}` : (loc === "ar" ? "لا يوجد رقم هاتف." : "No phone number."));
+    }
+    if (lower.includes("ساعات") || lower.includes("שעות") || lower.includes("hours") || lower.includes("وقت")) {
+      const hours = settings?.hours || "";
+      return respond(hours || (loc === "ar" ? "لم يتم تحديد ساعات العمل." : "Hours not set."));
+    }
+    const matched = available.filter((p) => {
+      const name = getLocalizedName(p, loc).toLowerCase();
+      return name.includes(lower) || lower.includes(name);
+    }).slice(0, 6);
+    if (matched.length > 0) {
+      return respond(loc === "ar" ? "نتائج البحث:" : loc === "he" ? "תוצאות:" : "Results:", matched.map(toAssistantProduct));
+    }
+  }
+
+  return respond(
+    loc === "ar" ? "لم أجد إجابة مناسبة. يمكنك اختيار أحد الخيارات أدناه أو التواصل معنا."
+      : loc === "he" ? "לא מצאתי תשובה מתאימה. אפשר לבחור מהאפשרויות למטה או ליצור קשר."
+      : "I couldn't find a matching answer. Please choose an option below or contact us."
+  );
+}
+
 export function AssistantProvider({ children }: { children: ReactNode }) {
   const { locale } = useLocale();
   const t = useT();
   const router = useRouter();
   const { items, addItem, removeItem } = useCart();
   const { products } = useAllProducts();
+  const { categories } = useAllCategories();
 
   const [isOpen, setIsOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -157,7 +259,13 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error("Assistant request failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.message) {
+          return { message: data.message, products: data.products || [], suggestions: data.suggestions || [] };
+        }
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
       return res.json() as Promise<AssistantChatResponse>;
     },
     []
@@ -202,21 +310,15 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
           cartItems,
         });
         appendReply(response);
-      } catch {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `e-${Date.now()}`,
-            role: "assistant",
-            content: t("assistant.error"),
-            timestamp: Date.now(),
-          },
-        ]);
+      } catch (err) {
+        console.error("[MISHKAT_ASSISTANT]", err);
+        const fallback = clientFallback(undefined, trimmed, locale, products, categories, config, settings);
+        appendReply(fallback);
       } finally {
         setIsLoading(false);
       }
     },
-    [isLoading, fetchAssistant, locale, cartProductIds, cartItems, appendReply, t]
+    [isLoading, fetchAssistant, locale, cartProductIds, cartItems, appendReply, products, categories, config, settings]
   );
 
   const sendQuickAction = useCallback(
@@ -236,21 +338,15 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
           quickActionId: actionId,
         });
         appendReply(response);
-      } catch {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `e-${Date.now()}`,
-            role: "assistant",
-            content: t("assistant.error"),
-            timestamp: Date.now(),
-          },
-        ]);
+      } catch (err) {
+        console.error("[MISHKAT_ASSISTANT]", err);
+        const fallback = clientFallback(actionId, "", locale, products, categories, config, settings);
+        appendReply(fallback);
       } finally {
         setIsLoading(false);
       }
     },
-    [fetchAssistant, locale, cartProductIds, cartItems, appendReply, t]
+    [fetchAssistant, locale, cartProductIds, cartItems, appendReply, products, categories, config, settings]
   );
 
   const viewProduct = useCallback(
@@ -266,6 +362,12 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
           productId: product.id,
         });
         appendReply(response);
+      } catch {
+        appendReply({
+          message: product.name,
+          products: [product],
+          suggestions: [],
+        });
       } finally {
         setIsLoading(false);
       }

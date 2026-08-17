@@ -79,7 +79,7 @@ export function buildProductBuilderConfig(input: {
         linkId: link.id,
         group,
         options: groupOptions,
-        selectionType: link.selectionType ?? group.selectionType,
+        selectionType: group.selectionType,
         requirement: link.requirement ?? group.requirement,
         displayType: link.displayType ?? group.displayType,
         sortOrder: link.sortOrder,
