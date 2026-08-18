@@ -12,6 +12,7 @@ import {
   MessageSquare,
   UserCog,
   Settings,
+  FileText,
 } from "lucide-react";
 
 export type AdminNavItem = {
@@ -53,6 +54,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     labelKey: "admin.nav.group.content",
     items: [
       { href: "/admin/banners", labelKey: "admin.banners", icon: ImageIcon },
+      { href: "/admin/menu-builder", labelKey: "admin.menuBuilder", icon: FileText },
     ],
   },
   {
@@ -76,6 +78,7 @@ export const ADMIN_PAGE_TITLES: Record<string, string> = {
   "/admin/orders": "admin.orders.title",
   "/admin/customers": "admin.customers.title",
   "/admin/banners": "admin.banners.title",
+  "/admin/menu-builder": "admin.menuBuilder",
   "/admin/media": "admin.media.title",
   "/admin/assistant": "admin.assistant.title",
   "/admin/users": "admin.users.title",

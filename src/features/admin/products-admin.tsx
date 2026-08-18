@@ -14,9 +14,12 @@ import {
   CheckSquare,
   Square,
   GripVertical,
+  FileSpreadsheet,
+  Loader2,
 } from "lucide-react";
 import { useProducts, useAllCategories } from "@/hooks/useProducts";
 import { createProduct, updateProduct, deleteProduct, reorderProducts } from "@/services";
+import { exportAllProductsExcel } from "@/services/productExcelExportService";
 import { type ProductInput } from "@/lib/validation/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,10 +28,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProductImage } from "@/components/catalog/product-image";
 import { deleteImageByUrl } from "@/services/storageService";
 import { formatPrice, cn } from "@/lib/utils";
-import { useT } from "@/components/providers/locale-provider";
+import { useT, useLocale } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
 import { SortableList } from "@/components/admin/sortable-list";
 import { ProductFormDialog } from "./product-form/product-form-dialog";
+import { AdminToastStack, createToast, type AdminToast } from "./components/admin-toast";
+import { useSettings } from "@/hooks/useSettings";
 import type { Product } from "@/types";
 
 type ViewMode = "grid" | "table" | "reorder";
@@ -64,6 +69,8 @@ function AddProductCard({
 
 export function ProductsAdmin() {
   const t = useT();
+  const { locale } = useLocale();
+  const { settings } = useSettings();
   const router = useRouter();
   const pathname = usePathname();
   const { products, loading, error, isIndexError, retry } = useProducts(undefined, { admin: true });
@@ -75,6 +82,8 @@ export function ProductsAdmin() {
   const [open, setOpen] = useState(false);
   const [inlinePrices, setInlinePrices] = useState<Record<string, string>>({});
   const [ordered, setOrdered] = useState<Product[]>([]);
+  const [exporting, setExporting] = useState(false);
+  const [toasts, setToasts] = useState<AdminToast[]>([]);
 
   // Header "מוצר חדש" links to /admin/products?new=1
   useEffect(() => {
@@ -189,6 +198,26 @@ export function ProductsAdmin() {
     await reorderProducts(items.map((p) => p.id));
   };
 
+  const handleExportExcel = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportAllProductsExcel({
+        locale,
+        storeName: settings?.storeName,
+      });
+      setToasts((current) => [...current, createToast(t("admin.products.exportExcelSuccess"))]);
+    } catch (err) {
+      console.error("[Products] Excel export failed:", err);
+      setToasts((current) => [
+        ...current,
+        createToast(t("admin.products.exportExcelError"), "error"),
+      ]);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {(error || categoriesError) && !loading && (
@@ -252,6 +281,15 @@ export function ProductsAdmin() {
                 <GripVertical className="h-4 w-4" />
               </button>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleExportExcel()}
+              disabled={exporting}
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+              {exporting ? t("admin.products.exportExcelPreparing") : t("admin.products.exportExcel")}
+            </Button>
             <Button onClick={openCreate} variant="turquoise">
               <Plus className="h-4 w-4" /> {t("admin.products.new")}
             </Button>
@@ -488,6 +526,7 @@ export function ProductsAdmin() {
         productsCount={products.length}
         onDuplicate={duplicateProduct}
       />
+      <AdminToastStack toasts={toasts} onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))} />
     </div>
   );
 }

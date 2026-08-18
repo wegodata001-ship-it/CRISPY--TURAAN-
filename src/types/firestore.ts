@@ -31,6 +31,12 @@ export interface FirestoreProduct {
   profit: number;
   businessType: BusinessType;
   imageUrl: string;
+  barcode?: string;
+  sku?: string;
+  isWeighted?: boolean;
+  weighted?: boolean;
+  includesVat?: boolean;
+  vatIncluded?: boolean;
   available: boolean;
   popular: boolean;
   newProduct: boolean;

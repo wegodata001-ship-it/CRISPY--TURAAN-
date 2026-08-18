@@ -2,6 +2,7 @@ export {
   getProducts,
   getProductById,
   getPopularProducts,
+  getAllProductsForExport,
   subscribeToProducts,
   createProduct,
   updateProduct,
@@ -19,6 +20,7 @@ export {
 export {
   getCategories,
   getCategoryById,
+  getAllCategoriesForExport,
   subscribeToCategories,
   createCategory,
   updateCategory,

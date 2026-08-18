@@ -42,6 +42,12 @@ function readDescription(
   }
 }
 
+function readBarcode(doc: { barcode?: string | number; sku?: string | number }): string {
+  const raw = doc.barcode ?? doc.sku;
+  if (raw == null || raw === "") return "";
+  return String(raw);
+}
+
 export function mapCategory(doc: FirestoreDoc<FirestoreCategory>): Category {
   return {
     id: doc.id,
@@ -73,6 +79,9 @@ export function mapProduct(doc: FirestoreDoc<FirestoreProduct>): Product {
     profit: doc.profit ?? 0,
     businessType: (doc.businessType ?? "food") as BusinessType,
     image: normalizeImageUrl(doc.imageUrl) ?? "",
+    barcode: readBarcode(doc),
+    isWeighted: doc.isWeighted ?? doc.weighted ?? false,
+    includesVat: doc.includesVat ?? doc.vatIncluded ?? true,
     isPopular: doc.popular,
     isNew: doc.newProduct,
     available: doc.available,

@@ -28,6 +28,12 @@ export interface Product {
   profit: number;
   businessType: BusinessType;
   image: string;
+  /** Optional POS barcode / SKU. Missing on existing products. */
+  barcode?: string;
+  /** Sold by weight. Existing products default to false. */
+  isWeighted?: boolean;
+  /** Sale price includes VAT. Existing products default to true (no tax line in checkout). */
+  includesVat?: boolean;
   isPopular: boolean;
   isNew: boolean;
   available: boolean;

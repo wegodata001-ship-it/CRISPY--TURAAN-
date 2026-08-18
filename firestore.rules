@@ -104,5 +104,21 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isStaff();
     }
+
+    match /pdfMenuTemplates/{id} {
+      allow read, write: if isStaff();
+    }
+
+    match /pdfMenuCategorySettings/{id} {
+      allow read, write: if isStaff();
+    }
+
+    match /pdfMenuProductSettings/{id} {
+      allow read, write: if isStaff();
+    }
+
+    match /pdfMenuPages/{id} {
+      allow read, write: if isStaff();
+    }
   }
 }

@@ -45,6 +45,22 @@ export async function getCategories(options?: { includeInactive?: boolean }): Pr
   }
 }
 
+/** Every category, including inactive. No orderBy so docs without sortOrder are not dropped. */
+export async function getAllCategoriesForExport(): Promise<Category[]> {
+  try {
+    const db = getDb();
+    const snapshot = await getDocs(collection(db, COLLECTIONS.categories));
+    return snapshot.docs
+      .map((d) => mapCategory(docToCategory(d.id, d.data())))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  } catch (error) {
+    throw new ServiceError(
+      error instanceof Error ? error.message : "Failed to fetch categories for export",
+      "CATEGORIES_EXPORT_READ_FAILED"
+    );
+  }
+}
+
 export async function getCategoryById(id: string): Promise<Category | undefined> {
   try {
     const db = getDb();

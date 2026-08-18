@@ -16,6 +16,10 @@ export const COLLECTIONS = {
   businessRules: "business_rules",
   suggestions: "suggestions",
   inventoryLinks: "inventory_links",
+  pdfMenuTemplates: "pdfMenuTemplates",
+  pdfMenuCategorySettings: "pdfMenuCategorySettings",
+  pdfMenuProductSettings: "pdfMenuProductSettings",
+  pdfMenuPages: "pdfMenuPages",
 } as const;
 
 export const STORAGE_PATHS = {

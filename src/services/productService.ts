@@ -111,6 +111,22 @@ async function fetchAllProducts(): Promise<Product[]> {
   return snapshot.docs.map((d) => mapProduct(docToProduct(d.id, d.data())));
 }
 
+/** Every product in the collection, including hidden/inactive. No orderBy so docs without sortOrder are not dropped. */
+export async function getAllProductsForExport(): Promise<Product[]> {
+  try {
+    const db = getDb();
+    const snapshot = await getDocs(collection(db, COLLECTIONS.products));
+    return snapshot.docs
+      .map((d) => mapProduct(docToProduct(d.id, d.data())))
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name_he.localeCompare(b.name_he, "he"));
+  } catch (error) {
+    throw new ServiceError(
+      error instanceof Error ? error.message : "Failed to fetch products for export",
+      "PRODUCTS_EXPORT_READ_FAILED"
+    );
+  }
+}
+
 export async function getProducts(filters?: ProductFilters): Promise<Product[]> {
   try {
     const products = await fetchAllProducts();
