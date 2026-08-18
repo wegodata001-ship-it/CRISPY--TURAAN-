@@ -7,8 +7,10 @@ import { productDensity, visibleProducts } from "@/lib/pdf-menu/page-content";
 import { hexToRgba, isDarkColor, mixHexWithWhite } from "@/lib/pdf-menu/pdf-safe-color";
 import { hasMenuImageFailed, resolveMenuImageSrc, sanitizeMenuImageUrl } from "@/lib/pdf-menu/menu-image";
 import {
+  estimateProductHeight,
   getCategoryPresentation,
-  productRowWeight,
+  getProductPresentation,
+  PRODUCT_DESCRIPTION_TEXT,
   splitBalanced,
   twoCategoryOrientation,
   type CategoryPresentation,
@@ -93,7 +95,7 @@ function makePalette(page: MenuPage, isCover: boolean): Palette {
     text,
     heading,
     accent,
-    muted: dark ? hexToRgba("#FFF8F3", 0.62) : mixHexWithWhite(text, 0.42),
+    muted: dark ? hexToRgba("#FFF8F3", 0.78) : mixHexWithWhite(text, 0.22),
     line: hexToRgba(dark ? "#FFF8F3" : heading, dark ? 0.18 : 0.14),
     panel: dark ? hexToRgba("#FFF8F3", 0.06) : mixHexWithWhite(accent, 0.88),
     card: dark ? hexToRgba("#FFF8F3", 0.08) : "#FFFFFF",
@@ -133,6 +135,7 @@ export function MenuPageRenderer({ page, menuTemplate, mode = "preview", debug =
       className={isExport ? "menu-pdf-page pdf-export-mode" : "menu-pdf-page"}
       data-page-id={page.id}
       data-template={page.pageTemplateId}
+      data-pdf-unconstrain=""
       lang="ar"
       dir="rtl"
       style={pageStyle}
@@ -147,6 +150,8 @@ export function MenuPageRenderer({ page, menuTemplate, mode = "preview", debug =
       />
 
       <div
+        data-pdf-page-body=""
+        data-pdf-unconstrain=""
         style={{
           position: "relative",
           zIndex: 1,
@@ -162,7 +167,7 @@ export function MenuPageRenderer({ page, menuTemplate, mode = "preview", debug =
         {isCover ? (
           <CoverBody page={page} menuTemplate={menuTemplate} palette={palette} mode={mode} />
         ) : (
-          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div data-pdf-unconstrain="" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             {page.pageTemplateId === "split" ? (
               <SplitBody page={page} palette={palette} density={density} debug={showDebug} mode={mode} />
             ) : page.pageTemplateId === "two-categories" ? (
@@ -525,7 +530,7 @@ function SplitBody({
           <DecorativePanel palette={palette} title={cat?.category.name || ""} />
         )}
       </div>
-      <div style={{ minHeight: 0, overflow: "hidden" }}>
+      <div data-pdf-unconstrain="" style={{ minHeight: 0, overflow: "visible" }}>
         {cat && (
           <CategorySection
             category={cat}
@@ -614,7 +619,9 @@ function TwoCatBody(props: {
   if (cats.length <= 1) return <CategoryStack {...props} />;
   const auto = twoCategoryOrientation(cats.map((c) => c.products.length));
   const stacked = props.page.customSettings.columns === 1 || (props.page.customSettings.columns !== 2 && auto === "stacked");
-  const compactPair = cats.every((c) => c.products.length <= 8);
+  const compactPair =
+    cats.every((c) => c.products.length <= 8) &&
+    !cats.some((c) => c.products.some((p) => p.description.trim()));
   return (
     <div
       style={{
@@ -639,15 +646,16 @@ function TwoCatBody(props: {
         {cats.map((cat) => (
           <div
             key={cat.setting.categoryId}
+            data-pdf-unconstrain=""
             style={{
-              minHeight: 0,
-              overflow: "hidden",
+              minHeight: cats.some((c) => c.products.some((p) => p.description.trim())) ? undefined : stacked ? 280 : 520,
+              overflow: "visible",
               border: `1px solid ${hexToRgba(props.palette.accent, 0.22)}`,
               borderRadius: 16,
               padding: "22px 18px 20px",
               background: props.palette.panel,
-              minHeight: stacked ? 280 : 520,
               breakInside: "avoid",
+              pageBreakInside: "avoid",
               outline: props.debug ? "1px solid #E8A87C" : undefined,
             }}
           >
@@ -684,14 +692,16 @@ function CategoryStack(props: {
     );
   }
   const lone = page.categories.length === 1;
-  const compactPair = !lone && page.categories.every((c) => c.products.length <= 8);
+  const hasCopy = page.categories.some((c) => c.products.some((p) => p.description.trim()));
+  const compactPair = !lone && !hasCopy && page.categories.every((c) => c.products.length <= 8);
   return (
     <div
+      data-pdf-unconstrain=""
       style={{
         display: "flex",
         flexDirection: "column",
         gap: 20,
-        height: "100%",
+        height: hasCopy ? "auto" : "100%",
         minHeight: 0,
         justifyContent: compactPair ? "center" : "flex-start",
       }}
@@ -699,15 +709,17 @@ function CategoryStack(props: {
       {page.categories.map((cat) => (
         <div
           key={cat.setting.categoryId}
+          data-pdf-unconstrain=""
           style={{
-            flex: lone || !compactPair ? `${Math.max(cat.computedSize, 25)} 1 0` : "0 0 auto",
+            flex: hasCopy ? "0 0 auto" : lone || !compactPair ? `${Math.max(cat.computedSize, 25)} 1 0` : "0 0 auto",
             minHeight: 0,
-            overflow: "hidden",
+            overflow: "visible",
             breakInside: "avoid",
+            pageBreakInside: "avoid",
             outline: props.debug ? "1px solid #2C9C8C" : undefined,
           }}
         >
-          <CategorySection {...props} category={cat} fill={lone || !compactPair} />
+          <CategorySection {...props} category={cat} fill={!hasCopy && (lone || !compactPair)} />
         </div>
       ))}
     </div>
@@ -811,17 +823,22 @@ function CategorySection({
     templateId,
     pageCategoryCount: page.categories.length,
     forceList,
+    products,
+    narrow,
   });
   const isList = presentation.layout === "list" || presentation.layout === "hero-list" || Boolean(forceList);
   const cols = narrow ? 1 : presentation.columns;
+  const hasCopy = products.some((p) => p.description.trim());
   const lone = page.categories.length === 1 && !narrow;
-  const centerCluster = Boolean(fill && lone && isList);
+  const centerCluster = Boolean(fill && lone && isList && !hasCopy);
   const heroUrl = presentation.useCategoryHero ? workingImage(category.category.image) : null;
+  const showDescriptions = category.setting.showDescription !== false;
 
   return (
     <div
+      data-pdf-unconstrain=""
       style={{
-        height: fill ? "100%" : undefined,
+        height: fill && !hasCopy ? "100%" : undefined,
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
@@ -877,17 +894,18 @@ function CategorySection({
           density={density}
           cluster={centerCluster}
           mode={mode}
+          showDescriptions={showDescriptions}
         />
       ) : (
         <div
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+            gridAutoRows: "auto",
             gap: presentation.rowGap,
             minHeight: 0,
-            flex: 1,
-            alignContent: products.length <= 6 ? "stretch" : "start",
-            alignItems: "stretch",
+            alignContent: "start",
+            alignItems: "start",
           }}
         >
           {products.map((product) => (
@@ -897,8 +915,10 @@ function CategorySection({
               page={page}
               palette={palette}
               presentation={presentation}
+              columns={cols}
               debug={debug}
               mode={mode}
+              showDescription={showDescriptions}
             />
           ))}
         </div>
@@ -917,6 +937,7 @@ function ListBlock({
   density,
   cluster,
   mode,
+  showDescriptions,
 }: {
   products: PdfMenuProductView[];
   columns: number;
@@ -926,49 +947,41 @@ function ListBlock({
   density: ReturnType<typeof productDensity>;
   cluster: boolean;
   mode: MenuPageMode;
+  showDescriptions: boolean;
 }) {
+  const hasCopy = products.some((p) => p.description.trim());
   const colStyle: CSSProperties = {
     display: "flex",
     flexDirection: "column",
-    gap: products.length >= 9 ? 8 : presentation.rowGap,
+    gap: hasCopy ? Math.max(14, presentation.rowGap) : products.length >= 9 ? 8 : presentation.rowGap,
     minHeight: 0,
-    flex: 1,
-    justifyContent: products.length >= 5 ? "space-between" : "center",
+    justifyContent: cluster && !hasCopy ? "space-between" : "flex-start",
   };
 
+  const renderProduct = (product: PdfMenuProductView) => (
+    <ListProduct
+      key={product.id}
+      product={product}
+      page={page}
+      palette={palette}
+      presentation={presentation}
+      density={density}
+      mode={mode}
+      showDescription={showDescriptions}
+    />
+  );
+
   if (columns < 2 || products.length < 2) {
-    return (
-      <div style={colStyle}>
-        {products.map((product) => (
-          <ListProduct
-            key={product.id}
-            product={product}
-            page={page}
-            palette={palette}
-            presentation={presentation}
-            density={density}
-            mode={mode}
-          />
-        ))}
-      </div>
-    );
+    return <div style={colStyle}>{products.map(renderProduct)}</div>;
   }
 
-  const [colA, colB] = splitBalanced(products, productRowWeight);
-  const renderCol = (items: PdfMenuProductView[]) => (
-    <div style={colStyle}>
-      {items.map((product) => (
-        <ListProduct
-          key={product.id}
-          product={product}
-          page={page}
-          palette={palette}
-          presentation={presentation}
-          density={density}
-          mode={mode}
-        />
-      ))}
-    </div>
+  const [colA, colB] = splitBalanced(products, (product) =>
+    estimateProductHeight(product, {
+      columns: 2,
+      nameSize: presentation.nameSize,
+      descSize: presentation.descSize,
+      layout: "list",
+    })
   );
 
   return (
@@ -978,11 +991,11 @@ function ListBlock({
         gridTemplateColumns: "1fr 1fr",
         gap: 28,
         minHeight: 0,
-        flex: 1,
+        alignItems: "start",
       }}
     >
-      {renderCol(colA)}
-      {renderCol(colB)}
+      <div style={colStyle}>{colA.map(renderProduct)}</div>
+      <div style={colStyle}>{colB.map(renderProduct)}</div>
     </div>
   );
 }
@@ -994,6 +1007,7 @@ function ListProduct({
   presentation,
   density,
   mode = "preview",
+  showDescription = true,
 }: {
   product: PdfMenuProductView;
   page: MenuPage;
@@ -1001,19 +1015,24 @@ function ListProduct({
   presentation: CategoryPresentation;
   density: ReturnType<typeof productDensity>;
   mode?: MenuPageMode;
+  showDescription?: boolean;
 }) {
   const imageUrl = presentation.showProductImages ? workingImage(product.image) : null;
-  const showDesc = Boolean(product.description) && presentation.density !== "compact";
+  const description = product.description ?? "";
+  const hasDesc = showDescription && description.trim().length > 0;
   void page;
+  void density;
   return (
     <div
+      data-product-row=""
       style={{
         display: "flex",
-        alignItems: showDesc ? "flex-start" : "center",
+        alignItems: hasDesc ? "flex-start" : "center",
         gap: 10,
         breakInside: "avoid",
         pageBreakInside: "avoid",
-        padding: "6px 0",
+        height: "auto",
+        padding: hasDesc ? "14px 2px 16px" : "6px 0",
       }}
     >
       {imageUrl && (
@@ -1026,43 +1045,71 @@ function ListProduct({
           style={{ width: 40, height: 40, borderRadius: 8, flexShrink: 0 }}
         />
       )}
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span
+      <div style={{ minWidth: 0, flex: 1, overflow: "visible" }}>
+        <div
+          className="product-heading"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            gap: 16,
+          }}
+        >
+          <div
+            className="product-name"
             style={{
+              flex: 1,
+              minWidth: 0,
               fontSize: presentation.nameSize,
               fontWeight: 600,
               color: palette.text,
-              lineHeight: 1.25,
+              lineHeight: 1.35,
+              whiteSpace: "normal",
+              overflow: "visible",
             }}
           >
             {product.name}
-          </span>
-          <span
-            style={{
-              flex: 1,
-              borderBottom: `1px dotted ${palette.line}`,
-              transform: "translateY(-5px)",
-              minWidth: 12,
-              opacity: 0.9,
-            }}
-          />
-          <Price value={product.price} color={palette.accent} size={presentation.priceSize} />
-        </div>
-        {showDesc && (
-          <div
-            style={{
-              fontSize: presentation.descSize,
-              color: palette.muted,
-              marginTop: 3,
-              lineHeight: 1.35,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {product.description}
           </div>
+          {!hasDesc && (
+            <span
+              style={{
+                flex: 1,
+                borderBottom: `1px dotted ${palette.line}`,
+                transform: "translateY(-5px)",
+                minWidth: 12,
+                opacity: 0.9,
+              }}
+            />
+          )}
+          <div className="product-price" style={{ flex: "0 0 auto" }}>
+            <Price value={product.price} color={palette.accent} size={presentation.priceSize} />
+          </div>
+        </div>
+        {hasDesc && (
+          <>
+            <div
+              style={{
+                height: 1,
+                background: palette.line,
+                margin: "8px 0",
+                opacity: 0.9,
+              }}
+            />
+            <div
+              className="product-description"
+              data-product-description=""
+              dir="rtl"
+              style={{
+                ...PRODUCT_DESCRIPTION_TEXT,
+                fontSize: Math.max(12, presentation.descSize),
+                color: palette.muted,
+                direction: "rtl",
+                textAlign: "right",
+              }}
+            >
+              {description}
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -1079,6 +1126,7 @@ function SoftPhotoFallback({ palette }: { palette: Palette }) {
         display: "grid",
         placeItems: "center",
         marginBottom: 8,
+        flex: "0 0 auto",
       }}
     >
       <div
@@ -1098,37 +1146,56 @@ function CardProduct({
   page,
   palette,
   presentation,
+  columns,
   debug,
   mode = "preview",
+  showDescription = true,
 }: {
   product: PdfMenuProductView;
   page: MenuPage;
   palette: Palette;
   presentation: CategoryPresentation;
+  columns: number;
   debug?: boolean;
   mode?: MenuPageMode;
+  showDescription?: boolean;
 }) {
   const imageUrl = workingImage(product.image);
   const promo = page.pageTemplateId === "promo";
   const radius = page.customSettings.borderRadius || 14;
+  const description = product.description ?? "";
+  const hasDesc = showDescription && description.trim().length > 0;
+  const size = getProductPresentation(product).size;
+  const spanFull = size === "expanded" && columns > 1;
   return (
     <div
+      data-product-card=""
       style={{
         breakInside: "avoid",
         pageBreakInside: "avoid",
         background: promo ? palette.card : palette.dark ? palette.card : hexToRgba("#FFFFFF", 0.72),
         borderRadius: radius,
-        overflow: "hidden",
-        padding: presentation.density === "compact" ? 8 : 10,
+        overflow: "visible",
+        height: "auto",
+        padding: hasDesc ? "16px 18px" : presentation.density === "compact" ? 8 : 10,
         border: `1px solid ${hexToRgba(palette.accent, promo ? 0.28 : 0.16)}`,
         display: "flex",
         flexDirection: "column",
-        height: "100%",
+        gridColumn: spanFull ? "1 / -1" : undefined,
         outline: debug ? "1px solid #C4A484" : undefined,
       }}
     >
       {imageUrl ? (
-        <div style={{ aspectRatio: "4 / 3", flex: "1 1 auto", minHeight: 120, marginBottom: 8, borderRadius: 10, overflow: "hidden" }}>
+        <div
+          style={{
+            aspectRatio: "4 / 3",
+            flex: "0 0 auto",
+            maxHeight: 168,
+            marginBottom: 10,
+            borderRadius: 10,
+            overflow: "hidden",
+          }}
+        >
           <SafeMenuImage
             src={product.image}
             alt=""
@@ -1142,30 +1209,49 @@ function CardProduct({
         <SoftPhotoFallback palette={palette} />
       ) : null}
       <div
+        className="product-heading"
         style={{
-          fontSize: presentation.nameSize,
-          fontWeight: 600,
-          color: palette.text,
-          lineHeight: 1.35,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          gap: 16,
         }}
       >
-        {product.name}
-      </div>
-      {product.description && presentation.density !== "compact" && (
         <div
+          className="product-name"
           style={{
-            fontSize: presentation.descSize,
-            color: palette.muted,
-            marginTop: 4,
-            lineHeight: 1.4,
+            flex: 1,
+            minWidth: 0,
+            fontSize: presentation.nameSize,
+            fontWeight: 600,
+            color: palette.text,
+            lineHeight: 1.35,
+            whiteSpace: "normal",
           }}
         >
-          {product.description}
+          {product.name}
+        </div>
+        <div className="product-price" style={{ flex: "0 0 auto" }}>
+          <Price value={product.price} color={palette.accent} size={promo ? presentation.priceSize + 2 : presentation.priceSize} />
+        </div>
+      </div>
+      {hasDesc && (
+        <div
+          className="product-description"
+          data-product-description=""
+          dir="rtl"
+          style={{
+            ...PRODUCT_DESCRIPTION_TEXT,
+            fontSize: Math.max(12, presentation.descSize),
+            color: palette.muted,
+            marginTop: 8,
+            direction: "rtl",
+            textAlign: "right",
+          }}
+        >
+          {description}
         </div>
       )}
-      <div style={{ marginTop: "auto", paddingTop: 8, textAlign: "left" }}>
-        <Price value={product.price} color={palette.accent} size={promo ? presentation.priceSize + 2 : presentation.priceSize} />
-      </div>
     </div>
   );
 }

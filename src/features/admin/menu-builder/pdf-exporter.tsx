@@ -3,7 +3,7 @@
 import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
 import type { MenuPage, PdfMenuTemplate } from "@/types/pdf-menu";
-import { getPageExportOrder } from "@/lib/pdf-menu/pagination-engine";
+import { getPageExportOrder, peelLastProductFromPage, renumberPages } from "@/lib/pdf-menu/pagination-engine";
 import { filterExportPages } from "@/lib/pdf-menu/page-content";
 import { A4_HEIGHT_MM, A4_HEIGHT_PX, A4_WIDTH_MM, A4_WIDTH_PX } from "@/lib/pdf-menu/a4";
 import { waitForFonts, waitForImages, waitTwoFrames } from "@/lib/pdf-menu/wait-for-export";
@@ -224,12 +224,40 @@ function bringHostOnscreen(host: HTMLElement): void {
   host.style.pointerEvents = "none";
 }
 
+function measurePdfPageOverflow(pageEl: HTMLElement, tolerance = 8): number {
+  const nodes = [pageEl, ...Array.from(pageEl.querySelectorAll<HTMLElement>("[data-pdf-unconstrain]"))];
+  const previous = nodes.map((node) => ({
+    node,
+    height: node.style.height,
+    maxHeight: node.style.maxHeight,
+    overflow: node.style.overflow,
+    flex: node.style.flex,
+    minHeight: node.style.minHeight,
+  }));
+  nodes.forEach((node) => {
+    node.style.height = "auto";
+    node.style.maxHeight = "none";
+    node.style.overflow = "visible";
+    node.style.minHeight = "0";
+    node.style.flex = "0 0 auto";
+  });
+  const contentH = pageEl.scrollHeight;
+  previous.forEach(({ node, height, maxHeight, overflow, flex, minHeight }) => {
+    node.style.height = height;
+    node.style.maxHeight = maxHeight;
+    node.style.overflow = overflow;
+    node.style.flex = flex;
+    node.style.minHeight = minHeight;
+  });
+  return contentH - A4_HEIGHT_PX - tolerance;
+}
+
 async function renderPageToCanvas(
   page: MenuPage,
   template: PdfMenuTemplate,
   pageNumber: number,
   total: number
-): Promise<HTMLCanvasElement> {
+): Promise<{ canvas: HTMLCanvasElement; overflowPx: number }> {
   logPdfStage(`rendering page ${pageNumber}`, { pageNumber, total, id: page.id });
   const host = createExportHost();
   const root = createRoot(host);
@@ -256,13 +284,18 @@ async function renderPageToCanvas(
     bringHostOnscreen(host);
     await waitTwoFrames();
 
+    const pageNode = el.querySelector(".menu-pdf-page") as HTMLElement | null;
+    const overflowPx = pageNode ? measurePdfPageOverflow(pageNode) : 0;
+
     try {
-      return await captureElement(el, pageNumber);
+      const canvas = await captureElement(el, pageNumber);
+      return { canvas, overflowPx };
     } catch (firstError) {
       console.warn("[PDF_EXPORT] capture retry", firstError);
       hideRemoteImages(el);
       await waitTwoFrames();
-      return await captureElement(el, pageNumber);
+      const canvas = await captureElement(el, pageNumber);
+      return { canvas, overflowPx };
     }
   } finally {
     cleanupExportRoot(root, host);
@@ -272,11 +305,17 @@ async function renderPageToCanvas(
 export async function buildMenuPdfBlob(
   pages: MenuPage[],
   template: PdfMenuTemplate
-): Promise<{ blob: Blob; filename: string; pageCount: number; failedImages: number }> {
+): Promise<{
+  blob: Blob;
+  filename: string;
+  pageCount: number;
+  failedImages: number;
+  reflowedPages: number;
+  overflowPages: number;
+}> {
   logPdfStage("preparing pages");
-  const ordered = filterExportPages(pages);
-  const ids = getPageExportOrder(ordered);
-  if (ids.length === 0) {
+  const working = renumberPages(filterExportPages(pages));
+  if (working.length === 0) {
     throw new Error("لا توجد صفحات للتصدير");
   }
 
@@ -284,15 +323,59 @@ export async function buildMenuPdfBlob(
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   const filename = menuPdfFilename();
   const attempted = new Set<string>();
+  let reflowedPages = 0;
+  let overflowPages = 0;
+  const canvases: HTMLCanvasElement[] = [];
 
-  for (let i = 0; i < ids.length; i++) {
-    const page = ordered.find((p) => p.id === ids[i]);
-    if (!page) continue;
+  let i = 0;
+  while (i < working.length) {
+    const page = working[i];
+    if (!page) {
+      i += 1;
+      continue;
+    }
     collectPageImageUrls(page, template).forEach((url) => attempted.add(url));
     const pageNumber = i + 1;
-    const canvas = await renderPageToCanvas(page, template, pageNumber, ids.length);
+    let attempts = 0;
+    let current = page;
+    let captured: { canvas: HTMLCanvasElement; overflowPx: number } | null = null;
+
+    while (attempts < 20) {
+      const result = await renderPageToCanvas(current, template, pageNumber, working.length);
+      if (result.overflowPx > 0 && current.pageKind !== "cover") {
+        const peeled = peelLastProductFromPage(current);
+        if (peeled) {
+          logPdfStage("reflow overflow", {
+            pageNumber,
+            overflowPx: result.overflowPx,
+            attempt: attempts + 1,
+          });
+          current = peeled.page;
+          working[i] = peeled.page;
+          working.splice(i + 1, 0, peeled.continuation);
+          reflowedPages += 1;
+          attempts += 1;
+          continue;
+        }
+        overflowPages += 1;
+        logPdfStage("overflow unreflowable", { pageNumber, overflowPx: result.overflowPx });
+      }
+      captured = result;
+      working[i] = current;
+      break;
+    }
+
+    if (!captured) {
+      throw new Error("EXPORT_CAPTURE_FAILED");
+    }
+    canvases.push(captured.canvas);
+    i += 1;
+  }
+
+  for (let n = 0; n < canvases.length; n++) {
+    const canvas = canvases[n]!;
     const dataUrl = await canvasToJpeg(canvas);
-    if (i > 0) pdf.addPage();
+    if (n > 0) pdf.addPage();
     pdf.addImage(dataUrl, "JPEG", 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM, undefined, "FAST");
   }
 
@@ -305,25 +388,44 @@ export async function buildMenuPdfBlob(
     throw new Error(`PDF_BAD_MIME:${blob.type}`);
   }
   const failedImages = [...attempted].filter((url) => hasMenuImageFailed(url)).length;
-  return { blob, filename, pageCount: ids.length, failedImages };
+  return {
+    blob,
+    filename,
+    pageCount: canvases.length,
+    failedImages,
+    reflowedPages,
+    overflowPages,
+  };
 }
 
 export async function exportMenuPdf(
   pages: MenuPage[],
   template: PdfMenuTemplate,
   _options?: { debug?: boolean }
-): Promise<{ filename: string; bytes: number; pageCount: number; failedImages: number }> {
+): Promise<{
+  filename: string;
+  bytes: number;
+  pageCount: number;
+  failedImages: number;
+  reflowedPages: number;
+  overflowPages: number;
+}> {
   try {
-    const { blob, filename, pageCount, failedImages } = await buildMenuPdfBlob(pages, template);
+    const { blob, filename, pageCount, failedImages, reflowedPages, overflowPages } = await buildMenuPdfBlob(
+      pages,
+      template
+    );
     logPdfStage("saving file", {
       filename,
       bytes: blob.size,
       mime: blob.type || "application/pdf",
       pageCount,
       failedImages,
+      reflowedPages,
+      overflowPages,
     });
     downloadBlob(blob, filename);
-    return { filename, bytes: blob.size, pageCount, failedImages };
+    return { filename, bytes: blob.size, pageCount, failedImages, reflowedPages, overflowPages };
   } catch (error) {
     logPdfExportFailure(error);
     throw error;

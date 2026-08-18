@@ -148,11 +148,31 @@ export function createSmokeMenuExport(): { pages: MenuPage[]; template: PdfMenuT
   ], 100);
 
   const plates = cat("plates", "فطور", [
-    { id: "p1", name: "فطور عربي", price: 38, image: PHOTO },
-    { id: "p2", name: "أفوكادو توست", price: 32, image: PHOTO },
-    { id: "p3", name: "شكشوكة", price: 34, image: PHOTO },
+    { id: "p1", name: "فطور عربي", price: 38, image: PHOTO, description: "بيضتان حسب الاختيار، أجبان، زيتون، خبز طازج وصلصات البيت" },
+    { id: "p2", name: "أفوكادو توست", price: 32, image: PHOTO, description: "خبز محمص، أفوكادو، بيضة مسلوقة وبذور حسب الموسم" },
+    { id: "p3", name: "شكشوكة", price: 34, image: PHOTO, description: "بيض على صلصة بندورة مع زيتون وخبز" },
     { id: "p4", name: "بيض مسلوق", price: 18, image: PHOTO },
   ], 75);
+
+  const shortDesc = "بيضتان حسب الاختيار مع خبز";
+  const mediumDesc = "اوراق خضراء, خيار, بندورة شيري, بصل ليلكي, فقع مشوح بصوص ترياكي";
+  const longDesc =
+    "تشمل 8 صلصات وبيض عيون أو عجة أو بيض مخلط، لبنة، زبدة وعسل، شوكولاتة، جبنة فيتا، تونة، زيتون، سلطة عربية وسلطة موسمية مع خبز طازج.";
+  const veryLongDesc =
+    "إفطار لشخصين: بيضتان للاختيار من بينها (عيون / عجة / مخلط)، إضافات جانبية من اللبنة والجبنة والزيتون والعسل، خبز طازج، سلطة عربية، تونة، وأصناف موسمية حسب التوفر. يمكن مشاركة الصحن مع إضافة قهوة أو عصير حسب القائمة.";
+
+  const breakfast = cat("breakfast", "فطور", [
+    { id: "bf1", name: "إفطار لشخصين", price: 120, description: veryLongDesc },
+    { id: "bf2", name: "وجبة فطور شخصية", price: 68, description: longDesc },
+    { id: "bf3", name: "شكشوكة", price: 34, description: shortDesc },
+  ], 100);
+
+  const salads = cat("salads", "سلطات", [
+    { id: "s1", name: "سلطة حلومي", price: 42, description: mediumDesc },
+    { id: "s2", name: "سلطة قيصر", price: 38, description: "اوراق خس, خبز محمص, جرجير, بارميزان ولوز" },
+    { id: "s3", name: "سلطة شريمس", price: 48, description: "لبنة, شيري, بصل احمر, واوراق خضراء, مع صوص فينغريت بالثوم والليمون" },
+    { id: "s4", name: "سلطة موسمية بأوراق خضراء طازجة ومكونات البيت", price: 36, description: longDesc },
+  ], 100);
 
   const pages: MenuPage[] = [
     page("cover", 1, "cover", [], {
@@ -174,6 +194,8 @@ export function createSmokeMenuExport(): { pages: MenuPage[]; template: PdfMenuT
       accentColor: "#E07A5F",
     }),
     page("split", 8, "split", [hot]),
+    page("descriptions", 9, "elegant", [breakfast]),
+    page("salads", 10, "elegant", [salads]),
   ];
 
   return { pages, template };

@@ -11,7 +11,7 @@ import type {
 } from "@/types/pdf-menu";
 import { DEFAULT_PAGE_CUSTOM_SETTINGS } from "@/types/pdf-menu";
 import { categoryFingerprint, getPageTemplate, recommendFromPage } from "@/lib/pdf-menu/page-templates";
-import { TARGET_UTILIZATION_MIN, pageUtilization } from "@/lib/pdf-menu/presentation";
+import { TARGET_UTILIZATION_MIN, continuationTitle, pageUtilization, sourceCategoryId } from "@/lib/pdf-menu/presentation";
 
 const CAPACITY: Record<Exclude<PdfPageSize, "AUTO">, number> = {
   QUARTER: 25,
@@ -162,7 +162,7 @@ function fillSparsePages(packed: PdfMenuCategoryWithProducts[][]): PdfMenuCatego
         const group = pages[j];
         if (!group || group.length !== 1) continue;
         const candidate = group[0];
-        if (!candidate || candidate.setting.startOnNewPage) continue;
+        if (!candidate || candidate.setting.startOnNewPage || candidate.continuation) continue;
         if (candidate.computedSize > 50) continue;
         if (used + candidate.computedSize > 100) continue;
         sourcePage = j;
@@ -474,6 +474,63 @@ export function duplicatePage(
 /** Stable export order — preview and PDF must use this exact sequence. */
 export function getPageExportOrder(pages: MenuPage[]): string[] {
   return withPageNumbers(pages.slice().sort((a, b) => a.sortOrder - b.sortOrder)).map((p) => p.id);
+}
+
+export function renumberPages(pages: MenuPage[]): MenuPage[] {
+  return withPageNumbers(pages);
+}
+
+/**
+ * Move the last product on a page onto a new continuation page.
+ * Used when a rendered page still overflows after packing.
+ */
+export function peelLastProductFromPage(page: MenuPage): { page: MenuPage; continuation: MenuPage } | null {
+  if (page.pageKind === "cover") return null;
+  const total = page.categories.reduce((n, c) => n + c.products.filter((p) => p.visible).length, 0);
+  if (total <= 1) return null;
+
+  const cats = page.categories.map((c) => ({
+    ...c,
+    products: c.products.map((p) => ({ ...p })),
+  }));
+
+  for (let i = cats.length - 1; i >= 0; i--) {
+    const cat = cats[i];
+    if (!cat || cat.products.length === 0) continue;
+    const moved = cat.products.pop();
+    if (!moved) continue;
+    const remaining = cats.filter((c) => c.products.length > 0);
+    if (remaining.reduce((n, c) => n + c.products.length, 0) < 1) return null;
+
+    const continuationCat: PdfMenuCategoryWithProducts = {
+      ...cat,
+      products: [moved],
+      computedSize: 100,
+      continuation: true,
+      setting: {
+        ...cat.setting,
+        categoryId: `${sourceCategoryId(cat.setting.categoryId)}__p${createPageId().slice(-6)}`,
+        startOnNewPage: true,
+      },
+      category: {
+        ...cat.category,
+        name: continuationTitle(cat.category.name),
+      },
+    };
+
+    return {
+      page: {
+        ...page,
+        categories: remaining,
+        usedCapacity: remaining.reduce((sum, c) => sum + c.computedSize, 0),
+      },
+      continuation: makeContentPage([continuationCat], {
+        pageTemplateId: page.pageTemplateId === "cover" ? "elegant" : page.pageTemplateId,
+        customSettings: { ...page.customSettings },
+      }),
+    };
+  }
+  return null;
 }
 
 export function validatePages(pages: MenuPage[]): string[] {

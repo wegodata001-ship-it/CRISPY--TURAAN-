@@ -147,5 +147,7 @@ describe("PDF engine contract", () => {
     expect(src).not.toMatch(/rgba\(26,20,16,0\.04\)/);
     expect(src).toMatch(/getCategoryPresentation/);
     expect(src).toMatch(/aspectRatio: "4 \/ 3"/);
+    expect(src).toMatch(/data-product-description/);
+    expect(src).not.toMatch(/density !== "compact"/);
   });
 });

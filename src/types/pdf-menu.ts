@@ -151,6 +151,7 @@ export interface PdfMenuCategoryWithProducts {
   category: { id: string; name: string; image: string };
   products: PdfMenuProductView[];
   computedSize: number;
+  continuation?: boolean;
 }
 
 export interface PdfMenuProductView {

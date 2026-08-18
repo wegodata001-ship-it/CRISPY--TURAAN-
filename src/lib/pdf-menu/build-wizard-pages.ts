@@ -14,8 +14,13 @@ import type { Locale } from "@/lib/i18n/types";
 import { packCategories, createPageId, makeCoverPage } from "@/lib/pdf-menu/pagination-engine";
 import { getPageTemplate } from "@/lib/pdf-menu/page-templates";
 import { getColorTheme } from "@/lib/pdf-menu/color-themes";
-import { computeSmartSize } from "@/lib/pdf-menu/smart-size";
-import { IMAGE_COVERAGE_THRESHOLD, twoCategoryOrientation } from "@/lib/pdf-menu/presentation";
+import {
+  expandCategoriesForDescriptionFit,
+  getCategoryPresentation,
+  IMAGE_COVERAGE_THRESHOLD,
+  sourceCategoryId,
+  twoCategoryOrientation,
+} from "@/lib/pdf-menu/presentation";
 import type { AppSettings } from "@/services/settingsService";
 
 function pickPageTemplate(
@@ -69,6 +74,15 @@ export function selectedCategoriesWithProducts(
     if (catProducts.length === 0) return;
 
     const sizeOverride = draft.categorySizes[id];
+    const presentation = getCategoryPresentation({
+      productCount: catProducts.length,
+      imageCount: catProducts.filter((p) => Boolean(p.image)).length,
+      avgNameLen: catProducts.reduce((s, p) => s + p.name.length, 0) / Math.max(1, catProducts.length),
+      avgDescLen: catProducts.reduce((s, p) => s + p.description.length, 0) / Math.max(1, catProducts.length),
+      templateId: draft.templateId,
+      hasCategoryImage: Boolean(cat.image),
+      products: catProducts,
+    });
     const computedSize =
       sizeOverride && sizeOverride !== "AUTO"
         ? sizeOverride === "QUARTER"
@@ -78,14 +92,7 @@ export function selectedCategoriesWithProducts(
             : sizeOverride === "THREE_QUARTERS"
               ? 75
               : 100
-        : computeSmartSize({
-            productCount: catProducts.length,
-            imageCount: catProducts.filter((p) => Boolean(p.image)).length,
-            avgNameLen: catProducts.reduce((s, p) => s + p.name.length, 0) / Math.max(1, catProducts.length),
-            avgDescLen: catProducts.reduce((s, p) => s + p.description.length, 0) / Math.max(1, catProducts.length),
-            templateId: draft.templateId,
-            hasCategoryImage: Boolean(cat.image),
-          });
+        : presentation.capacity;
 
     result.push({
       setting: {
@@ -102,7 +109,7 @@ export function selectedCategoriesWithProducts(
     });
   });
 
-  return result;
+  return expandCategoriesForDescriptionFit(result, draft.templateId);
 }
 
 export function autoPackCategoryIds(cats: PdfMenuCategoryWithProducts[]): string[][] {
@@ -241,7 +248,10 @@ export function draftFromPackedPages(cats: PdfMenuCategoryWithProducts[]): PdfMe
 export function prunePageOrder(pageOrder: PdfMenuDraft["pageOrder"], selectedIds: string[]): PdfMenuDraft["pageOrder"] {
   const allowed = new Set(selectedIds);
   return pageOrder
-    .map((slot) => ({ ...slot, categoryIds: slot.categoryIds.filter((id) => allowed.has(id)) }))
+    .map((slot) => ({
+      ...slot,
+      categoryIds: slot.categoryIds.filter((id) => allowed.has(id) || allowed.has(sourceCategoryId(id))),
+    }))
     .filter((slot) => slot.categoryIds.length > 0);
 }
 

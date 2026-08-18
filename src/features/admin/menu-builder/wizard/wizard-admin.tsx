@@ -138,8 +138,9 @@ export function PdfMenuWizard() {
   const categoryNames = useMemo(() => {
     const map: Record<string, string> = {};
     for (const c of liveCategories) map[c.id] = getLocalizedName(c, locale);
+    for (const c of packedCats) map[c.setting.categoryId] = c.category.name;
     return map;
-  }, [liveCategories, locale]);
+  }, [liveCategories, locale, packedCats]);
 
   const selectedProductCount = useMemo(() => {
     const excluded = new Set(draft.excludedProductIds);
@@ -229,7 +230,11 @@ export function PdfMenuWizard() {
       }
       const result = await exportMenuPdf(pages, template);
       setExportSuccess(true);
-      if (result.failedImages > 0) {
+      if (result.overflowPages > 0) {
+        setExportWarning("بعض الصفحات ما زالت تفيض. تم نقل المنتجات إلى صفحات جديدة حيث أمكن.");
+      } else if (result.reflowedPages > 0) {
+        setExportWarning("تم نقل منتجات إلى الصفحة التالية حتى يظهر الوصف كاملاً");
+      } else if (result.failedImages > 0) {
         setExportWarning(`تعذر تحميل ${result.failedImages} صور وتم استخدام التصميم البديل`);
       }
       window.setTimeout(() => setExportSuccess(false), 3500);
