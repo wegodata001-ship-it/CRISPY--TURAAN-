@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Coffee,
@@ -18,14 +17,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ProductCard } from "@/features/catalog/product-card";
-import { ShowMoreProductsButton } from "@/features/catalog/show-more-products-button";
 import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedCategory } from "@/hooks/useLocalizedContent";
-import {
-  CATALOG_PREVIEW_COUNT,
-  getCatalogVisibleProducts,
-  shouldShowCatalogExpand,
-} from "@/lib/catalog/preview";
 import type { Category, Product } from "@/types";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -50,48 +43,17 @@ interface CategoryProductSectionProps {
   category: Category;
   products: Product[];
   onProductClick: (product: Product) => void;
-  defaultExpanded?: boolean;
-  expanded?: boolean;
-  onExpandedChange?: (expanded: boolean) => void;
 }
 
 export function CategoryProductSection({
   category,
   products,
   onProductClick,
-  defaultExpanded = false,
-  expanded: expandedProp,
-  onExpandedChange,
 }: CategoryProductSectionProps) {
   const t = useT();
   const localized = useLocalizedCategory(category);
-  const controlled = typeof onExpandedChange === "function";
-  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
-  const expanded = controlled ? Boolean(expandedProp) : internalExpanded;
-  const prevCountRef = useRef(CATALOG_PREVIEW_COUNT);
-
-  useEffect(() => {
-    if (controlled) return;
-    setInternalExpanded(defaultExpanded);
-    prevCountRef.current = CATALOG_PREVIEW_COUNT;
-  }, [products.length, defaultExpanded, category.id, controlled]);
 
   if (products.length === 0) return null;
-
-  const shouldPaginate = !defaultExpanded && shouldShowCatalogExpand(products.length);
-  const displayed = shouldPaginate
-    ? getCatalogVisibleProducts(products, expanded)
-    : products;
-  const animateFrom = prevCountRef.current;
-
-  const toggleExpanded = () => {
-    const next = !expanded;
-    if (next) {
-      prevCountRef.current = CATALOG_PREVIEW_COUNT;
-    }
-    if (controlled) onExpandedChange?.(next);
-    else setInternalExpanded(next);
-  };
 
   const Icon = iconMap[category.icon] ?? Coffee;
 
@@ -115,38 +77,27 @@ export function CategoryProductSection({
 
       <div className={GRID_CLASS}>
         <AnimatePresence mode="popLayout">
-          {displayed.map((product, index) => {
-            const isNewBatch = expanded && index >= animateFrom;
-            return (
-              <motion.div
-                key={product.id}
-                layout
-                initial={isNewBatch ? { opacity: 0, y: 16 } : false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.35,
-                  delay: isNewBatch ? (index - animateFrom) * 0.06 : 0,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-              >
-                <ProductCard
-                  product={product}
-                  index={index}
-                  onClick={() => onProductClick(product)}
-                />
-              </motion.div>
-            );
-          })}
+          {products.map((product, index) => (
+            <motion.div
+              key={product.id}
+              layout
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.35,
+                delay: Math.min(index, 8) * 0.04,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              <ProductCard
+                product={product}
+                index={index}
+                onClick={() => onProductClick(product)}
+              />
+            </motion.div>
+          ))}
         </AnimatePresence>
       </div>
-
-      {shouldPaginate && (
-        <ShowMoreProductsButton
-          totalCount={products.length}
-          expanded={expanded}
-          onToggle={toggleExpanded}
-        />
-      )}
     </section>
   );
 }

@@ -17,6 +17,3 @@ export function useIsMobile(breakpointPx = 768) {
   return isMobile;
 }
 
-export const MOBILE_CATALOG_PAGE_SIZE = 3;
-/** @deprecated Prefer CATALOG_PREVIEW_COUNT from @/lib/catalog/preview */
-export const DESKTOP_CATALOG_PAGE_SIZE = 24;
