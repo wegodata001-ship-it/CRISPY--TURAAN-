@@ -22,7 +22,7 @@ export function MobileCartBar() {
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
-          className="fixed bottom-[calc(3.75rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 px-4 lg:hidden"
+          className="fixed bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)] left-0 right-0 z-[90] px-4 lg:hidden"
         >
           <div className="mx-auto flex max-w-lg items-center gap-3 rounded-2xl bg-dark-brown px-4 py-3 shadow-elevated">
             <button

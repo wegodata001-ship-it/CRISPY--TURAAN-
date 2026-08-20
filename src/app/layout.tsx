@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import {
   Inter,
   Playfair_Display,
@@ -73,6 +73,13 @@ const atkinson = Atkinson_Hyperlegible({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#F8F3ED",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: BRAND.name,
@@ -110,7 +117,7 @@ export default function RootLayout({
       <head>
         <LocaleHtmlScript />
       </head>
-      <body className="min-h-screen overflow-x-hidden bg-cream pb-24 md:pb-0 flex flex-col has-[[data-admin]]:pb-0">
+      <body className="flex min-h-dvh flex-col overflow-x-hidden bg-cream pb-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom,0px)+12px)] has-[[data-admin]]:pb-0 md:pb-0">
         <BrandSplash />
         <ThemeProvider>
           <AccessibilityProvider>
@@ -118,14 +125,14 @@ export default function RootLayout({
               <FirebaseProvider>
                 <AuthProvider>
                   <CartProvider>
-                    <main id="main-content" className="flex-1" tabIndex={-1}>
+                    <main id="main-content" className="min-w-0 flex-1" tabIndex={-1}>
                       {children}
                     </main>
+                    <ClientSiteFooter />
                     <FloatingCartButton />
                     <MobileCartBar />
                     <CartDrawer />
                     <BottomNav />
-                    <ClientSiteFooter />
                     <AccessibilityCenter />
                     <AssistantWidget />
                   </CartProvider>

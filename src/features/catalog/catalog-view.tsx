@@ -22,6 +22,7 @@ import {
   hasSubcategories,
   sortProducts,
 } from "@/lib/menu/category-tree";
+import { catalogExpandStorageKey } from "@/lib/catalog/preview";
 import type { Product, ProductFilters } from "@/types";
 
 export function CatalogView() {
@@ -34,6 +35,7 @@ export function CatalogView() {
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [expandedByCategory, setExpandedByCategory] = useState<Record<string, boolean>>({});
   const [filters, setFilters] = useState<ProductFilters>({
     sortBy: "popular",
     active: true,
@@ -121,6 +123,16 @@ export function CatalogView() {
     isSearchMode ||
     (selectedCategoryId &&
       (!hasSubcategories(categories, selectedCategoryId) || selectedSubcategoryId));
+
+  const expandKey = catalogExpandStorageKey(selectedCategoryId, selectedSubcategoryId);
+  const categoryExpanded = Boolean(expandedByCategory[expandKey]);
+
+  const handleExpandedChange = useCallback(
+    (next: boolean) => {
+      setExpandedByCategory((prev) => ({ ...prev, [expandKey]: next }));
+    },
+    [expandKey]
+  );
 
   const handleCategorySelect = useCallback((categoryId: string) => {
     setSelectedCategoryId(categoryId);
@@ -226,6 +238,9 @@ export function CatalogView() {
                       products={menuProducts}
                       loading={loading}
                       onProductClick={setSelectedProduct}
+                      incremental={!isSearchMode}
+                      expanded={categoryExpanded}
+                      onExpandedChange={handleExpandedChange}
                     />
                   </motion.div>
                 ) : (

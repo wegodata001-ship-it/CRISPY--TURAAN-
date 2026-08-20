@@ -62,7 +62,7 @@ export function FirebaseProvider({ children }: { children: ReactNode }) {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            className="fixed bottom-24 start-4 end-4 z-50 mx-auto max-w-lg md:bottom-6 md:start-auto md:end-6"
+            className="fixed bottom-24 start-4 end-4 z-50 mx-auto max-w-lg md:bottom-6 md:start-auto md:end-6 lg:bottom-6"
           >
             <div className="flex items-start gap-3 rounded-2xl border border-beige-dark/40 bg-warm-white px-4 py-3 shadow-elevated">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gold" strokeWidth={1.75} />

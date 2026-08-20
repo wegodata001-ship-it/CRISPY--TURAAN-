@@ -18,11 +18,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ProductCard } from "@/features/catalog/product-card";
+import { ShowMoreProductsButton } from "@/features/catalog/show-more-products-button";
 import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedCategory } from "@/hooks/useLocalizedContent";
-import { MOBILE_CATALOG_PAGE_SIZE } from "@/hooks/useIsMobile";
+import {
+  CATALOG_PREVIEW_COUNT,
+  getCatalogVisibleProducts,
+  shouldShowCatalogExpand,
+} from "@/lib/catalog/preview";
 import type { Category, Product } from "@/types";
-import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, LucideIcon> = {
   coffee: Coffee,
@@ -47,6 +51,8 @@ interface CategoryProductSectionProps {
   products: Product[];
   onProductClick: (product: Product) => void;
   defaultExpanded?: boolean;
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
 export function CategoryProductSection({
@@ -54,29 +60,37 @@ export function CategoryProductSection({
   products,
   onProductClick,
   defaultExpanded = false,
+  expanded: expandedProp,
+  onExpandedChange,
 }: CategoryProductSectionProps) {
   const t = useT();
   const localized = useLocalizedCategory(category);
-  const [expanded, setExpanded] = useState(defaultExpanded);
-  const prevCountRef = useRef(MOBILE_CATALOG_PAGE_SIZE);
+  const controlled = typeof onExpandedChange === "function";
+  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
+  const expanded = controlled ? Boolean(expandedProp) : internalExpanded;
+  const prevCountRef = useRef(CATALOG_PREVIEW_COUNT);
 
   useEffect(() => {
-    setExpanded(defaultExpanded);
-    prevCountRef.current = MOBILE_CATALOG_PAGE_SIZE;
-  }, [products.length, defaultExpanded, category.id]);
+    if (controlled) return;
+    setInternalExpanded(defaultExpanded);
+    prevCountRef.current = CATALOG_PREVIEW_COUNT;
+  }, [products.length, defaultExpanded, category.id, controlled]);
 
   if (products.length === 0) return null;
 
-  const shouldPaginate = !defaultExpanded && products.length > MOBILE_CATALOG_PAGE_SIZE;
-  const displayed =
-    shouldPaginate && !expanded ? products.slice(0, MOBILE_CATALOG_PAGE_SIZE) : products;
+  const shouldPaginate = !defaultExpanded && shouldShowCatalogExpand(products.length);
+  const displayed = shouldPaginate
+    ? getCatalogVisibleProducts(products, expanded)
+    : products;
   const animateFrom = prevCountRef.current;
 
   const toggleExpanded = () => {
-    if (!expanded) {
-      prevCountRef.current = MOBILE_CATALOG_PAGE_SIZE;
+    const next = !expanded;
+    if (next) {
+      prevCountRef.current = CATALOG_PREVIEW_COUNT;
     }
-    setExpanded((v) => !v);
+    if (controlled) onExpandedChange?.(next);
+    else setInternalExpanded(next);
   };
 
   const Icon = iconMap[category.icon] ?? Coffee;
@@ -127,19 +141,11 @@ export function CategoryProductSection({
       </div>
 
       {shouldPaginate && (
-        <div className="mt-4 flex justify-center px-4">
-          <button
-            type="button"
-            onClick={toggleExpanded}
-            className={cn(
-              "rounded-full border border-coffee/15 bg-warm-white px-6 py-2.5 text-sm font-semibold text-coffee",
-              "shadow-soft transition-all hover:border-turquoise hover:text-turquoise",
-              "active:scale-[0.98]"
-            )}
-          >
-            {expanded ? t("catalog.showLess") : t("catalog.showMore")}
-          </button>
-        </div>
+        <ShowMoreProductsButton
+          totalCount={products.length}
+          expanded={expanded}
+          onToggle={toggleExpanded}
+        />
       )}
     </section>
   );

@@ -1,17 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, LayoutGrid, ShoppingBag, ClipboardList, User } from "lucide-react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/features/cart/cart-context";
 import { useT } from "@/components/providers/locale-provider";
+
+const NAV_ITEM_CLASS =
+  "relative flex h-[var(--mobile-bottom-nav-height)] min-h-[var(--mobile-bottom-nav-height)] flex-1 flex-col items-center justify-center gap-0.5 px-1";
 
 export function BottomNav() {
   const pathname = usePathname();
   const { itemCount, openCart } = useCart();
   const t = useT();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (pathname.startsWith("/admin")) return null;
+  if (!mounted) return null;
 
   const navItems = [
     { href: "/", labelKey: "nav.home", icon: Home, exact: true },
@@ -21,11 +33,13 @@ export function BottomNav() {
     { href: "/account", labelKey: "nav.account", icon: User },
   ];
 
-  if (pathname.startsWith("/admin")) return null;
-
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-beige-dark/15 bg-warm-white lg:hidden">
-      <div className="flex items-stretch justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
+  const nav = (
+    <nav
+      data-mobile-bottom-nav=""
+      aria-label="Mobile"
+      className="mobile-bottom-nav lg:hidden"
+    >
+      <div className="mobile-bottom-nav__inner">
         {navItems.map((item) => {
           const isActive = item.exact
             ? pathname === item.href
@@ -39,23 +53,23 @@ export function BottomNav() {
                 key={item.href}
                 type="button"
                 onClick={openCart}
-                className="relative flex flex-1 flex-col items-center gap-0.5 py-2"
+                className={NAV_ITEM_CLASS}
               >
                 <Icon
                   className={cn(
-                    "h-5 w-5 transition-colors",
+                    "h-5 w-5 shrink-0 transition-colors",
                     isActive ? "text-turquoise" : "text-coffee/45"
                   )}
                   strokeWidth={1.75}
                 />
                 {itemCount > 0 && (
-                  <span className="absolute top-1 end-[calc(50%-18px)] flex h-4 min-w-4 items-center justify-center rounded-full bg-turquoise px-1 text-[9px] font-bold text-warm-white">
+                  <span className="absolute top-1.5 end-[calc(50%-18px)] flex h-4 min-w-4 items-center justify-center rounded-full bg-turquoise px-1 text-[9px] font-bold text-warm-white">
                     {itemCount}
                   </span>
                 )}
                 <span
                   className={cn(
-                    "text-[10px] font-medium",
+                    "text-[10px] font-medium leading-none",
                     isActive ? "text-turquoise" : "text-coffee/45"
                   )}
                 >
@@ -69,25 +83,26 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className="relative flex flex-1 flex-col items-center gap-0.5 py-2"
+              className={NAV_ITEM_CLASS}
+              aria-current={isActive ? "page" : undefined}
             >
-              {isActive && (
-                <motion.div
-                  layoutId="bottom-nav-dot"
-                  className="absolute top-0 h-0.5 w-8 rounded-full bg-turquoise"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute top-0 h-0.5 w-8 rounded-full bg-turquoise transition-opacity",
+                  isActive ? "opacity-100" : "opacity-0"
+                )}
+              />
               <Icon
                 className={cn(
-                  "h-5 w-5 transition-colors",
+                  "h-5 w-5 shrink-0 transition-colors",
                   isActive ? "text-turquoise" : "text-coffee/45"
                 )}
                 strokeWidth={1.75}
               />
               <span
                 className={cn(
-                  "text-[10px] font-medium",
+                  "text-[10px] font-medium leading-none",
                   isActive ? "text-turquoise" : "text-coffee/45"
                 )}
               >
@@ -99,4 +114,6 @@ export function BottomNav() {
       </div>
     </nav>
   );
+
+  return createPortal(nav, document.body);
 }
