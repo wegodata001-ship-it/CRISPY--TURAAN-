@@ -23,7 +23,7 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { useProducts } from "@/hooks/useProducts";
 import { useProductBuilderConfig } from "@/hooks/useModifiers";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { getProductImage, hasRealProductImage } from "@/lib/menu/placeholders";
+import { getProductImage } from "@/lib/menu/placeholders";
 import {
   calculateLineTotal,
   productHasBuilder,
@@ -112,62 +112,97 @@ function ProductDetailContent({
     }
   };
 
+  const imageActions = (
+    <>
+      <div className="absolute top-4 start-4 z-20 flex gap-2">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavorite(product.id);
+          }}
+          aria-label={t("catalog.favorite")}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-warm-white/90 shadow-soft"
+        >
+          <Heart
+            className={cn(
+              "h-4 w-4",
+              isFavorite(product.id) ? "fill-red-400 text-red-400" : "text-coffee/50"
+            )}
+            strokeWidth={1.75}
+          />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            void handleShare();
+          }}
+          aria-label={t("common.share", "Share")}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-warm-white/90 shadow-soft"
+        >
+          <Share2 className="h-4 w-4 text-coffee/50" strokeWidth={1.75} />
+        </button>
+      </div>
+      <div className="absolute bottom-4 end-4 z-20 flex gap-2">
+        {product.isPopular && <Badge variant="popular">{t("catalog.popularBadge")}</Badge>}
+        {product.isNew && <Badge variant="new">{t("catalog.newBadge")}</Badge>}
+      </div>
+    </>
+  );
+
   return (
     <>
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:grid-cols-[45%_55%]">
+      {/* Mobile / tablet: full image, natural aspect, no crop. Desktop: side panel. */}
       <div
-        className="relative h-[clamp(180px,25dvh,220px)] w-full shrink-0 overflow-hidden bg-beige/20 lg:h-full lg:min-h-0"
+        className="relative w-full shrink-0 bg-beige/25 lg:h-full lg:min-h-0 lg:overflow-hidden"
         onClick={() => setZoomed(!zoomed)}
       >
-        {imageSrc ? (
-          <Image
-            src={imageSrc}
-            alt={localized.name}
-            fill
-            unoptimized={imageSrc.includes("firebasestorage")}
-            className={cn("object-cover transition-transform", zoomed && "scale-110")}
-            sizes="(min-width: 1024px) 380px, 100vw"
-            priority
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-beige/60 via-cream to-beige/40">
-            <ImageIcon className="h-12 w-12 text-coffee/20" strokeWidth={1.5} />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-brown/60 via-transparent to-transparent" />
-        <div className="absolute top-4 start-4 flex gap-2">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFavorite(product.id);
-            }}
-            aria-label={t("catalog.favorite")}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-warm-white/90 shadow-soft"
-          >
-            <Heart
+        {/* < lg: intrinsic height + object-contain so the whole photo is visible */}
+        <div className="relative flex w-full items-center justify-center lg:hidden">
+          {imageSrc ? (
+            <Image
+              src={imageSrc}
+              alt={localized.name}
+              width={1200}
+              height={1200}
+              unoptimized={imageSrc.includes("firebasestorage")}
               className={cn(
-                "h-4 w-4",
-                isFavorite(product.id) ? "fill-red-400 text-red-400" : "text-coffee/50"
+                "h-auto max-h-[min(55dvh,560px)] w-full object-contain object-center transition-transform",
+                zoomed && "scale-105"
               )}
-              strokeWidth={1.75}
+              style={{ width: "100%", height: "auto" }}
+              sizes="100vw"
+              priority
             />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              void handleShare();
-            }}
-            aria-label={t("common.share", "Share")}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-warm-white/90 shadow-soft"
-          >
-            <Share2 className="h-4 w-4 text-coffee/50" strokeWidth={1.75} />
-          </button>
+          ) : (
+            <div className="flex aspect-square w-full items-center justify-center bg-gradient-to-br from-beige/60 via-cream to-beige/40">
+              <ImageIcon className="h-12 w-12 text-coffee/20" strokeWidth={1.5} />
+            </div>
+          )}
+          {imageActions}
         </div>
-        <div className="absolute bottom-4 end-4 flex gap-2">
-          {product.isPopular && <Badge variant="popular">{t("catalog.popularBadge")}</Badge>}
-          {product.isNew && <Badge variant="new">{t("catalog.newBadge")}</Badge>}
+
+        {/* lg+: fill the side column (desktop layout unchanged) */}
+        <div className="relative hidden h-full min-h-0 w-full lg:block">
+          {imageSrc ? (
+            <Image
+              src={imageSrc}
+              alt={localized.name}
+              fill
+              unoptimized={imageSrc.includes("firebasestorage")}
+              className={cn("object-cover object-center transition-transform", zoomed && "scale-110")}
+              sizes="380px"
+              priority
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-beige/60 via-cream to-beige/40">
+              <ImageIcon className="h-12 w-12 text-coffee/20" strokeWidth={1.5} />
+            </div>
+          )}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-dark-brown/60 via-transparent to-transparent" />
+          {imageActions}
         </div>
       </div>
 
@@ -293,19 +328,21 @@ export function ProductDetailDrawer({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="h-[min(90dvh,720px)] max-h-[90dvh] w-full max-w-full overflow-hidden">
+        <DrawerContent className="flex h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-0.75rem))] max-h-[calc(100dvh-env(safe-area-inset-top,0px)-0.75rem)] w-full max-w-full flex-col overflow-hidden pb-[env(safe-area-inset-bottom,0px)]">
           {closeButton}
           {product && (
             <>
               <DrawerHeader className="sr-only">
                 <DrawerTitle>{product.name_he || product.name_en}</DrawerTitle>
               </DrawerHeader>
-              <ProductDetailContent
-                key={product.id}
-                product={product}
-                onOpenChange={onOpenChange}
-                onSelectProduct={onSelectProduct}
-              />
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <ProductDetailContent
+                  key={product.id}
+                  product={product}
+                  onOpenChange={onOpenChange}
+                  onSelectProduct={onSelectProduct}
+                />
+              </div>
             </>
           )}
         </DrawerContent>

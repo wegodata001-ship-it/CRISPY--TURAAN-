@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
 import { cn } from "@/lib/utils";
+import { DIALOG_Z } from "@/components/ui/dialog";
 
 const Drawer = ({
   shouldScaleBackground = false,
@@ -25,7 +26,11 @@ const DrawerOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-dark-brown/40 backdrop-blur-sm", className)}
+    className={cn(
+      "fixed inset-0 bg-dark-brown/40 backdrop-blur-sm",
+      DIALOG_Z.overlay,
+      className
+    )}
     {...props}
   />
 ));
@@ -40,7 +45,8 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto max-h-[92vh] flex-col rounded-t-2xl border border-beige-dark/30 bg-warm-white",
+        "fixed inset-x-0 bottom-0 mt-24 flex h-auto max-h-[calc(100dvh-env(safe-area-inset-top,0px))] flex-col rounded-t-2xl border border-beige-dark/30 bg-warm-white",
+        DIALOG_Z.content,
         className
       )}
       {...props}
