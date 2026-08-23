@@ -13,6 +13,7 @@ import {
   UserCog,
   Settings,
   FileText,
+  Printer,
 } from "lucide-react";
 
 export type AdminNavItem = {
@@ -61,6 +62,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     labelKey: "admin.nav.group.system",
     items: [
       { href: "/admin/assistant", labelKey: "admin.assistantManager", icon: MessageSquare },
+      { href: "/admin/printer-test", labelKey: "admin.printerTest", icon: Printer },
       { href: "/admin/users", labelKey: "admin.users", icon: UserCog, adminOnly: true },
       { href: "/admin/settings", labelKey: "admin.settings", icon: Settings },
     ],
@@ -81,6 +83,7 @@ export const ADMIN_PAGE_TITLES: Record<string, string> = {
   "/admin/menu-builder": "admin.menuBuilder",
   "/admin/media": "admin.media.title",
   "/admin/assistant": "admin.assistant.title",
+  "/admin/printer-test": "admin.printerTest.title",
   "/admin/users": "admin.users.title",
   "/admin/settings": "admin.settings.title",
 };
