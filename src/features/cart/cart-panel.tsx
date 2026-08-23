@@ -139,7 +139,6 @@ export function CartPanel({ compact, onCheckout, className }: CartPanelProps) {
     updateConfiguredItem,
     subtotal,
     discount,
-    deliveryFee,
     total,
     itemCount,
     applyCoupon,
@@ -230,12 +229,9 @@ export function CartPanel({ compact, onCheckout, className }: CartPanelProps) {
                 <span>-{formatPrice(discount)}</span>
               </div>
             )}
-            {deliveryFee > 0 && (
-              <div className="flex justify-between text-coffee/70">
-                <span>{t("cart.delivery", "Delivery")}</span>
-                <span>{formatPrice(deliveryFee)}</span>
-              </div>
-            )}
+            <p className="text-xs text-coffee/50">
+              {t("cart.pickupOnly", "איסוף עצמי בלבד")}
+            </p>
             <div className="flex justify-between border-t border-beige-dark/15 pt-2">
               <span className="font-semibold text-dark-brown">{t("cart.total")}</span>
               <span className="text-price text-xl">{formatPrice(total)}</span>

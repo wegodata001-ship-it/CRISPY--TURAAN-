@@ -73,7 +73,7 @@ export const DEFAULT_ASSISTANT_CONFIG: AssistantConfig = {
     { he: "שעות פתיחה", ar: "ساعات العمل", en: "Opening hours" },
     { he: "כתובת", ar: "العنوان", en: "Address" },
     { he: "טלפון", ar: "الهاتف", en: "Phone" },
-    { he: "משלוחים", ar: "التوصيل", en: "Delivery" },
+    { he: "איסוף עצמי", ar: "استلام ذاتي", en: "Pickup" },
   ],
   quickActions: [
     {

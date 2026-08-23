@@ -3,7 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, MapPin, Phone, User, MessageSquare, Store, Truck, CheckCircle2, Banknote, CreditCard } from "lucide-react";
+import {
+  Loader2,
+  Phone,
+  User,
+  MessageSquare,
+  Store,
+  CheckCircle2,
+  Banknote,
+  CreditCard,
+  ShoppingBag,
+} from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { CheckoutProgress } from "@/components/checkout/checkout-progress";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -17,8 +27,6 @@ import { useCart } from "@/features/cart/cart-context";
 import { createOrderFromCart, getOrCreateGuestCustomer, GUEST_CUSTOMER_ID } from "@/services";
 import { formatPrice } from "@/lib/utils";
 import { calculateLineTotal } from "@/lib/product-builder/engine";
-import { ShoppingBag } from "lucide-react";
-import type { Product } from "@/types";
 
 function OrderLineItem({ item }: { item: import("@/types").CartItem }) {
   const localized = useLocalizedProduct(item.product);
@@ -43,12 +51,11 @@ export default function CheckoutPage() {
   const t = useT();
   const router = useRouter();
   const {
-    items, subtotal, discount, deliveryFee, total,
-    orderType, setOrderType, clearCart, couponCode,
+    items, subtotal, discount, total,
+    clearCart, couponCode,
   } = useCart();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [payment, setPayment] = useState<"cash" | "card">("cash");
   const [loading, setLoading] = useState(false);
@@ -75,7 +82,6 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) { setError(t("validation.required")); return; }
-    if (orderType === "delivery" && !address) { setError(t("validation.required")); return; }
 
     setLoading(true);
     setError(null);
@@ -85,10 +91,7 @@ export default function CheckoutPage() {
       const orderNotes = [
         notes.trim(),
         phone.trim() ? `${t("checkout.phone")}: ${phone.trim()}` : "",
-        orderType === "delivery" && address.trim()
-          ? `${t("checkout.address")}: ${address.trim()}`
-          : "",
-        orderType === "pickup" ? t("checkout.pickup") : t("checkout.delivery"),
+        t("checkout.pickupFromStore", "איסוף עצמי מהעסק"),
       ]
         .filter(Boolean)
         .join("\n");
@@ -96,12 +99,9 @@ export default function CheckoutPage() {
       const result = await createOrderFromCart(items, GUEST_CUSTOMER_ID, name, {
         subtotal,
         discount,
-        delivery: deliveryFee,
         total,
         paymentMethod: payment,
         customerPhone: phone.trim(),
-        orderType,
-        deliveryAddress: orderType === "delivery" ? address.trim() : undefined,
         notes: orderNotes || undefined,
       });
       if (!result.success) {
@@ -147,25 +147,9 @@ export default function CheckoutPage() {
 
               <form onSubmit={handleSubmit} className="mt-8 grid gap-8 lg:grid-cols-5">
                 <div className="space-y-6 lg:col-span-3">
-                  <div className="rounded-2xl bg-warm-white p-5 shadow-soft">
-                    <h2 className="text-sm font-semibold">{t("checkout.orderType")}</h2>
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      {(["pickup", "delivery"] as const).map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => setOrderType(type)}
-                          className={`flex items-center justify-center gap-2 rounded-xl border-2 p-4 transition-all ${
-                            orderType === type ? "border-turquoise bg-turquoise/5" : "border-beige-dark/30"
-                          }`}
-                        >
-                          {type === "pickup" ? <Store className="h-5 w-5" strokeWidth={1.75} /> : <Truck className="h-5 w-5" strokeWidth={1.75} />}
-                          <span className="font-medium">
-                            {type === "pickup" ? t("checkout.pickup") : t("checkout.delivery")}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                  <div className="flex items-center gap-2 rounded-2xl bg-warm-white px-4 py-3 text-sm text-coffee/80 shadow-soft">
+                    <Store className="h-4 w-4 shrink-0 text-turquoise" strokeWidth={1.75} />
+                    <span>{t("checkout.pickupFromStore", "איסוף עצמי מהעסק")}</span>
                   </div>
 
                   <div className="rounded-2xl bg-warm-white p-5 shadow-soft">
@@ -179,12 +163,6 @@ export default function CheckoutPage() {
                         <Label className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" strokeWidth={1.75} /> {t("checkout.phone")}</Label>
                         <Input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" className="mt-1" required />
                       </div>
-                      {orderType === "delivery" && (
-                        <div>
-                          <Label className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" strokeWidth={1.75} /> {t("checkout.address")}</Label>
-                          <Input value={address} onChange={(e) => setAddress(e.target.value)} className="mt-1" />
-                        </div>
-                      )}
                       <div>
                         <Label className="flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5" strokeWidth={1.75} /> {t("checkout.notes")}</Label>
                         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" placeholder={t("checkout.notes")} />
@@ -230,9 +208,7 @@ export default function CheckoutPage() {
                           <span>-{formatPrice(discount)}</span>
                         </div>
                       )}
-                      {deliveryFee > 0 && (
-                        <div className="flex justify-between"><span>{t("cart.delivery")}</span><span>{formatPrice(deliveryFee)}</span></div>
-                      )}
+                      <p className="text-xs text-coffee/50">{t("cart.pickupOnly", "איסוף עצמי בלבד")}</p>
                       <div className="flex justify-between pt-2 text-lg font-bold">
                         <span>{t("cart.total")}</span>
                         <span className="text-turquoise">{formatPrice(total)}</span>

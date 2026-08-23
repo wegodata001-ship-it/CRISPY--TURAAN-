@@ -16,14 +16,13 @@ import {
   calculateLineTotal,
   selectionsFingerprint,
 } from "@/lib/product-builder/engine";
+import { NEW_ORDER_FULFILLMENT } from "@/lib/orders/fulfillment";
 
 interface CartState {
   items: CartItem[];
   isOpen: boolean;
   couponCode: string;
   couponDiscount: number;
-  deliveryFee: number;
-  orderType: "pickup" | "delivery";
 }
 
 type CartAction =
@@ -51,9 +50,7 @@ type CartAction =
   | { type: "OPEN_CART" }
   | { type: "CLOSE_CART" }
   | { type: "TOGGLE_CART" }
-  | { type: "SET_COUPON"; code: string; discount: number }
-  | { type: "SET_DELIVERY"; fee: number }
-  | { type: "SET_ORDER_TYPE"; orderType: "pickup" | "delivery" };
+  | { type: "SET_COUPON"; code: string; discount: number };
 
 interface AddItemOptions {
   selections?: SelectedModifier[];
@@ -69,10 +66,12 @@ interface CartContextValue {
   itemCount: number;
   subtotal: number;
   discount: number;
+  /** Always 0 — business is pickup-only. Kept for UI compatibility. */
   deliveryFee: number;
   total: number;
   couponCode: string;
-  orderType: "pickup" | "delivery";
+  /** Always pickup — business does not offer delivery. */
+  orderType: typeof NEW_ORDER_FULFILLMENT;
   addItem: (product: Product, options?: AddItemOptions) => void;
   removeItem: (lineId: string) => void;
   updateQuantity: (lineId: string, quantity: number) => void;
@@ -82,7 +81,6 @@ interface CartContextValue {
       Pick<AddItemOptions, "notes">
   ) => void;
   applyCoupon: (code: string) => boolean;
-  setOrderType: (type: "pickup" | "delivery") => void;
   clearCart: () => void;
   openCart: () => void;
   closeCart: () => void;
@@ -178,7 +176,9 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     case "HYDRATE":
       return {
         ...state,
-        ...action.state,
+        items: Array.isArray(action.state.items) ? action.state.items : state.items,
+        couponCode: action.state.couponCode ?? state.couponCode,
+        couponDiscount: action.state.couponDiscount ?? state.couponDiscount,
         isOpen: false,
       };
     case "CLEAR_CART":
@@ -191,14 +191,6 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       return { ...state, isOpen: !state.isOpen };
     case "SET_COUPON":
       return { ...state, couponCode: action.code, couponDiscount: action.discount };
-    case "SET_DELIVERY":
-      return { ...state, deliveryFee: action.fee };
-    case "SET_ORDER_TYPE":
-      return {
-        ...state,
-        orderType: action.orderType,
-        deliveryFee: action.orderType === "delivery" ? 15 : 0,
-      };
     default:
       return state;
   }
@@ -210,8 +202,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     isOpen: false,
     couponCode: "",
     couponDiscount: 0,
-    deliveryFee: 0,
-    orderType: "pickup",
   });
   const [hydrated, setHydrated] = useState(false);
 
@@ -239,18 +229,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         items: state.items,
         couponCode: state.couponCode,
         couponDiscount: state.couponDiscount,
-        deliveryFee: state.deliveryFee,
-        orderType: state.orderType,
       })
     );
-  }, [
-    hydrated,
-    state.couponCode,
-    state.couponDiscount,
-    state.deliveryFee,
-    state.items,
-    state.orderType,
-  ]);
+  }, [hydrated, state.couponCode, state.couponDiscount, state.items]);
 
   const addItem = useCallback((product: Product, options?: AddItemOptions) => {
     const selections = options?.selections ?? [];
@@ -313,10 +294,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return false;
   }, []);
 
-  const setOrderType = useCallback((orderType: "pickup" | "delivery") => {
-    dispatch({ type: "SET_ORDER_TYPE", orderType });
-  }, []);
-
   const itemCount = state.items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = state.items.reduce(
     (sum, item) =>
@@ -324,7 +301,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     0
   );
   const discount = subtotal * state.couponDiscount;
-  const total = subtotal - discount + state.deliveryFee;
+  const deliveryFee = 0;
+  const total = subtotal - discount;
 
   return (
     <CartContext.Provider
@@ -334,16 +312,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
         itemCount,
         subtotal,
         discount,
-        deliveryFee: state.deliveryFee,
+        deliveryFee,
         total,
         couponCode: state.couponCode,
-        orderType: state.orderType,
+        orderType: NEW_ORDER_FULFILLMENT,
         addItem,
         removeItem,
         updateQuantity,
         updateConfiguredItem,
         applyCoupon,
-        setOrderType,
         clearCart,
         openCart,
         closeCart,

@@ -20,6 +20,7 @@ import { ServiceError, type ServiceResult, success, failure } from "@/lib/errors
 import { mapOrder } from "@/lib/mappers";
 import { selectedModifierToFirestore } from "@/lib/mappers/modifier-mappers";
 import { orderSchema, type OrderInput } from "@/lib/validation/schemas";
+import { forcePickupForNewOrder, NEW_ORDER_FULFILLMENT } from "@/lib/orders/fulfillment";
 import { nowTimestamp } from "@/types/firestore";
 import {
   calculateLineTotal,
@@ -225,7 +226,8 @@ export function subscribeToOrders(
 
 export async function createOrder(input: OrderInput): Promise<ServiceResult<Order>> {
   try {
-    const parsed = orderSchema.parse(input);
+    // New orders are pickup-only; never persist delivery / address / delivery fee.
+    const parsed = forcePickupForNewOrder(orderSchema.parse(input));
     const db = getDb();
     const orderNumber = await generateOrderNumber();
     const now = nowTimestamp();
@@ -253,13 +255,10 @@ export async function createOrderFromCart(
   checkout?: {
     subtotal?: number;
     discount?: number;
-    delivery?: number;
     total?: number;
     paymentMethod?: string;
     paymentStatus?: PaymentStatus;
     customerPhone?: string;
-    orderType?: "pickup" | "delivery";
-    deliveryAddress?: string;
     notes?: string;
   }
 ): Promise<ServiceResult<Order>> {
@@ -295,8 +294,8 @@ export async function createOrderFromCart(
       (sum, item) => sum + calculateLineTotal(item.price, item.quantity),
       0
     );
-
-  const total = checkout?.total ?? subtotal + (checkout?.delivery ?? 0) - (checkout?.discount ?? 0);
+  const discount = checkout?.discount ?? 0;
+  const total = Math.max(subtotal - discount, 0.01);
 
   return createOrder({
     customerId,
@@ -304,14 +303,13 @@ export async function createOrderFromCart(
     items,
     status: "pending",
     subtotal,
-    discount: checkout?.discount ?? 0,
-    delivery: checkout?.delivery ?? 0,
-    total: Math.max(total, 0.01),
+    discount,
+    delivery: 0,
+    total,
     paymentMethod: checkout?.paymentMethod ?? "cash",
     paymentStatus: checkout?.paymentStatus ?? "pending",
     customerPhone: checkout?.customerPhone,
-    orderType: checkout?.orderType,
-    deliveryAddress: checkout?.deliveryAddress,
+    orderType: NEW_ORDER_FULFILLMENT,
     notes: checkout?.notes?.trim() ?? "",
   });
 }
