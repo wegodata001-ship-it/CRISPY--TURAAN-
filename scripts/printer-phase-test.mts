@@ -38,7 +38,7 @@ async function main() {
       payload = buildArabicTextTestPayload();
       break;
     case "arabic-raster":
-      payload = buildArabicRasterTestPayload();
+      payload = await buildArabicRasterTestPayload();
       break;
     default:
       console.error(

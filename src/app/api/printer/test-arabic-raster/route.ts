@@ -8,7 +8,6 @@ import {
   PrinterConnectionError,
   sendRawToPrinter,
 } from "@/lib/printer/tcp";
-import { buildArabicRasterTestPayload } from "@/lib/printer/arabic-raster";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +15,7 @@ export const dynamic = "force-dynamic";
 /**
  * Arabic receipt via 576px ESC/POS raster (proper shaping + RTL via canvas).
  * Isolated test — not wired to orders.
+ * Canvas is loaded lazily so Vercel production build does not bundle .node binaries.
  */
 export async function POST(request: NextRequest) {
   if (!isPrinterTestAllowed()) return printerTestBlockedResponse();
@@ -24,7 +24,10 @@ export async function POST(request: NextRequest) {
   if (auth instanceof Response) return auth;
 
   try {
-    const payload = buildArabicRasterTestPayload();
+    const { buildArabicRasterTestPayload } = await import(
+      "@/lib/printer/arabic-raster"
+    );
+    const payload = await buildArabicRasterTestPayload();
     const result = await sendRawToPrinter(payload);
     return Response.json({
       success: true,

@@ -43,8 +43,8 @@ describe("printer phase payloads", () => {
     expect(buf.includes(escCut("full"))).toBe(true);
   });
 
-  it("Arabic raster builds 576px-wide ESC/POS image payload", () => {
-    const buf = buildArabicRasterTestPayload();
+  it("Arabic raster builds 576px-wide ESC/POS image payload", async () => {
+    const buf = await buildArabicRasterTestPayload();
     expect(buf.includes(escInit())).toBe(true);
     // GS v 0
     expect(buf.includes(Buffer.from([0x1d, 0x76, 0x30]))).toBe(true);

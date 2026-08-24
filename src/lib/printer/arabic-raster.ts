@@ -1,4 +1,3 @@
-import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { existsSync } from "node:fs";
 import {
   escRasterBitImage,
@@ -16,28 +15,22 @@ const FONT_CANDIDATES = [
   "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
 ];
 
-let fontFamily = "sans-serif";
-let fontReady = false;
+/**
+ * Render Arabic (and mixed) receipt lines to an ESC/POS raster payload.
+ * Loads @napi-rs/canvas only at runtime (native .node) so Next/Vercel webpack
+ * does not try to parse the Skia binary during `next build`.
+ */
+export async function buildArabicRasterTestPayload(): Promise<Buffer> {
+  const { createCanvas, GlobalFonts } = await import("@napi-rs/canvas");
 
-function ensureArabicFont(): void {
-  if (fontReady) return;
+  let fontFamily = "sans-serif";
   for (const path of FONT_CANDIDATES) {
     if (existsSync(path)) {
       GlobalFonts.registerFromPath(path, "PrinterArabic");
       fontFamily = "PrinterArabic";
-      fontReady = true;
-      return;
+      break;
     }
   }
-  fontReady = true;
-}
-
-/**
- * Render Arabic (and mixed) receipt lines to an ESC/POS raster payload.
- * Skia/canvas handles Arabic shaping + RTL when drawing logical Unicode.
- */
-export function buildArabicRasterTestPayload(): Buffer {
-  ensureArabicFont();
 
   const lines = [
     "مشكا",
