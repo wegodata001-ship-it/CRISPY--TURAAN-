@@ -9,10 +9,21 @@ import {
   escSelectCodePage,
   textLine,
 } from "@/lib/printer/escpos";
-import { getHebrewCodePageIndex } from "@/lib/printer/config";
+import {
+  getArabicCodePageIndex,
+  getArabicEncoding,
+  getHebrewCodePageIndex,
+} from "@/lib/printer/config";
+import { toVisualOrder } from "@/lib/printer/text-rtl";
 
 function divider(): Buffer {
   return textLine("------------------------------");
+}
+
+function encodeCpLine(logical: string, encoding: string): Buffer {
+  // Thermal printers print bytes LTR — send visual order.
+  const visual = toVisualOrder(logical);
+  return iconv.encode(`${visual}\n`, encoding);
 }
 
 export function buildAsciiTestPayload(now = new Date()): Buffer {
@@ -53,21 +64,25 @@ export function buildAsciiTestPayload(now = new Date()): Buffer {
   );
 }
 
-/** Feed + cut only — after ASCII works, verify cutter alone. */
-export function buildCutterTestPayload(): Buffer {
+/** Feed + single cut — one cut command only. */
+export function buildCutterTestPayload(
+  cut: "full" | "partial" = "full"
+): Buffer {
   return concatBuffers(
     escInit(),
     escAlign("center"),
     textLine("CUTTER TEST"),
+    textLine(""),
+    textLine(""),
     escAlign("left"),
-    escFeedLines(4),
-    escCut("full")
+    escFeedLines(3),
+    escCut(cut)
   );
 }
 
 /**
- * Hebrew test using CP862 (printer default code page per self-test).
- * Requires the printer ESC t index to match firmware tables.
+ * Hebrew test using CP862 + Unicode BiDi visual order.
+ * Shekel may not exist in CP862 — printed as "ILS".
  */
 export function buildHebrewTestPayload(): Buffer {
   const lines = [
@@ -75,23 +90,55 @@ export function buildHebrewTestPayload(): Buffer {
     "הזמנה מספר 123",
     "קפה",
     "עוגה",
-    "סה״כ",
+    "סה״כ 30 ILS",
   ];
-
-  const encoded = lines.map((line) => {
-    const body = iconv.encode(`${line}\n`, "cp862");
-    return body;
-  });
 
   return concatBuffers(
     escInit(),
     escSelectCodePage(getHebrewCodePageIndex()),
     escAlign("center"),
     escBold(true),
-    iconv.encode("בדיקת עברית\n", "cp862"),
+    encodeCpLine("בדיקת עברית", "cp862"),
     escBold(false),
     escAlign("right"),
-    ...encoded,
+    ...lines.map((line) => encodeCpLine(line, "cp862")),
+    escAlign("left"),
+    escFeedLines(4),
+    escCut("full")
+  );
+}
+
+/**
+ * Arabic ESC/POS text mode (experimental).
+ * Shapes + BiDi, then encodes to configured code page.
+ * If glyphs are disconnected / wrong on paper → use raster instead.
+ */
+export function buildArabicTextTestPayload(): Buffer {
+  const encoding = getArabicEncoding();
+  const lines = [
+    "اختبار الطابعة",
+    "طلب رقم 123",
+    "قهوة",
+    "كعكة",
+    "المجموع 30 ILS",
+  ];
+
+  const encodeAr = (logical: string): Buffer => {
+    // Code pages store isolated letters — shaping presentation forms usually
+    // cannot be encoded. Send BiDi visual order of logical Arabic for the text test.
+    const visual = toVisualOrder(logical);
+    return iconv.encode(`${visual}\n`, encoding);
+  };
+
+  return concatBuffers(
+    escInit(),
+    escSelectCodePage(getArabicCodePageIndex()),
+    escAlign("center"),
+    escBold(true),
+    encodeAr("اختبار عربي"),
+    escBold(false),
+    escAlign("right"),
+    ...lines.map(encodeAr),
     escAlign("left"),
     escFeedLines(4),
     escCut("full")

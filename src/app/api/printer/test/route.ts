@@ -17,6 +17,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type TestMode = "ascii" | "cutter";
+type CutVariant = "full" | "partial";
 
 export async function POST(request: NextRequest) {
   if (!isPrinterTestAllowed()) return printerTestBlockedResponse();
@@ -25,14 +26,21 @@ export async function POST(request: NextRequest) {
   if (auth instanceof Response) return auth;
 
   let mode: TestMode = "ascii";
+  let cut: CutVariant = "full";
   try {
-    const body = (await request.json().catch(() => null)) as { mode?: string } | null;
+    const body = (await request.json().catch(() => null)) as {
+      mode?: string;
+      cut?: string;
+    } | null;
     if (body?.mode === "cutter") mode = "cutter";
+    // GS V 0 = full, GS V 1 = partial — one cut per request only
+    if (body?.cut === "partial" || body?.cut === "1") cut = "partial";
   } catch {
     mode = "ascii";
   }
 
-  const payload = mode === "cutter" ? buildCutterTestPayload() : buildAsciiTestPayload();
+  const payload =
+    mode === "cutter" ? buildCutterTestPayload(cut) : buildAsciiTestPayload();
 
   try {
     const result = await sendRawToPrinter(payload);
@@ -40,8 +48,13 @@ export async function POST(request: NextRequest) {
       success: true,
       printer: { ip: result.host, port: result.port },
       mode,
+      cut: mode === "cutter" ? cut : undefined,
+      cutCommand: mode === "cutter" ? (cut === "partial" ? "GS V 1" : "GS V 0") : undefined,
       bytesSent: result.bytesSent,
-      message: mode === "cutter" ? "Cutter test sent successfully" : "Test print sent successfully",
+      message:
+        mode === "cutter"
+          ? `Cutter test sent (${cut === "partial" ? "GS V 1" : "GS V 0"}). Confirm paper cut on printer.`
+          : "Test print sent successfully",
     });
   } catch (error) {
     const message =

@@ -24,6 +24,24 @@ export function getHebrewCodePageIndex(): number {
 }
 
 /**
+ * Epson ESC t n for Arabic. Firmware-dependent — override after checking paper output.
+ * Default 37 is a common PC864 slot on Epson-compatible tables.
+ */
+export function getArabicCodePageIndex(): number {
+  const raw = Number(process.env.PRINTER_ARABIC_CODEPAGE_INDEX || 37);
+  return Number.isFinite(raw) && raw >= 0 ? raw : 37;
+}
+
+/** iconv-lite encoding name for Arabic text-mode tests. */
+export function getArabicEncoding(): string {
+  const raw = (process.env.PRINTER_ARABIC_ENCODING || "cp864").trim().toLowerCase();
+  if (raw === "windows-1256" || raw === "cp1256") return "windows-1256";
+  if (raw === "iso-8859-6") return "iso-8859-6";
+  if (raw === "cp720") return "cp720";
+  return "cp864";
+}
+
+/**
  * Allow printer test APIs:
  * - Always blocked in production unless ENABLE_LOCAL_PRINTER_TEST=true
  * - In development, allowed (local LAN testing)

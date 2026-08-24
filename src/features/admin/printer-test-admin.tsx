@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Loader2, Printer, Wifi, Scissors, Languages } from "lucide-react";
+import { Loader2, Printer, Wifi, Scissors, Languages, ImageIcon } from "lucide-react";
 import { useAuthFetch } from "@/lib/auth/auth-fetch";
 import { useT } from "@/components/providers/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -44,14 +44,16 @@ export function PrinterTestAdmin() {
           setDetail(`${data.ip}:${data.port}`);
           return;
         }
-        if (key === "arabic") {
-          setTone("info");
-          setStatus("Not ready");
-          setDetail(String(data.message ?? "Arabic deferred"));
-          return;
-        }
         setTone("ok");
-        setStatus(key === "cutter" ? "Cutter sent" : "Print sent");
+        setStatus(
+          key.startsWith("cutter")
+            ? "Cutter sent"
+            : key.includes("arabic")
+              ? "Arabic sent — confirm paper"
+              : key === "hebrew"
+                ? "Hebrew sent — confirm paper"
+                : "Print sent"
+        );
         setDetail(String(data.message ?? "OK"));
       } catch (error) {
         setTone("fail");
@@ -150,7 +152,7 @@ export function PrinterTestAdmin() {
             disabled={Boolean(busy)}
             onClick={() =>
               void run("cutter", "/api/printer/test", {
-                body: JSON.stringify({ mode: "cutter" }),
+                body: JSON.stringify({ mode: "cutter", cut: "full" }),
               })
             }
           >
@@ -159,7 +161,24 @@ export function PrinterTestAdmin() {
             ) : (
               <Scissors className="h-4 w-4" />
             )}
-            {t("admin.printerTest.cutter", "בדיקת Cutter")}
+            {t("admin.printerTest.cutter", "בדיקת Cutter")} (GS V 0)
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={Boolean(busy)}
+            onClick={() =>
+              void run("cutter-partial", "/api/printer/test", {
+                body: JSON.stringify({ mode: "cutter", cut: "partial" }),
+              })
+            }
+          >
+            {busy === "cutter-partial" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Scissors className="h-4 w-4" />
+            )}
+            Cutter GS V 1
           </Button>
           <Button
             type="button"
@@ -187,6 +206,19 @@ export function PrinterTestAdmin() {
             )}
             {t("admin.printerTest.arabic", "בדיקת ערבית")}
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={Boolean(busy)}
+            onClick={() => void run("arabic-raster", "/api/printer/test-arabic-raster")}
+          >
+            {busy === "arabic-raster" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ImageIcon className="h-4 w-4" />
+            )}
+            {t("admin.printerTest.arabicRaster", "ערבית Raster")}
+          </Button>
         </div>
 
         <div className="mt-6 space-y-2 rounded-xl bg-cream/80 p-4 text-xs leading-relaxed text-coffee/65">
@@ -197,15 +229,11 @@ export function PrinterTestAdmin() {
             )}
           </p>
           <p dir="ltr" className="font-mono text-[11px]">
-            ping 192.168.1.30
+            npx tsx scripts/printer-phase-test.mts cutter
             <br />
-            Test-NetConnection 192.168.1.30 -Port 9100
-          </p>
-          <p>
-            {t(
-              "admin.printerTest.hintDhcp",
-              "DHCP פעיל — מומלץ DHCP Reservation ל־MAC 56-F9-05-9B-0D-2A כדי שה־IP לא ישתנה."
-            )}
+            npx tsx scripts/printer-phase-test.mts hebrew
+            <br />
+            npx tsx scripts/printer-phase-test.mts arabic-raster
           </p>
           <p>
             {t(
