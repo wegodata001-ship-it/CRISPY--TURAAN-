@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Heart, Minus, Plus, ShoppingBag, X, Share2, Sparkles, ImageIcon } from "lucide-react";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   Dialog,
   DialogContent,
@@ -44,10 +43,13 @@ function ProductDetailContent({
   product,
   onOpenChange,
   onSelectProduct,
+  layout = "stack",
 }: {
   product: Product;
   onOpenChange: (open: boolean) => void;
   onSelectProduct?: (product: Product) => void;
+  /** stack = phone/tablet vertical; split = desktop side-by-side */
+  layout?: "stack" | "split";
 }) {
   const t = useT();
   const { locale } = useLocale();
@@ -64,6 +66,7 @@ function ProductDetailContent({
   const hasBuilder = config ? productHasBuilder(config) : false;
   const suggestions = config ? getSuggestedProducts(config, products, locale) : [];
   const imageSrc = getProductImage(product.image, product.categoryId);
+  const isSplit = layout === "split";
 
   const handleAdd = () => {
     if (!product.available || configLoading) return;
@@ -122,7 +125,7 @@ function ProductDetailContent({
             toggleFavorite(product.id);
           }}
           aria-label={t("catalog.favorite")}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-warm-white/90 shadow-soft"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-warm-white/95 shadow-soft"
         >
           <Heart
             className={cn(
@@ -139,7 +142,7 @@ function ProductDetailContent({
             void handleShare();
           }}
           aria-label={t("common.share", "Share")}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-warm-white/90 shadow-soft"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-warm-white/95 shadow-soft"
         >
           <Share2 className="h-4 w-4 text-coffee/50" strokeWidth={1.75} />
         </button>
@@ -153,47 +156,32 @@ function ProductDetailContent({
 
   return (
     <>
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:grid-cols-[45%_55%]">
-      {/* Mobile / tablet: full image, natural aspect, no crop. Desktop: side panel. */}
       <div
-        className="relative w-full shrink-0 bg-beige/25 lg:h-full lg:min-h-0 lg:overflow-hidden"
-        onClick={() => setZoomed(!zoomed)}
+        className={cn(
+          "flex min-h-0 flex-1 flex-col overflow-hidden",
+          isSplit && "lg:grid lg:grid-cols-[45%_55%]"
+        )}
       >
-        {/* < lg: intrinsic height + object-contain so the whole photo is visible */}
-        <div className="relative flex w-full items-center justify-center lg:hidden">
-          {imageSrc ? (
-            <Image
-              src={imageSrc}
-              alt={localized.name}
-              width={1200}
-              height={1200}
-              unoptimized={imageSrc.includes("firebasestorage")}
-              className={cn(
-                "h-auto max-h-[min(55dvh,560px)] w-full object-contain object-center transition-transform",
-                zoomed && "scale-105"
-              )}
-              style={{ width: "100%", height: "auto" }}
-              sizes="100vw"
-              priority
-            />
-          ) : (
-            <div className="flex aspect-square w-full items-center justify-center bg-gradient-to-br from-beige/60 via-cream to-beige/40">
-              <ImageIcon className="h-12 w-12 text-coffee/20" strokeWidth={1.5} />
-            </div>
+        <div
+          className={cn(
+            "relative w-full shrink-0 overflow-hidden bg-beige/30",
+            isSplit
+              ? "aspect-[5/3] max-h-[min(42dvh,360px)] lg:aspect-auto lg:max-h-none lg:h-full lg:min-h-0"
+              : "aspect-[4/3] max-h-[min(42dvh,340px)] sm:aspect-[16/10] sm:max-h-[min(40dvh,360px)]"
           )}
-          {imageActions}
-        </div>
-
-        {/* lg+: fill the side column (desktop layout unchanged) */}
-        <div className="relative hidden h-full min-h-0 w-full lg:block">
+          onClick={() => setZoomed(!zoomed)}
+        >
           {imageSrc ? (
             <Image
               src={imageSrc}
               alt={localized.name}
               fill
               unoptimized={imageSrc.includes("firebasestorage")}
-              className={cn("object-cover object-center transition-transform", zoomed && "scale-110")}
-              sizes="380px"
+              className={cn(
+                "object-cover object-center transition-transform",
+                zoomed && "scale-105"
+              )}
+              sizes={isSplit ? "(min-width: 1024px) 380px, 100vw" : "100vw"}
               priority
             />
           ) : (
@@ -201,96 +189,97 @@ function ProductDetailContent({
               <ImageIcon className="h-12 w-12 text-coffee/20" strokeWidth={1.5} />
             </div>
           )}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-dark-brown/60 via-transparent to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-dark-brown/35 via-transparent to-transparent" />
           {imageActions}
         </div>
-      </div>
 
-      <div className="flex min-h-0 flex-1 flex-col bg-warm-white">
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 lg:px-7 lg:py-7">
-          <div className="space-y-1.5">
-          <h2 className="font-display text-2xl font-bold" dir={localized.dir}>
-            {localized.name}
-          </h2>
-          <p className="text-2xl font-bold text-turquoise">{formatPrice(product.price)}</p>
-        </div>
+        <div className="flex min-h-0 flex-1 flex-col bg-warm-white">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6 lg:px-7 lg:py-7">
+            <div className="space-y-1.5">
+              <h2 className="font-display text-2xl font-bold sm:text-[1.75rem]" dir={localized.dir}>
+                {localized.name}
+              </h2>
+              <p className="text-2xl font-bold text-turquoise">{formatPrice(product.price)}</p>
+            </div>
 
-          {localized.description && (
-            <p className="mt-4 text-sm leading-relaxed text-coffee/70" dir={localized.dir}>
-              {localized.description}
-            </p>
-          )}
+            {localized.description && (
+              <p
+                className="mt-4 text-[15px] leading-relaxed text-coffee/75"
+                dir={localized.dir}
+              >
+                {localized.description}
+              </p>
+            )}
 
-          <div className="mt-5 space-y-2">
-          <Label className="text-sm font-medium">{t("cart.quantity")}</Label>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              aria-label={t("cart.decreaseQuantity")}
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-beige-dark/30"
-            >
-              <Minus className="h-4 w-4" />
-            </button>
-            <span className="w-8 text-center text-lg font-bold">{quantity}</span>
-            <button
-              type="button"
-              onClick={() => setQuantity(quantity + 1)}
-              aria-label={t("cart.increaseQuantity")}
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-beige-dark/30"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
-          </div>
-
-          <div className="mt-5">
-          <Label htmlFor={`product-notes-${product.id}`} className="text-sm">
-            {t("builder.notes")}
-          </Label>
-          <Textarea
-            id={`product-notes-${product.id}`}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder={t("builder.notesPlaceholder")}
-            className="mt-1.5 min-h-[70px] max-h-[100px] resize-none rounded-xl"
-          />
-          </div>
-
-          {suggestions.length > 0 && (
-            <div className="mt-6 rounded-2xl border border-turquoise/20 bg-turquoise/5 p-4">
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-turquoise">
-                <Sparkles className="h-4 w-4" />
-                {t("builder.suggestions")}
-              </div>
-              <div className="flex flex-col gap-2">
-                {suggestions.map(({ product: sug }) => (
-                  <ProductCard
-                    key={sug.id}
-                    product={sug}
-                    onClick={() => onSelectProduct?.(sug)}
-                  />
-                ))}
+            <div className="mt-6 space-y-2">
+              <Label className="text-sm font-medium">{t("cart.quantity")}</Label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  aria-label={t("cart.decreaseQuantity")}
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-beige-dark/30"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="w-10 text-center text-lg font-bold">{quantity}</span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity(quantity + 1)}
+                  aria-label={t("cart.increaseQuantity")}
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-beige-dark/30"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
               </div>
             </div>
-          )}
-        </div>
 
-        <div className="shrink-0 border-t border-beige-dark/15 bg-warm-white px-5 py-4 lg:px-7">
-          <Button
-            variant="turquoise"
-            size="lg"
-            className="h-12 w-full rounded-xl shadow-soft"
-            onClick={handleAdd}
-            disabled={!product.available || configLoading}
-          >
-            <ShoppingBag className="h-4 w-4" strokeWidth={1.75} />
-            {t("catalog.addToCart")} · {formatPrice(calculateLineTotal(product.price, quantity))}
-          </Button>
+            <div className="mt-6">
+              <Label htmlFor={`product-notes-${product.id}`} className="text-sm">
+                {t("builder.notes")}
+              </Label>
+              <Textarea
+                id={`product-notes-${product.id}`}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder={t("builder.notesPlaceholder")}
+                className="mt-1.5 min-h-[96px] resize-none rounded-xl"
+              />
+            </div>
+
+            {suggestions.length > 0 && (
+              <div className="mt-6 rounded-2xl border border-turquoise/20 bg-turquoise/5 p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-turquoise">
+                  <Sparkles className="h-4 w-4" />
+                  {t("builder.suggestions")}
+                </div>
+                <div className="flex flex-col gap-2">
+                  {suggestions.map(({ product: sug }) => (
+                    <ProductCard
+                      key={sug.id}
+                      product={sug}
+                      onClick={() => onSelectProduct?.(sug)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="shrink-0 border-t border-beige-dark/15 bg-warm-white px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 lg:px-7">
+            <Button
+              variant="turquoise"
+              size="lg"
+              className="h-12 w-full rounded-xl shadow-soft"
+              onClick={handleAdd}
+              disabled={!product.available || configLoading}
+            >
+              <ShoppingBag className="h-4 w-4" strokeWidth={1.75} />
+              {t("catalog.addToCart")} · {formatPrice(calculateLineTotal(product.price, quantity))}
+            </Button>
+          </div>
         </div>
       </div>
-
-    </div>
 
       {hasBuilder && config && (
         <AddonsWizard
@@ -312,8 +301,9 @@ export function ProductDetailDrawer({
   onOpenChange,
   onSelectProduct,
 }: ProductDetailDrawerProps) {
-  const isMobile = useIsMobile(1024);
+  const isPhone = useIsMobile(768);
   const t = useT();
+
   const closeButton = (
     <button
       type="button"
@@ -325,51 +315,55 @@ export function ProductDetailDrawer({
     </button>
   );
 
-  if (isMobile) {
+  const body = product ? (
+    <>
+      <DialogHeader className="sr-only">
+        <DialogTitle>{product.name_he || product.name_en}</DialogTitle>
+        <DialogDescription>
+          {product.description_he || product.description_en}
+        </DialogDescription>
+      </DialogHeader>
+      <ProductDetailContent
+        key={product.id}
+        product={product}
+        onOpenChange={onOpenChange}
+        onSelectProduct={onSelectProduct}
+        layout={isPhone ? "stack" : "split"}
+      />
+    </>
+  ) : null;
+
+  // Phone: true full-screen product view (no sunken bottom sheet)
+  if (isPhone) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="flex h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-0.75rem))] max-h-[calc(100dvh-env(safe-area-inset-top,0px)-0.75rem)] w-full max-w-full flex-col overflow-hidden pb-[env(safe-area-inset-bottom,0px)]">
-          {closeButton}
-          {product && (
-            <>
-              <DrawerHeader className="sr-only">
-                <DrawerTitle>{product.name_he || product.name_en}</DrawerTitle>
-              </DrawerHeader>
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <ProductDetailContent
-                  key={product.id}
-                  product={product}
-                  onOpenChange={onOpenChange}
-                  onSelectProduct={onSelectProduct}
-                />
-              </div>
-            </>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          layout="custom"
+          className={cn(
+            "inset-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col overflow-hidden rounded-none border-0 p-0 shadow-none",
+            "[&>button]:hidden"
           )}
-        </DrawerContent>
-      </Drawer>
+          style={{ backgroundColor: "#FFFFFF" }}
+        >
+          {closeButton}
+          {body}
+        </DialogContent>
+      </Dialog>
     );
   }
 
+  // Tablet + desktop: centered modal (tablet uses vertical stack via CSS until lg)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(620px,calc(100dvh-48px))] max-h-[calc(100dvh-48px)] w-[min(820px,calc(100vw-48px))] max-w-[820px] gap-0 overflow-hidden p-0 [&>button]:hidden">
-        {closeButton}
-        {product && (
-          <>
-            <DialogHeader className="sr-only">
-              <DialogTitle>{product.name_he || product.name_en}</DialogTitle>
-              <DialogDescription>
-                {product.description_he || product.description_en}
-              </DialogDescription>
-            </DialogHeader>
-            <ProductDetailContent
-              key={product.id}
-              product={product}
-              onOpenChange={onOpenChange}
-              onSelectProduct={onSelectProduct}
-            />
-          </>
+      <DialogContent
+        className={cn(
+          "flex gap-0 overflow-hidden p-0 [&>button]:hidden",
+          "h-[min(780px,calc(100dvh-40px))] max-h-[calc(100dvh-40px)]",
+          "w-[min(860px,calc(100vw-40px))] max-w-[860px]"
         )}
+      >
+        {closeButton}
+        {body}
       </DialogContent>
     </Dialog>
   );

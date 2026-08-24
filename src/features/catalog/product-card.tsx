@@ -54,24 +54,24 @@ export function ProductCard({ product, index = 0, onClick }: ProductCardProps) {
       onClick={onClick}
       dir={dir}
       className={cn(
-        "group grid cursor-pointer items-center gap-3 border-b border-beige-dark/12 px-1 py-4 transition-colors last:border-b-0 sm:gap-4",
+        "group grid cursor-pointer items-center gap-3 border-b border-beige-dark/12 px-1 py-4 transition-colors last:border-b-0 sm:gap-4 md:gap-5 md:py-5",
         showThumbnails
-          ? "grid-cols-[80px_1fr_64px] sm:grid-cols-[96px_1fr_72px]"
+          ? "grid-cols-[112px_1fr_72px] sm:grid-cols-[132px_1fr_80px] md:grid-cols-[152px_1fr_88px]"
           : "grid-cols-[1fr_64px] sm:grid-cols-[1fr_72px]",
         !product.available && "opacity-55"
       )}
     >
       {/* Price + add — visual left in RTL */}
       <div className={cn("flex flex-col items-center gap-2", isRtl ? "order-3" : "order-1")}>
-        <span className="text-price text-lg sm:text-xl">{formatPrice(product.price)}</span>
+        <span className="text-price text-lg sm:text-xl md:text-2xl">{formatPrice(product.price)}</span>
         <button
           type="button"
           onClick={handleAdd}
           disabled={!product.available}
           aria-label={t("catalog.addToCart")}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-turquoise text-warm-white shadow-soft transition-transform hover:scale-105 active:scale-95 disabled:opacity-40"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-turquoise text-warm-white shadow-soft transition-transform hover:scale-105 active:scale-95 disabled:opacity-40 sm:h-11 sm:w-11"
         >
-          <Plus className="h-4 w-4" strokeWidth={2} />
+          <Plus className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2} />
         </button>
       </div>
 
@@ -123,13 +123,13 @@ export function ProductCard({ product, index = 0, onClick }: ProductCardProps) {
       {/* Thumbnail — always render real image or category fallback */}
       {showThumbnails && (
         <div className={cn("flex justify-center", isRtl ? "order-1" : "order-3")}>
-          <div className="relative h-[72px] w-[72px] overflow-hidden rounded-2xl bg-beige/40 shadow-soft ring-1 ring-beige-dark/20 sm:h-[84px] sm:w-[84px]">
+          <div className="relative h-[104px] w-[104px] overflow-hidden rounded-2xl bg-beige/40 shadow-soft ring-1 ring-beige-dark/20 sm:h-[120px] sm:w-[120px] md:h-[136px] md:w-[136px]">
             <ProductImage
               image={product.image}
               categoryId={product.categoryId}
               alt={localized.name}
               thumbnail
-              sizes="84px"
+              sizes="(min-width: 768px) 136px, (min-width: 640px) 120px, 104px"
               className="rounded-2xl"
             />
           </div>
