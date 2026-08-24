@@ -31,7 +31,7 @@ function SubChip({
       ref.current.scrollIntoView({
         behavior: "smooth",
         block: "nearest",
-        inline: "center",
+        inline: "nearest",
       });
     }
   }, [selected]);
@@ -47,7 +47,7 @@ function SubChip({
       whileTap={{ scale: 0.96 }}
       onClick={() => onSelect(cat.id)}
       className={cn(
-        "inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full font-medium transition-all duration-200",
+        "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full font-medium transition-all duration-200",
         "h-9 px-3.5 text-sm",
         "md:h-8 md:px-3 md:text-sm",
         selected
@@ -55,8 +55,8 @@ function SubChip({
           : "border border-beige-dark/25 bg-white text-coffee/75 hover:border-turquoise/35"
       )}
     >
-      <span dir={localized.dir}>{localized.name}</span>
-      <span className={cn("text-xs", selected ? "text-turquoise" : "text-coffee/40")}>
+      <span dir={localized.dir} className="min-w-0 truncate">{localized.name}</span>
+      <span className={cn("shrink-0 text-xs", selected ? "text-turquoise" : "text-coffee/40")}>
         · {count}
       </span>
     </motion.button>
@@ -85,7 +85,7 @@ export function SubcategoryChips({ parentId, selectedSubId, onSelect }: Subcateg
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
-          className="hide-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto md:flex-wrap md:overflow-visible"
+          className="flex flex-wrap gap-2"
         >
           {subs.map((sub) => (
             <SubChip
