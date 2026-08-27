@@ -30,6 +30,7 @@ import { useAllCategories } from "@/hooks/useProducts";
 import { formatPrice } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/providers/locale-provider";
+import { useAdminPath } from "@/hooks/useAdminPath";
 import { AdminPageHeader } from "./components/admin-page-header";
 import { AdminKpiCard } from "./components/admin-kpi-card";
 import { AdminCard } from "./components/admin-card";
@@ -52,6 +53,7 @@ const ACTIVE_STATUSES: OrderStatus[] = ["pending", "preparing", "ready"];
 
 export function AdminDashboard() {
   const t = useT();
+  const adminPath = useAdminPath();
   const { products, loading: productsLoading } = useProducts();
   const { categories, loading: categoriesLoading } = useAllCategories();
   const { customers, loading: customersLoading } = useCustomers();
@@ -260,7 +262,7 @@ export function AdminDashboard() {
       <AdminCard
         title={t("admin.dashboard.recentOrders")}
         action={
-          <Link href="/admin/orders" className="text-xs font-medium text-turquoise transition-colors hover:underline">
+          <Link href={adminPath("orders")} className="text-xs font-medium text-turquoise transition-colors hover:underline">
             {t("admin.dashboard.viewAll")}
           </Link>
         }

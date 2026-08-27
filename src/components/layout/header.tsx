@@ -5,6 +5,7 @@ import { ShoppingBag, User } from "lucide-react";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
+import { useHideCustomerChrome } from "@/hooks/useAdminPath";
 import { Logo } from "@/components/brand/logo";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useCart } from "@/features/cart/cart-context";
@@ -23,12 +24,13 @@ export function SiteHeader() {
   const { itemCount, openCart } = useCart();
   const t = useT();
   const pathname = usePathname();
+  const hideChrome = useHideCustomerChrome();
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);
 
   useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 4));
 
-  if (pathname.startsWith("/admin")) return null;
+  if (hideChrome) return null;
 
   return (
     <motion.header

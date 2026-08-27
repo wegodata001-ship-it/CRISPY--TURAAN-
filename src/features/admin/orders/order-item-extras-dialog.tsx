@@ -21,6 +21,7 @@ import {
   productHasBuilder,
 } from "@/lib/product-builder/engine";
 import { useT } from "@/components/providers/locale-provider";
+import { useAdminPath } from "@/hooks/useAdminPath";
 import type { Order, OrderItem } from "@/types";
 import type { Product } from "@/types";
 import type { SelectedModifier } from "@/types/modifiers";
@@ -41,6 +42,7 @@ export function OrderItemExtrasDialog({
   onSaved,
 }: OrderItemExtrasDialogProps) {
   const t = useT();
+  const adminPath = useAdminPath();
   const item: OrderItem | null =
     order && itemIndex != null ? (order.items[itemIndex] ?? null) : null;
 
@@ -126,7 +128,7 @@ export function OrderItemExtrasDialog({
           <div className="space-y-4 py-4 text-center">
             <p className="text-sm text-coffee/70">{t("admin.orders.noExtrasForProduct")}</p>
             <Button asChild variant="outline" className="rounded-xl">
-              <Link href="/admin/products">{t("admin.orders.linkExtrasInProduct")}</Link>
+              <Link href={adminPath("products")}>{t("admin.orders.linkExtrasInProduct")}</Link>
             </Button>
           </div>
         ) : hasBuilder && config ? (

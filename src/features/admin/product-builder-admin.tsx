@@ -41,6 +41,7 @@ import {
   type AdminToast,
 } from "@/features/admin/components/admin-toast";
 import { useT } from "@/components/providers/locale-provider";
+import { useAdminPath } from "@/hooks/useAdminPath";
 import { AdminPageHeader } from "./components/admin-page-header";
 import { normalizeModifierGroupInput } from "@/lib/validation/modifier-normalize";
 import type { ModifierGroup, ProductModifierGroup } from "@/types/modifiers";
@@ -57,6 +58,7 @@ const SELECTION_TYPE_KEYS = {
 
 export function ProductBuilderAdmin() {
   const t = useT();
+  const adminPath = useAdminPath();
   const { products, loading: productsLoading } = useProducts(undefined, { admin: true });
   const { categories } = useAllCategories();
   const { groups, loading: groupsLoading } = useModifierGroups();
@@ -505,7 +507,7 @@ export function ProductBuilderAdmin() {
                 <p className="text-xs text-coffee/45">
                   {t("admin.builder.createGroupHint")}{" "}
                   <Link
-                    href="/admin/modifier-groups"
+                    href={adminPath("modifier-groups")}
                     className="font-semibold text-turquoise underline"
                   >
                     {t("admin.builder.goToModifierManagement")}

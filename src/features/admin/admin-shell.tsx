@@ -6,11 +6,12 @@ import { motion } from "framer-motion";
 import { AdminSidebar, AdminMobileDrawer } from "./admin-sidebar";
 import { AdminHeader } from "./admin-header";
 import { AuthGuard } from "./auth-guard";
+import { isAdminLoginPath } from "@/lib/domains/host-routing";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isLogin = pathname === "/admin/login";
+  const isLogin = isAdminLoginPath(pathname);
 
   if (isLogin) {
     return <>{children}</>;

@@ -1,24 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useHideCustomerChrome } from "@/hooks/useAdminPath";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppLoadingScreen } from "@/components/brand/app-loading-screen";
 
 export function BrandSplash() {
-  const pathname = usePathname();
+  const hideChrome = useHideCustomerChrome();
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    if (pathname.startsWith("/admin")) {
+    if (hideChrome) {
       setVisible(false);
       return;
     }
     const timer = setTimeout(() => setVisible(false), 1400);
     return () => clearTimeout(timer);
-  }, [pathname]);
+  }, [hideChrome]);
 
-  if (pathname.startsWith("/admin")) return null;
+  if (hideChrome) return null;
 
   return (
     <AnimatePresence>

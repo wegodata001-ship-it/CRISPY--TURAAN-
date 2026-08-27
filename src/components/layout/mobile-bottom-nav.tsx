@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useHideCustomerChrome } from "@/hooks/useAdminPath";
 import { Home, Search, ShoppingBag, User, Coffee } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCart } from "@/features/cart/cart-context";
@@ -16,9 +17,10 @@ const links = [
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const hideChrome = useHideCustomerChrome();
   const { itemCount, openCart } = useCart();
 
-  if (pathname.startsWith("/admin")) return null;
+  if (hideChrome) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-beige-dark/20 bg-warm-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useHideCustomerChrome } from "@/hooks/useAdminPath";
 import { Home, LayoutGrid, ShoppingBag, ClipboardList, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/features/cart/cart-context";
@@ -14,6 +15,7 @@ const NAV_ITEM_CLASS =
 
 export function BottomNav() {
   const pathname = usePathname();
+  const hideChrome = useHideCustomerChrome();
   const { itemCount, openCart } = useCart();
   const t = useT();
   const [mounted, setMounted] = useState(false);
@@ -22,7 +24,7 @@ export function BottomNav() {
     setMounted(true);
   }, []);
 
-  if (pathname.startsWith("/admin")) return null;
+  if (hideChrome) return null;
   if (!mounted) return null;
 
   const navItems = [

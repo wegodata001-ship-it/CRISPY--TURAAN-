@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { safeAdminReturnPath } from "@/lib/domains/host-routing";
+import { useAdminPath } from "@/hooks/useAdminPath";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -17,6 +19,8 @@ export function AdminLoginForm() {
   const t = useT();
   const { login, resetPassword, user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const adminPath = useAdminPath();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -25,8 +29,13 @@ export function AdminLoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
 
+  const afterLoginPath = safeAdminReturnPath(
+    searchParams.get("returnTo"),
+    adminPath("")
+  );
+
   if (!authLoading && user) {
-    router.replace("/admin");
+    router.replace(afterLoginPath);
     return null;
   }
 
@@ -36,7 +45,7 @@ export function AdminLoginForm() {
     setError(null);
     try {
       await login(email, password, remember);
-      router.replace("/admin");
+      router.replace(afterLoginPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error.generic"));
     } finally {

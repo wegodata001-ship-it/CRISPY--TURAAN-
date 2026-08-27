@@ -15,9 +15,13 @@ import {
   FileText,
   Printer,
 } from "lucide-react";
+import { adminPath, toInternalAdminPath } from "@/lib/domains/host-routing";
+import type { AdminSurface } from "@/lib/domains/host-routing";
+
+export type AdminNavSegment = Parameters<typeof adminPath>[0];
 
 export type AdminNavItem = {
-  href: string;
+  segment: AdminNavSegment;
   labelKey: string;
   icon: LucideIcon;
   exact?: boolean;
@@ -32,42 +36,50 @@ export type AdminNavGroup = {
 export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   {
     labelKey: "admin.nav.group.overview",
-    items: [{ href: "/admin", labelKey: "admin.dashboard", icon: LayoutDashboard, exact: true }],
+    items: [{ segment: "", labelKey: "admin.dashboard", icon: LayoutDashboard, exact: true }],
   },
   {
     labelKey: "admin.nav.group.catalog",
     items: [
-      { href: "/admin/products", labelKey: "admin.products", icon: Package },
-      { href: "/admin/categories", labelKey: "admin.categories", icon: Tags },
-      { href: "/admin/modifier-groups", labelKey: "admin.modifierManagement", icon: Layers },
-      { href: "/admin/product-builder", labelKey: "admin.productAssignments", icon: Link2 },
-      { href: "/admin/business-rules", labelKey: "admin.selectionRules", icon: GitBranch },
+      { segment: "products", labelKey: "admin.products", icon: Package },
+      { segment: "categories", labelKey: "admin.categories", icon: Tags },
+      { segment: "modifier-groups", labelKey: "admin.modifierManagement", icon: Layers },
+      { segment: "product-builder", labelKey: "admin.productAssignments", icon: Link2 },
+      { segment: "business-rules", labelKey: "admin.selectionRules", icon: GitBranch },
     ],
   },
   {
     labelKey: "admin.nav.group.sales",
     items: [
-      { href: "/admin/orders", labelKey: "admin.orders", icon: ClipboardList },
-      { href: "/admin/customers", labelKey: "admin.customers", icon: Users },
+      { segment: "orders", labelKey: "admin.orders", icon: ClipboardList },
+      { segment: "customers", labelKey: "admin.customers", icon: Users },
     ],
   },
   {
     labelKey: "admin.nav.group.content",
     items: [
-      { href: "/admin/banners", labelKey: "admin.banners", icon: ImageIcon },
-      { href: "/admin/menu-builder", labelKey: "admin.menuBuilder", icon: FileText },
+      { segment: "banners", labelKey: "admin.banners", icon: ImageIcon },
+      { segment: "menu-builder", labelKey: "admin.menuBuilder", icon: FileText },
     ],
   },
   {
     labelKey: "admin.nav.group.system",
     items: [
-      { href: "/admin/assistant", labelKey: "admin.assistantManager", icon: MessageSquare },
-      { href: "/admin/printer-test", labelKey: "admin.printerTest", icon: Printer },
-      { href: "/admin/users", labelKey: "admin.users", icon: UserCog, adminOnly: true },
-      { href: "/admin/settings", labelKey: "admin.settings", icon: Settings },
+      { segment: "assistant", labelKey: "admin.assistantManager", icon: MessageSquare },
+      { segment: "printer-test", labelKey: "admin.printerTest", icon: Printer },
+      { segment: "users", labelKey: "admin.users", icon: UserCog, adminOnly: true },
+      { segment: "settings", labelKey: "admin.settings", icon: Settings },
     ],
   },
 ];
+
+export function getAdminNavHref(segment: AdminNavSegment, surface: AdminSurface): string {
+  return adminPath(segment, surface);
+}
+
+export function getAdminNavInternalPath(segment: AdminNavSegment): string {
+  return adminPath(segment, "dev");
+}
 
 /** Map pathname → page title translation key */
 export const ADMIN_PAGE_TITLES: Record<string, string> = {
@@ -89,9 +101,10 @@ export const ADMIN_PAGE_TITLES: Record<string, string> = {
 };
 
 export function getAdminPageTitleKey(pathname: string): string {
-  if (ADMIN_PAGE_TITLES[pathname]) return ADMIN_PAGE_TITLES[pathname];
+  const internal = toInternalAdminPath(pathname);
+  if (ADMIN_PAGE_TITLES[internal]) return ADMIN_PAGE_TITLES[internal];
   const match = Object.keys(ADMIN_PAGE_TITLES)
     .filter((k) => k !== "/admin")
-    .find((k) => pathname.startsWith(k));
+    .find((k) => internal.startsWith(k));
   return match ? ADMIN_PAGE_TITLES[match] : "admin.dashboard";
 }

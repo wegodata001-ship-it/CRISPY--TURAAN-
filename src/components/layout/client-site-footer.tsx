@@ -1,10 +1,10 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useHideCustomerChrome } from "@/hooks/useAdminPath";
 import { SiteFooter } from "@/components/layout/footer";
 
 export function ClientSiteFooter() {
-  const pathname = usePathname();
-  if (pathname.startsWith("/admin")) return null;
+  const hideChrome = useHideCustomerChrome();
+  if (hideChrome) return null;
   return <SiteFooter />;
 }

@@ -22,8 +22,10 @@ import { CartDrawer } from "@/features/cart/cart-drawer";
 import { FloatingCartButton } from "@/features/cart/floating-cart-button";
 import { MobileCartBar } from "@/features/cart/mobile-cart-bar";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PwaManager } from "@/components/pwa/pwa-manager";
 import { BrandSplash } from "@/components/brand/brand-splash";
 import { BRAND } from "@/lib/brand";
+import { PWA_APP_NAME, PWA_ICONS } from "@/lib/pwa/config";
 import "./globals.css";
 
 const inter = Inter({
@@ -84,9 +86,22 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: BRAND.name,
   description: `${BRAND.taglineAlt} — ${BRAND.tagline}`,
+  applicationName: PWA_APP_NAME,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: PWA_APP_NAME,
+  },
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
-    icon: BRAND.logo,
-    apple: BRAND.logo,
+    icon: [
+      { url: PWA_ICONS.icon192, sizes: "192x192", type: "image/png" },
+      { url: PWA_ICONS.icon512, sizes: "512x512", type: "image/png" },
+      { url: BRAND.logo, type: "image/png" },
+    ],
+    apple: [{ url: PWA_ICONS.appleTouch, sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
     title: BRAND.name,
@@ -133,6 +148,7 @@ export default function RootLayout({
                     <MobileCartBar />
                     <CartDrawer />
                     <BottomNav />
+                    <PwaManager />
                     <AccessibilityCenter />
                     <AssistantWidget />
                   </CartProvider>

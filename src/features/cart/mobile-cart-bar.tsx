@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, ArrowRight } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useHideCustomerChrome } from "@/hooks/useAdminPath";
 import { useCart } from "@/features/cart/cart-context";
 import { useT } from "@/components/providers/locale-provider";
 import { formatPrice } from "@/lib/utils";
@@ -11,9 +12,10 @@ import { formatPrice } from "@/lib/utils";
 export function MobileCartBar() {
   const { itemCount, total, openCart } = useCart();
   const pathname = usePathname();
+  const hideChrome = useHideCustomerChrome();
   const t = useT();
 
-  if (pathname.startsWith("/admin") || pathname.startsWith("/checkout")) return null;
+  if (hideChrome || pathname.startsWith("/checkout")) return null;
 
   return (
     <AnimatePresence>

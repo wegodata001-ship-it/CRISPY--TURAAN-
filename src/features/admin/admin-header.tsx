@@ -25,6 +25,7 @@ import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useT } from "@/components/providers/locale-provider";
 import { getAdminPageTitleKey } from "./admin-nav-config";
 import { adminInput } from "./components/admin-styles";
+import { useAdminPath } from "@/hooks/useAdminPath";
 
 interface AdminHeaderProps {
   onMenuClick?: () => void;
@@ -35,6 +36,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const { user, logout } = useAuth();
   const { mounted, isDark, toggleTheme } = useAppTheme();
   const pathname = usePathname();
+  const adminPath = useAdminPath();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
@@ -58,7 +60,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         </button>
 
         <div className="hidden min-w-0 items-center gap-3 sm:flex">
-          <Logo size="sm" href="/admin" className="h-10 w-auto" />
+          <Logo size="sm" href={adminPath("")} className="h-10 w-auto" />
           <div className="min-w-0 border-s border-beige-dark/20 ps-3 dark:border-white/10">
             <p className="truncate text-[10px] text-coffee/50 dark:text-warm-white/50">{t("admin.subtitle")}</p>
           </div>
@@ -78,13 +80,13 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         </div>
 
         <div className="hidden items-center gap-2 xl:flex">
-          <Link href="/admin/products?new=1">
+          <Link href={`${adminPath("products")}?new=1`}>
             <Button variant="outline" size="sm" className="h-10 rounded-xl gap-1.5">
               <Plus className="h-3.5 w-3.5" />
               {t("admin.newProduct")}
             </Button>
           </Link>
-          <Link href="/admin/orders">
+          <Link href={adminPath("orders")}>
             <Button size="sm" className="h-10 rounded-xl gap-1.5 bg-coffee hover:bg-coffee/90 dark:bg-turquoise dark:hover:bg-turquoise/90">
               <ClipboardPlus className="h-3.5 w-3.5" />
               {t("admin.newOrder")}
@@ -174,7 +176,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                   </span>
                 </div>
                 <Link
-                  href="/admin/settings"
+                  href={adminPath("settings")}
                   className="flex items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-beige/40 dark:hover:bg-white/5"
                   onClick={() => setProfileOpen(false)}
                 >

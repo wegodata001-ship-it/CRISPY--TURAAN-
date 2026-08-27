@@ -9,15 +9,22 @@ import { Logo } from "@/components/brand/logo";
 import { BRAND } from "@/lib/brand";
 import { useT, useLocale } from "@/components/providers/locale-provider";
 import { useAuth } from "@/components/providers/auth-provider";
-import { ADMIN_NAV_GROUPS, type AdminNavItem } from "./admin-nav-config";
+import {
+  ADMIN_NAV_GROUPS,
+  getAdminNavHref,
+  getAdminNavInternalPath,
+  type AdminNavItem,
+} from "./admin-nav-config";
 import { ADMIN_LAYOUT, ADMIN_SIDEBAR_WIDTH_PX } from "./admin-layout-config";
+import { toInternalAdminPath, publicStoreHref } from "@/lib/domains/host-routing";
+import { useAdminPath, useAdminSurface } from "@/hooks/useAdminPath";
 
 function NavItemLink({
   item,
   isActive,
   onNavigate,
 }: {
-  item: AdminNavItem;
+  item: AdminNavItem & { href: string };
   isActive: boolean;
   onNavigate?: () => void;
 }) {
@@ -58,6 +65,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const t = useT();
   const pathname = usePathname();
   const { user } = useAuth();
+  const surface = useAdminSurface();
+  const internalPathname = toInternalAdminPath(pathname);
 
   return (
     <div className="space-y-6">
@@ -74,13 +83,16 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             </p>
             <nav className="space-y-0.5">
               {items.map((item) => {
+                const href = getAdminNavHref(item.segment, surface);
+                const itemPath = getAdminNavInternalPath(item.segment);
                 const isActive = item.exact
-                  ? pathname === item.href
-                  : pathname.startsWith(item.href);
+                  ? internalPathname === itemPath
+                  : internalPathname === itemPath ||
+                    internalPathname.startsWith(`${itemPath}/`);
                 return (
                   <NavItemLink
-                    key={item.href}
-                    item={item}
+                    key={itemPath}
+                    item={{ ...item, href }}
                     isActive={isActive}
                     onNavigate={onNavigate}
                   />
@@ -100,6 +112,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
  */
 export function AdminSidebar() {
   const t = useT();
+  const adminPath = useAdminPath();
+  const storeHref =
+    typeof window !== "undefined"
+      ? publicStoreHref(window.location.hostname)
+      : "/";
 
   return (
     <aside
@@ -112,13 +129,13 @@ export function AdminSidebar() {
       aria-label={t("admin.subtitle")}
     >
       <div className="flex h-full flex-col p-5">
-        <Logo size="md" href="/admin" className="h-12 w-auto max-w-[180px]" />
+        <Logo size="md" href={adminPath("")} className="h-12 w-auto max-w-[180px]" />
         <div className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <NavLinks />
         </div>
         <div className="shrink-0 border-t border-beige-dark/20 pt-4 dark:border-white/10">
           <Link
-            href="/"
+            href={storeHref}
             className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-coffee/60 transition-colors hover:bg-beige/40 dark:text-warm-white/60 dark:hover:bg-white/10"
           >
             <Store className="h-4 w-4" />
@@ -140,6 +157,7 @@ export function AdminMobileDrawer({
   onClose: () => void;
 }) {
   const { dir } = useLocale();
+  const adminPath = useAdminPath();
   const offScreen = dir === "rtl" ? "100%" : "-100%";
 
   return (
@@ -166,7 +184,7 @@ export function AdminMobileDrawer({
             style={{ width: ADMIN_SIDEBAR_WIDTH_PX }}
           >
             <div className="flex items-center justify-between">
-              <Logo size="sm" href="/admin" className="h-10 w-auto max-w-[160px]" />
+              <Logo size="sm" href={adminPath("")} className="h-10 w-auto max-w-[160px]" />
               <button
                 onClick={onClose}
                 className="rounded-xl p-2 transition-colors hover:bg-beige/40 dark:hover:bg-white/10"

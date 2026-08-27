@@ -7,15 +7,17 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Logo } from "@/components/brand/logo";
 import { useT } from "@/components/providers/locale-provider";
 import { BRAND } from "@/lib/brand";
+import { useAdminExternalHref } from "@/hooks/useAdminPath";
 
 export default function AccountPage() {
   const t = useT();
+  const adminHref = useAdminExternalHref();
 
   const menuItems = [
-    { href: "/admin", label: t("account.adminPanel"), icon: Shield },
+    { href: adminHref(""), label: t("account.adminPanel"), icon: Shield },
     { href: "/orders", label: t("orders.title"), icon: ClipboardList },
-    { href: "/admin/customers", label: t("admin.customers"), icon: Users },
-    { href: "/admin/settings", label: t("admin.settings"), icon: Settings },
+    { href: adminHref("customers"), label: t("admin.customers"), icon: Users },
+    { href: adminHref("settings"), label: t("admin.settings"), icon: Settings },
   ];
 
   return (

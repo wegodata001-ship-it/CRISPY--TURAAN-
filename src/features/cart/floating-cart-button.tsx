@@ -2,17 +2,17 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { useHideCustomerChrome } from "@/hooks/useAdminPath";
 import { useCart } from "@/features/cart/cart-context";
 import { useT } from "@/components/providers/locale-provider";
 import { formatPrice } from "@/lib/utils";
 
 export function FloatingCartButton() {
   const { itemCount, total, openCart } = useCart();
-  const pathname = usePathname();
+  const hideChrome = useHideCustomerChrome();
   const t = useT();
 
-  if (pathname.startsWith("/admin") || itemCount === 0) return null;
+  if (hideChrome || itemCount === 0) return null;
 
   return (
     <AnimatePresence>
