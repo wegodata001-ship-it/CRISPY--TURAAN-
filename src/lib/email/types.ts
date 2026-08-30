@@ -1,0 +1,18 @@
+export type SendEmailInput = {
+  to: string | string[];
+  subject: string;
+  html: string;
+  text?: string;
+  tags?: string[];
+};
+
+export type SendEmailResult =
+  | { ok: true; messageId?: string }
+  | { ok: false; error: string; statusCode?: number; code?: string };
+
+export type MishkahEmailKind =
+  | "test"
+  | "new_order"
+  | "order_updated"
+  | "order_cancelled"
+  | "system";

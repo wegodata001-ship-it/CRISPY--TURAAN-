@@ -25,6 +25,7 @@ import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
 import { createOrderFromCart, getOrCreateGuestCustomer, GUEST_CUSTOMER_ID } from "@/services";
+import { requestNewOrderEmailNotification } from "@/lib/email/client-notify";
 import { formatPrice } from "@/lib/utils";
 import { calculateLineTotal } from "@/lib/product-builder/engine";
 
@@ -109,6 +110,9 @@ export default function CheckoutPage() {
         setError(t("checkout.orderSaveError"));
         return;
       }
+
+      // Notification only — never block or fail the completed order.
+      requestNewOrderEmailNotification(result.data.id);
 
       setSuccess(true);
       clearCart();

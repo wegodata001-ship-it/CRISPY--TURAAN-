@@ -94,6 +94,14 @@ export interface FirestoreOrder {
   cancelledAt?: Timestamp | null;
   cancelReason?: string;
   cancelledBy?: string;
+  /** Server-managed email notification flags (Admin SDK only). */
+  notifications?: {
+    newOrderEmailSent?: boolean;
+    newOrderEmailSentAt?: Timestamp | null;
+    newOrderEmailProvider?: string;
+    newOrderEmailLastError?: string;
+    newOrderEmailFailedAt?: Timestamp | null;
+  };
 }
 
 export interface FirestoreBanner {
