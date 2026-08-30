@@ -5,7 +5,7 @@ import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/components/providers/locale-provider";
 import { PWA_APP_NAME } from "@/lib/pwa/config";
-import { isPortalHost } from "@/lib/domains/host-routing";
+import { isPortalHost, isMenuHost } from "@/lib/domains/host-routing";
 
 const INSTALL_DISMISS_KEY = "mshkah-pwa-install-dismissed";
 
@@ -20,6 +20,7 @@ export function PwaManager() {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
     if (process.env.NODE_ENV !== "production") return;
     if (isPortalHost(window.location.hostname)) return;
+    if (isMenuHost(window.location.hostname)) return;
 
     let cancelled = false;
 

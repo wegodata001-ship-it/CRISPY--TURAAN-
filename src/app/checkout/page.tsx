@@ -25,7 +25,7 @@ import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
 import { createOrderFromCart, getOrCreateGuestCustomer, GUEST_CUSTOMER_ID } from "@/services";
-import { requestNewOrderEmailNotification } from "@/lib/email/client-notify";
+import { requestNewOrderEmailNotification, requestCriticalCheckoutFailureNotification } from "@/lib/email/client-notify";
 import { formatPrice } from "@/lib/utils";
 import { calculateLineTotal } from "@/lib/product-builder/engine";
 
@@ -107,6 +107,12 @@ export default function CheckoutPage() {
       });
       if (!result.success) {
         console.error("[checkout] order failed:", result.error, result.code);
+        if (result.code === "ORDER_SAVE_FAILED") {
+          requestCriticalCheckoutFailureNotification({
+            message: result.error || "Order save failed",
+            code: result.code,
+          });
+        }
         setError(t("checkout.orderSaveError"));
         return;
       }
@@ -119,6 +125,10 @@ export default function CheckoutPage() {
       setTimeout(() => router.push("/orders"), 2800);
     } catch (err) {
       console.error("[checkout] unexpected error:", err);
+      requestCriticalCheckoutFailureNotification({
+        message: err instanceof Error ? err.message : "Unexpected checkout failure",
+        code: "CHECKOUT_UNEXPECTED",
+      });
       setError(t("checkout.orderSaveError"));
     } finally {
       setLoading(false);

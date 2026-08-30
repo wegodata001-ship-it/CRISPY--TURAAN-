@@ -19,8 +19,8 @@ export function getBrevoConfig() {
     apiKey: env("BREVO_API_KEY"),
     baseUrl: env("BREVO_BASE_URL", "https://api.brevo.com/v3").replace(/\/$/, ""),
     senderName: env("BREVO_SENDER_NAME", "MISHKAH CAFE"),
-    senderEmail: env("BREVO_SENDER_EMAIL"),
-    replyTo: env("BREVO_REPLY_TO"),
+    senderEmail: env("BREVO_SENDER_EMAIL", "email@mishkatcafe.dev"),
+    replyTo: env("BREVO_REPLY_TO", "mishkahcaffe@gmail.com"),
   };
 }
 
@@ -31,9 +31,15 @@ export function getMishkahNotificationEmails() {
   return {
     notification,
     admin,
-    /** Unique list for broadcast notifications */
+    /** Unique list for broadcast / test emails */
     recipients: [...new Set(recipients)],
   };
+}
+
+/** Business order alerts — primary café inbox */
+export function getBusinessAlertRecipients(): string[] {
+  const { notification } = getMishkahNotificationEmails();
+  return notification ? [notification] : [];
 }
 
 export function getPublicSiteUrl(): string {

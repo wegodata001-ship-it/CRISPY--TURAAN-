@@ -88,7 +88,7 @@ export async function sendViaBrevo(input: SendEmailInput): Promise<SendEmailResu
       };
     }
 
-    return { ok: true, messageId: body?.messageId };
+    return { ok: true, messageId: body?.messageId, statusCode: response.status };
   } catch (error) {
     return {
       ok: false,

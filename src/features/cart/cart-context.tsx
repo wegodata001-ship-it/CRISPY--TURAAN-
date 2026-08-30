@@ -17,6 +17,7 @@ import {
   selectionsFingerprint,
 } from "@/lib/product-builder/engine";
 import { NEW_ORDER_FULFILLMENT } from "@/lib/orders/fulfillment";
+import { isViewOnlyMenuSurface } from "@/lib/domains/host-routing";
 
 interface CartState {
   items: CartItem[];
@@ -234,6 +235,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [hydrated, state.couponCode, state.couponDiscount, state.items]);
 
   const addItem = useCallback((product: Product, options?: AddItemOptions) => {
+    if (
+      typeof window !== "undefined" &&
+      isViewOnlyMenuSurface(window.location.hostname, window.location.pathname)
+    ) {
+      return;
+    }
     const selections = options?.selections ?? [];
     const unitPrice =
       options?.unitPrice ?? calculateUnitPrice(product.price, selections);

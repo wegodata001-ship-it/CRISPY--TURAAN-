@@ -20,7 +20,9 @@
     "firebase:audit": "tsx scripts/firebase-audit.ts",
     "firebase:full-audit": "tsx scripts/full-audit.ts",
     "firebase:deploy-rules": "firebase deploy --only firestore:rules --project mshkah",
-    "email:test": "tsx scripts/send-test-email.mts"
+    "email:test": "tsx scripts/send-test-email.mts",
+    "email:e2e-order": "tsx scripts/email-new-order-e2e.mts",
+    "email:matrix": "tsx scripts/email-notifications-matrix.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

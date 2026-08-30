@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   isCustomerOnlyPath,
+  isMenuBlockedApiPath,
+  isMenuHost,
+  isOrderingPath,
   isPortalHost,
   shouldBlockAdminOnHost,
   toInternalAdminPath,
@@ -19,9 +22,44 @@ function rewrite(request: NextRequest, internalPath: string) {
   return NextResponse.rewrite(url);
 }
 
+function redirectHome(request: NextRequest) {
+  const target = request.nextUrl.clone();
+  target.pathname = "/";
+  target.search = "";
+  return NextResponse.redirect(target);
+}
+
 export function middleware(request: NextRequest) {
   const host = request.headers.get("host");
   const pathname = request.nextUrl.pathname;
+
+  // --- Digital menu host (VIEW ONLY) ---
+  if (isMenuHost(host)) {
+    if (pathname === "/sw.js" || pathname === "/manifest.webmanifest") {
+      return new NextResponse(null, { status: 404 });
+    }
+
+    if (pathname.startsWith("/api")) {
+      if (isMenuBlockedApiPath(pathname)) {
+        return NextResponse.json(
+          { ok: false, error: "Ordering is disabled on the menu display domain" },
+          { status: 403 }
+        );
+      }
+      return NextResponse.next();
+    }
+
+    if (isOrderingPath(pathname)) {
+      return redirectHome(request);
+    }
+
+    if (pathname === "/" || pathname === "/menu-display") {
+      return rewrite(request, "/menu-display");
+    }
+
+    // Unknown paths → menu home
+    return redirectHome(request);
+  }
 
   // --- Admin portal host ---
   if (isPortalHost(host)) {
@@ -40,7 +78,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    if (isCustomerOnlyPath(pathname)) {
+    if (isCustomerOnlyPath(pathname) || pathname.startsWith("/menu-display")) {
       const target = request.nextUrl.clone();
       target.pathname = "/";
       return NextResponse.redirect(target);
@@ -51,9 +89,7 @@ export function middleware(request: NextRequest) {
 
   // --- Public production host: block /admin ---
   if (shouldBlockAdminOnHost(host) && pathname.startsWith("/admin")) {
-    const target = request.nextUrl.clone();
-    target.pathname = "/";
-    return NextResponse.redirect(target);
+    return redirectHome(request);
   }
 
   return NextResponse.next();

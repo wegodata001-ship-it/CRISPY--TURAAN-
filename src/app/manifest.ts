@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
-import { isPortalHost } from "@/lib/domains/host-routing";
+import { isPortalHost, isMenuHost } from "@/lib/domains/host-routing";
 import {
   PWA_APP_NAME,
   PWA_BACKGROUND_COLOR,
@@ -14,11 +14,11 @@ import {
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const host = (await headers()).get("host");
-  if (isPortalHost(host)) {
+  if (isPortalHost(host) || isMenuHost(host)) {
     return {
-      name: "Portal",
-      short_name: "Portal",
-      description: "Admin portal",
+      name: isMenuHost(host) ? "MISHKAT Menu" : "Portal",
+      short_name: isMenuHost(host) ? "Menu" : "Portal",
+      description: isMenuHost(host) ? "Digital menu" : "Admin portal",
       start_url: "/",
       scope: "/",
       display: "browser",

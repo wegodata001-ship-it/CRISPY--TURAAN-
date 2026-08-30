@@ -32,23 +32,43 @@ async function main() {
     return;
   }
 
-  const results: Array<{ to: string; ok: boolean; error?: string }> = [];
+  let anyMessageId = false;
+  const results: Array<{
+    to: string;
+    ok: boolean;
+    statusCode?: number;
+    messageId?: string;
+    error?: string;
+  }> = [];
 
   for (const to of recipients) {
     const result = await sendMishkahTestEmail(to);
-    results.push({
-      to,
-      ok: result.ok,
-      error: result.ok ? undefined : result.error,
-    });
     if (result.ok) {
-      console.log(`SENT -> ${to}${result.messageId ? ` (id: ${result.messageId})` : ""}`);
+      anyMessageId = anyMessageId || Boolean(result.messageId);
+      results.push({
+        to,
+        ok: true,
+        statusCode: result.statusCode,
+        messageId: result.messageId,
+      });
+      console.log(
+        `SENT -> ${to} | HTTP ${result.statusCode} | messageId=${result.messageId ? "YES" : "NO"} | sender accepted`
+      );
     } else {
-      console.error(`FAILED -> ${to}: ${result.error}`);
+      results.push({
+        to,
+        ok: false,
+        statusCode: result.statusCode,
+        error: result.error,
+      });
+      console.error(
+        `FAILED -> ${to} | HTTP ${result.statusCode ?? "n/a"} | ${result.error}`
+      );
     }
   }
 
   const allOk = results.every((r) => r.ok);
+  console.log(`Brevo messageId present: ${anyMessageId ? "YES" : "NO"}`);
   console.log(allOk ? "RESULT: PASS" : "RESULT: FAIL");
   process.exitCode = allOk ? 0 : 1;
 }

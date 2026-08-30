@@ -64,6 +64,29 @@ export function filterMenuProducts(
   return active.filter((p) => p.categoryId === categoryId && !p.subcategoryId);
 }
 
+/** Digital menu display: show ALL products for a root category (including subcategories). */
+export function filterMenuDisplayProducts(
+  products: Product[],
+  categoryId: string | null,
+  categories: Category[]
+): Product[] {
+  const active = products.filter((p) => p.active);
+  if (!categoryId) return sortProducts(active);
+
+  const childIds = new Set(
+    categories.filter((c) => c.parentId === categoryId && c.active).map((c) => c.id)
+  );
+
+  return sortProducts(
+    active.filter(
+      (p) =>
+        p.categoryId === categoryId ||
+        childIds.has(p.categoryId) ||
+        (p.subcategoryId != null && childIds.has(p.subcategoryId))
+    )
+  );
+}
+
 export function sortProducts(products: Product[]): Product[] {
   return [...products].sort(
     (a, b) =>

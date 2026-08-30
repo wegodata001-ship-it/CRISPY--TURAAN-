@@ -1,13 +1,18 @@
 import { sendViaBrevo } from "@/lib/email/brevo";
 import {
   getBrevoConfig,
+  getBusinessAlertRecipients,
   getMishkahNotificationEmails,
 } from "@/lib/email/config";
 import {
+  renderCriticalCheckoutFailureEmail,
   renderNewOrderEmail,
+  renderOrderCancelledEmail,
+  renderOrderUpdatedEmail,
   renderTestEmailHtml,
-  type NewOrderEmailPayload,
+  type OrderEmailBase,
 } from "@/lib/email/templates";
+import type { OrderChange } from "@/lib/email/significant-diff";
 import type { MishkahEmailKind, SendEmailResult } from "@/lib/email/types";
 
 export type SendMishkahEmailOptions = {
@@ -25,7 +30,7 @@ export type SendMishkahEmailOptions = {
 export async function sendMishkahEmail(
   options: SendMishkahEmailOptions
 ): Promise<SendEmailResult> {
-  const defaultRecipients = getMishkahNotificationEmails().recipients;
+  const defaultRecipients = getBusinessAlertRecipients();
   const to = options.to ?? defaultRecipients;
 
   const result = await sendViaBrevo({
@@ -43,7 +48,6 @@ export async function sendMishkahEmail(
       statusCode: result.statusCode,
       code: result.code,
       senderName: getBrevoConfig().senderName,
-      // never log api key
     });
   }
 
@@ -68,14 +72,51 @@ export async function sendMishkahTestEmail(
 }
 
 export async function sendNewOrderNotificationEmail(
-  payload: NewOrderEmailPayload
+  payload: OrderEmailBase
 ): Promise<SendEmailResult> {
   const content = renderNewOrderEmail(payload);
   return sendMishkahEmail({
-    to: getMishkahNotificationEmails().recipients,
     subject: content.subject,
     html: content.html,
     text: content.text,
     kind: "new_order",
+  });
+}
+
+export async function sendOrderUpdatedNotificationEmail(
+  payload: OrderEmailBase & { changes: OrderChange[] }
+): Promise<SendEmailResult> {
+  const content = renderOrderUpdatedEmail(payload);
+  return sendMishkahEmail({
+    subject: content.subject,
+    html: content.html,
+    text: content.text,
+    kind: "order_updated",
+  });
+}
+
+export async function sendOrderCancelledNotificationEmail(
+  payload: OrderEmailBase & { cancelReason?: string }
+): Promise<SendEmailResult> {
+  const content = renderOrderCancelledEmail(payload);
+  return sendMishkahEmail({
+    subject: content.subject,
+    html: content.html,
+    text: content.text,
+    kind: "order_cancelled",
+  });
+}
+
+export async function sendCriticalCheckoutFailureEmail(payload: {
+  message: string;
+  code?: string;
+  occurredAt: string;
+}): Promise<SendEmailResult> {
+  const content = renderCriticalCheckoutFailureEmail(payload);
+  return sendMishkahEmail({
+    subject: content.subject,
+    html: content.html,
+    text: content.text,
+    kind: "system",
   });
 }

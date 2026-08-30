@@ -96,6 +96,42 @@ export interface FirestoreOrder {
   cancelledBy?: string;
   /** Server-managed email notification flags (Admin SDK only). */
   notifications?: {
+    newOrderEmail?: {
+      status: "SENDING" | "SENT" | "FAILED";
+      provider?: "BREVO";
+      claimedAt?: Timestamp | null;
+      sentAt?: Timestamp | null;
+      failedAt?: Timestamp | null;
+      lastAttemptAt?: Timestamp | null;
+      messageId?: string;
+      lastError?: string;
+      attempts?: number;
+      fingerprint?: string;
+    };
+    orderUpdatedEmail?: {
+      status: "SENDING" | "SENT" | "FAILED";
+      provider?: "BREVO";
+      claimedAt?: Timestamp | null;
+      sentAt?: Timestamp | null;
+      failedAt?: Timestamp | null;
+      lastAttemptAt?: Timestamp | null;
+      messageId?: string;
+      lastError?: string;
+      attempts?: number;
+      fingerprint?: string;
+    };
+    orderCancelledEmail?: {
+      status: "SENDING" | "SENT" | "FAILED";
+      provider?: "BREVO";
+      claimedAt?: Timestamp | null;
+      sentAt?: Timestamp | null;
+      failedAt?: Timestamp | null;
+      lastAttemptAt?: Timestamp | null;
+      messageId?: string;
+      lastError?: string;
+      attempts?: number;
+    };
+    /** Legacy compatibility — true only after confirmed SENT */
     newOrderEmailSent?: boolean;
     newOrderEmailSentAt?: Timestamp | null;
     newOrderEmailProvider?: string;

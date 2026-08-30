@@ -132,7 +132,7 @@ export default function RootLayout({
       <head>
         <LocaleHtmlScript />
       </head>
-      <body className="flex min-h-dvh flex-col overflow-x-hidden bg-cream pb-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom,0px)+12px)] has-[[data-admin]]:pb-0 md:pb-0">
+      <body className="flex min-h-dvh flex-col overflow-x-hidden bg-cream pb-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom,0px)+12px)] has-[[data-admin]]:pb-0 has-[[data-menu-display]]:pb-0 md:pb-0">
         <BrandSplash />
         <ThemeProvider>
           <AccessibilityProvider>

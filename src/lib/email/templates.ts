@@ -1,18 +1,30 @@
 import { BRAND_COLORS } from "@/lib/brand";
 import { getPublicSiteUrl } from "@/lib/email/config";
+import type { OrderChange } from "@/lib/email/significant-diff";
 
 const COLORS = {
   primary: BRAND_COLORS.primary,
   accent: BRAND_COLORS.accent,
   cream: BRAND_COLORS.cream,
   warmWhite: BRAND_COLORS.warmWhite,
-  gold: BRAND_COLORS.secondary,
   muted: "#6B5A52",
   border: "#E6D9C8",
   danger: "#B42318",
+  warning: "#B54708",
+  info: "#026AA2",
 };
 
-function escapeHtml(value: string): string {
+export type EmailBadgeKind = "new" | "updated" | "cancelled" | "critical" | "test";
+
+const BADGE: Record<EmailBadgeKind, { bg: string; color: string; label: string }> = {
+  new: { bg: "#E6F6F7", color: COLORS.accent, label: "הזמנה חדשה" },
+  updated: { bg: "#EFF8FF", color: COLORS.info, label: "עדכון הזמנה" },
+  cancelled: { bg: "#FEF3F2", color: COLORS.danger, label: "ביטול הזמנה" },
+  critical: { bg: "#FFFAEB", color: COLORS.warning, label: "תקלה" },
+  test: { bg: "#F5F0EA", color: COLORS.muted, label: "בדיקה" },
+};
+
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -21,13 +33,15 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function emailShell(opts: {
+export function emailShell(opts: {
   title: string;
   preheader?: string;
+  badge?: EmailBadgeKind;
   bodyHtml: string;
 }): string {
   const siteUrl = getPublicSiteUrl();
   const logoUrl = `${siteUrl}/logo-transparent.png`;
+  const badge = opts.badge ? BADGE[opts.badge] : null;
   const preheader = opts.preheader
     ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(opts.preheader)}</div>`
     : "";
@@ -49,6 +63,11 @@ function emailShell(opts: {
             <td style="background:${COLORS.primary};padding:22px 24px;text-align:center;">
               <img src="${logoUrl}" alt="MISHKAH CAFE" width="72" height="63" style="display:inline-block;border:0;outline:none;max-width:72px;height:auto;" />
               <div style="margin-top:10px;font-size:20px;font-weight:700;letter-spacing:0.04em;color:${COLORS.warmWhite};">MISHKAH CAFE</div>
+              ${
+                badge
+                  ? `<div style="margin-top:12px;display:inline-block;padding:6px 14px;border-radius:999px;background:${badge.bg};color:${badge.color};font-size:12px;font-weight:700;">${escapeHtml(badge.label)}</div>`
+                  : ""
+              }
             </td>
           </tr>
           <tr>
@@ -70,10 +89,20 @@ function emailShell(opts: {
 </html>`;
 }
 
+function ctaButton(url: string, label: string): string {
+  return `
+    <div style="margin-top:24px;text-align:center;">
+      <a href="${escapeHtml(url)}" style="display:inline-block;background:${COLORS.accent};color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:700;">
+        ${escapeHtml(label)}
+      </a>
+    </div>`;
+}
+
 export function renderTestEmailHtml(): { subject: string; html: string; text: string } {
   const subject = "MISHKAH CAFE — בדיקת מערכת המיילים";
   const html = emailShell({
     title: subject,
+    badge: "test",
     preheader: "מערכת המיילים מחוברת בהצלחה",
     bodyHtml: `
       <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:${COLORS.primary};text-align:center;">MISHKAH CAFE</h1>
@@ -85,16 +114,14 @@ export function renderTestEmailHtml(): { subject: string; html: string; text: st
       </p>
     `,
   });
-  const text = [
-    "MISHKAH CAFE",
-    "",
-    "מערכת המיילים מחוברת בהצלחה.",
-    "זהו מייל בדיקה שנשלח באמצעות Brevo.",
-  ].join("\n");
-  return { subject, html, text };
+  return {
+    subject,
+    html,
+    text: "MISHKAH CAFE\n\nמערכת המיילים מחוברת בהצלחה.\nזהו מייל בדיקה שנשלח באמצעות Brevo.",
+  };
 }
 
-export type NewOrderEmailItem = {
+export type OrderEmailItem = {
   productName: string;
   quantity: number;
   price: number;
@@ -103,16 +130,17 @@ export type NewOrderEmailItem = {
   kitchenNotes?: string[];
 };
 
-export type NewOrderEmailPayload = {
+export type OrderEmailBase = {
   orderId: string;
   orderNumber: string;
   createdAt: string;
   customerName: string;
   customerPhone?: string;
-  items: NewOrderEmailItem[];
+  items: OrderEmailItem[];
   total: number;
   paymentMethod?: string;
   orderType?: "pickup" | "delivery";
+  status?: string;
   notes?: string;
   viewUrl: string;
 };
@@ -123,19 +151,14 @@ function formatIls(amount: number): string {
 
 function formatDateHe(iso: string): { date: string; time: string } {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) {
-    return { date: iso, time: "" };
-  }
+  if (Number.isNaN(d.getTime())) return { date: iso, time: "" };
   return {
     date: d.toLocaleDateString("he-IL", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     }),
-    time: d.toLocaleTimeString("he-IL", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
+    time: d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }),
   };
 }
 
@@ -151,15 +174,20 @@ function fulfillmentLabel(type?: "pickup" | "delivery"): string {
   return "איסוף עצמי מהעסק";
 }
 
-export function renderNewOrderEmail(payload: NewOrderEmailPayload): {
-  subject: string;
-  html: string;
-  text: string;
-} {
-  const { date, time } = formatDateHe(payload.createdAt);
-  const subject = `הזמנה חדשה | MISHKAH CAFE | #${payload.orderNumber}`;
+function statusLabel(status?: string): string {
+  const map: Record<string, string> = {
+    pending: "ממתין",
+    confirmed: "אושר",
+    preparing: "בהכנה",
+    ready: "מוכן",
+    delivered: "הושלם",
+    cancelled: "בוטל",
+  };
+  return status ? map[status] ?? status : "—";
+}
 
-  const itemsHtml = payload.items
+function itemsHtml(items: OrderEmailItem[]): string {
+  return items
     .map((item) => {
       const modifiers = (item.modifiers ?? [])
         .map(
@@ -167,17 +195,13 @@ export function renderNewOrderEmail(payload: NewOrderEmailPayload): {
             `<div style="padding-right:14px;font-size:13px;color:${COLORS.muted};line-height:1.5;">${escapeHtml(m.optionName)}</div>`
         )
         .join("");
-      const notes = [
-        ...(item.kitchenNotes ?? []),
-        ...(item.notes ? [item.notes] : []),
-      ]
+      const notes = [...(item.kitchenNotes ?? []), ...(item.notes ? [item.notes] : [])]
         .filter(Boolean)
         .map(
           (n) =>
             `<div style="padding-right:14px;font-size:12px;color:${COLORS.muted};font-style:italic;">${escapeHtml(n)}</div>`
         )
         .join("");
-
       return `
         <tr>
           <td style="padding:10px 0;border-bottom:1px solid ${COLORS.border};vertical-align:top;">
@@ -193,77 +217,176 @@ export function renderNewOrderEmail(payload: NewOrderEmailPayload): {
         </tr>`;
     })
     .join("");
+}
 
-  const notesBlock = payload.notes?.trim()
-    ? `
-      <div style="margin:18px 0 0;padding:14px 16px;border-radius:12px;background:#FFF4E5;border:1px solid #F0D2A8;">
-        <div style="font-size:12px;font-weight:700;color:${COLORS.primary};margin-bottom:6px;">הערת הזמנה</div>
-        <div style="font-size:14px;line-height:1.55;color:${COLORS.primary};white-space:pre-wrap;">${escapeHtml(payload.notes.trim())}</div>
-      </div>`
-    : "";
+function customerBlock(payload: OrderEmailBase, extraRows?: string): string {
+  const { date, time } = formatDateHe(payload.createdAt);
+  return `
+    <div style="margin-bottom:18px;padding:14px 16px;border-radius:12px;background:${COLORS.cream};border:1px solid ${COLORS.border};">
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.04em;color:${COLORS.muted};margin-bottom:10px;">פרטי הזמנה</div>
+      <div style="font-size:14px;line-height:1.7;color:${COLORS.primary};">
+        <div><strong>שם:</strong> ${escapeHtml(payload.customerName)}</div>
+        ${payload.customerPhone ? `<div><strong>טלפון:</strong> ${escapeHtml(payload.customerPhone)}</div>` : ""}
+        <div><strong>תאריך:</strong> ${escapeHtml(date)}</div>
+        ${time ? `<div><strong>שעה:</strong> ${escapeHtml(time)}</div>` : ""}
+        <div><strong>סוג:</strong> ${escapeHtml(fulfillmentLabel(payload.orderType))}</div>
+        <div><strong>תשלום:</strong> ${escapeHtml(paymentLabel(payload.paymentMethod))}</div>
+        <div><strong>סטטוס:</strong> ${escapeHtml(statusLabel(payload.status))}</div>
+        ${extraRows ?? ""}
+      </div>
+    </div>`;
+}
 
+function notesBlock(notes?: string): string {
+  if (!notes?.trim()) return "";
+  return `
+    <div style="margin:18px 0 0;padding:14px 16px;border-radius:12px;background:#FFF4E5;border:1px solid #F0D2A8;">
+      <div style="font-size:12px;font-weight:700;color:${COLORS.primary};margin-bottom:6px;">הערת הזמנה</div>
+      <div style="font-size:14px;line-height:1.55;color:${COLORS.primary};white-space:pre-wrap;">${escapeHtml(notes.trim())}</div>
+    </div>`;
+}
+
+function totalBlock(total: number): string {
+  return `
+    <div style="margin-top:16px;padding-top:14px;border-top:2px solid ${COLORS.primary};text-align:center;">
+      <div style="font-size:13px;color:${COLORS.muted};">סה״כ לתשלום</div>
+      <div style="font-size:24px;font-weight:700;color:${COLORS.primary};margin-top:4px;">${formatIls(total)}</div>
+    </div>`;
+}
+
+/** @deprecated use OrderEmailBase */
+export type NewOrderEmailPayload = OrderEmailBase;
+/** @deprecated use OrderEmailItem */
+export type NewOrderEmailItem = OrderEmailItem;
+
+export function renderNewOrderEmail(payload: OrderEmailBase): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const subject = `הזמנה חדשה #${payload.orderNumber} | MISHKAH CAFE`;
   const html = emailShell({
     title: subject,
+    badge: "new",
     preheader: `התקבלה הזמנה חדשה #${payload.orderNumber}`,
     bodyHtml: `
       <h1 style="margin:0 0 6px;font-size:22px;line-height:1.3;text-align:center;color:${COLORS.primary};">הזמנה חדשה התקבלה</h1>
       <p style="margin:0 0 22px;text-align:center;font-size:15px;color:${COLORS.accent};font-weight:700;">
         הזמנה #${escapeHtml(payload.orderNumber)}
       </p>
-
-      <div style="margin-bottom:18px;padding:14px 16px;border-radius:12px;background:${COLORS.cream};border:1px solid ${COLORS.border};">
-        <div style="font-size:12px;font-weight:700;letter-spacing:0.04em;color:${COLORS.muted};margin-bottom:10px;">פרטי לקוח</div>
-        <div style="font-size:14px;line-height:1.7;color:${COLORS.primary};">
-          <div><strong>שם:</strong> ${escapeHtml(payload.customerName)}</div>
-          ${payload.customerPhone ? `<div><strong>טלפון:</strong> ${escapeHtml(payload.customerPhone)}</div>` : ""}
-          <div><strong>תאריך:</strong> ${escapeHtml(date)}</div>
-          ${time ? `<div><strong>שעה:</strong> ${escapeHtml(time)}</div>` : ""}
-          <div><strong>סוג:</strong> ${escapeHtml(fulfillmentLabel(payload.orderType))}</div>
-          <div><strong>תשלום:</strong> ${escapeHtml(paymentLabel(payload.paymentMethod))}</div>
-        </div>
-      </div>
-
+      ${customerBlock(payload)}
       <div style="font-size:12px;font-weight:700;letter-spacing:0.04em;color:${COLORS.muted};margin-bottom:8px;">פרטי ההזמנה</div>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-        ${itemsHtml}
-      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${itemsHtml(payload.items)}</table>
+      ${totalBlock(payload.total)}
+      ${notesBlock(payload.notes)}
+      ${ctaButton(payload.viewUrl, "פתיחת ההזמנה")}
+    `,
+  });
+  return {
+    subject,
+    html,
+    text: `MISHKAH CAFE\nהזמנה חדשה #${payload.orderNumber}\nלקוח: ${payload.customerName}\nסה״כ: ${formatIls(payload.total)}\n${payload.viewUrl}`,
+  };
+}
 
-      <div style="margin-top:16px;padding-top:14px;border-top:2px solid ${COLORS.primary};text-align:center;">
-        <div style="font-size:13px;color:${COLORS.muted};">סה״כ לתשלום</div>
-        <div style="font-size:24px;font-weight:700;color:${COLORS.primary};margin-top:4px;">${formatIls(payload.total)}</div>
-      </div>
+export function renderOrderUpdatedEmail(
+  payload: OrderEmailBase & { changes: OrderChange[] }
+): { subject: string; html: string; text: string } {
+  const subject = `הזמנה #${payload.orderNumber} עודכנה | MISHKAH CAFE`;
+  const changesHtml = payload.changes
+    .map(
+      (c) => `
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid ${COLORS.border};font-size:14px;">
+          <div style="font-weight:700;color:${COLORS.primary};">${escapeHtml(c.label)}</div>
+          <div style="color:${COLORS.muted};margin-top:4px;">${escapeHtml(c.before)} → <strong style="color:${COLORS.primary};">${escapeHtml(c.after)}</strong></div>
+        </td>
+      </tr>`
+    )
+    .join("");
 
-      ${notesBlock}
+  const html = emailShell({
+    title: subject,
+    badge: "updated",
+    preheader: `הזמנה #${payload.orderNumber} עודכנה`,
+    bodyHtml: `
+      <h1 style="margin:0 0 6px;font-size:22px;line-height:1.3;text-align:center;color:${COLORS.primary};">הזמנה עודכנה</h1>
+      <p style="margin:0 0 22px;text-align:center;font-size:15px;color:${COLORS.info};font-weight:700;">
+        הזמנה #${escapeHtml(payload.orderNumber)}
+      </p>
+      ${customerBlock(payload)}
+      <div style="font-size:12px;font-weight:700;letter-spacing:0.04em;color:${COLORS.muted};margin-bottom:8px;">מה השתנה</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${changesHtml}</table>
+      <div style="margin-top:18px;font-size:12px;font-weight:700;letter-spacing:0.04em;color:${COLORS.muted};margin-bottom:8px;">מצב נוכחי</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${itemsHtml(payload.items)}</table>
+      ${totalBlock(payload.total)}
+      ${notesBlock(payload.notes)}
+      ${ctaButton(payload.viewUrl, "פתיחת ההזמנה")}
+    `,
+  });
+  return {
+    subject,
+    html,
+    text: `MISHKAH CAFE\nהזמנה #${payload.orderNumber} עודכנה\n${payload.changes.map((c) => `${c.label}: ${c.before} → ${c.after}`).join("\n")}`,
+  };
+}
 
-      <div style="margin-top:24px;text-align:center;">
-        <a href="${escapeHtml(payload.viewUrl)}" style="display:inline-block;background:${COLORS.accent};color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:700;">
-          צפייה בהזמנה
-        </a>
+export function renderOrderCancelledEmail(
+  payload: OrderEmailBase & { cancelReason?: string }
+): { subject: string; html: string; text: string } {
+  const subject = `הזמנה #${payload.orderNumber} בוטלה | MISHKAH CAFE`;
+  const reasonRow = payload.cancelReason
+    ? `<div><strong>סיבת ביטול:</strong> ${escapeHtml(payload.cancelReason)}</div>`
+    : "";
+  const html = emailShell({
+    title: subject,
+    badge: "cancelled",
+    preheader: `הזמנה #${payload.orderNumber} בוטלה`,
+    bodyHtml: `
+      <h1 style="margin:0 0 6px;font-size:22px;line-height:1.3;text-align:center;color:${COLORS.danger};">הזמנה בוטלה</h1>
+      <p style="margin:0 0 22px;text-align:center;font-size:15px;color:${COLORS.danger};font-weight:700;">
+        הזמנה #${escapeHtml(payload.orderNumber)}
+      </p>
+      ${customerBlock(payload, reasonRow)}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${itemsHtml(payload.items)}</table>
+      ${totalBlock(payload.total)}
+      ${notesBlock(payload.notes)}
+      ${ctaButton(payload.viewUrl, "פתיחת ההזמנה")}
+    `,
+  });
+  return {
+    subject,
+    html,
+    text: `MISHKAH CAFE\nהזמנה #${payload.orderNumber} בוטלה\n${payload.cancelReason ?? ""}\n${payload.viewUrl}`,
+  };
+}
+
+export function renderCriticalCheckoutFailureEmail(payload: {
+  message: string;
+  code?: string;
+  occurredAt: string;
+}): { subject: string; html: string; text: string } {
+  const subject = "תקלה בתהליך הזמנה | MISHKAH CAFE";
+  const { date, time } = formatDateHe(payload.occurredAt);
+  const html = emailShell({
+    title: subject,
+    badge: "critical",
+    preheader: "תקלה בתהליך הזמנה",
+    bodyHtml: `
+      <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;text-align:center;color:${COLORS.warning};">תקלה בתהליך הזמנה</h1>
+      <p style="margin:0 0 16px;text-align:center;font-size:14px;color:${COLORS.muted};">
+        לקוח ניסה לבצע הזמנה והמערכת נכשלה לפני שמירה מוצלחת.
+      </p>
+      <div style="padding:14px 16px;border-radius:12px;background:#FFFAEB;border:1px solid #FEDF89;font-size:14px;line-height:1.7;color:${COLORS.primary};">
+        <div><strong>זמן:</strong> ${escapeHtml(date)}${time ? ` ${escapeHtml(time)}` : ""}</div>
+        ${payload.code ? `<div><strong>קוד:</strong> ${escapeHtml(payload.code)}</div>` : ""}
+        <div><strong>פירוט:</strong> ${escapeHtml(payload.message.slice(0, 400))}</div>
       </div>
     `,
   });
-
-  const textLines = [
-    "MISHKAH CAFE",
-    "התקבלה הזמנה חדשה",
-    `הזמנה #${payload.orderNumber}`,
-    `תאריך: ${date}${time ? ` ${time}` : ""}`,
-    `לקוח: ${payload.customerName}`,
-    payload.customerPhone ? `טלפון: ${payload.customerPhone}` : "",
-    `סוג: ${fulfillmentLabel(payload.orderType)}`,
-    `תשלום: ${paymentLabel(payload.paymentMethod)}`,
-    "",
-    "פריטים:",
-    ...payload.items.map((item) => {
-      const mods = (item.modifiers ?? []).map((m) => `  - ${m.optionName}`).join("\n");
-      return `${item.quantity} × ${item.productName}${mods ? `\n${mods}` : ""}`;
-    }),
-    "",
-    `סה״כ: ${formatIls(payload.total)}`,
-    payload.notes?.trim() ? `\nהערה:\n${payload.notes.trim()}` : "",
-    "",
-    `צפייה: ${payload.viewUrl}`,
-  ].filter(Boolean);
-
-  return { subject, html, text: textLines.join("\n") };
+  return {
+    subject,
+    html,
+    text: `MISHKAH CAFE\nתקלה בתהליך הזמנה\n${payload.code ?? ""}\n${payload.message}`,
+  };
 }

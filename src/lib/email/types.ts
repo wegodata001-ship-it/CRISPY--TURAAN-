@@ -7,7 +7,7 @@ export type SendEmailInput = {
 };
 
 export type SendEmailResult =
-  | { ok: true; messageId?: string }
+  | { ok: true; messageId?: string; statusCode: number }
   | { ok: false; error: string; statusCode?: number; code?: string };
 
 export type MishkahEmailKind =
@@ -16,3 +16,15 @@ export type MishkahEmailKind =
   | "order_updated"
   | "order_cancelled"
   | "system";
+
+export type NewOrderEmailStatus = "SENDING" | "SENT" | "FAILED";
+
+export type NewOrderEmailNotification = {
+  status: NewOrderEmailStatus;
+  provider?: "BREVO";
+  claimedAt?: unknown;
+  sentAt?: unknown;
+  failedAt?: unknown;
+  messageId?: string;
+  lastError?: string;
+};

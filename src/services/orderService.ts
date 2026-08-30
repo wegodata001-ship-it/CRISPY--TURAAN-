@@ -21,6 +21,15 @@ import { mapOrder } from "@/lib/mappers";
 import { selectedModifierToFirestore } from "@/lib/mappers/modifier-mappers";
 import { orderSchema, type OrderInput } from "@/lib/validation/schemas";
 import { forcePickupForNewOrder, NEW_ORDER_FULFILLMENT } from "@/lib/orders/fulfillment";
+import { isViewOnlyMenuSurface } from "@/lib/domains/host-routing";
+import {
+  requestOrderCancelledEmailNotification,
+  requestOrderUpdatedEmailNotification,
+} from "@/lib/email/client-notify";
+import {
+  computeSignificantOrderChanges,
+  fingerprintChanges,
+} from "@/lib/email/significant-diff";
 import { nowTimestamp } from "@/types/firestore";
 import {
   calculateLineTotal,
@@ -226,6 +235,14 @@ export function subscribeToOrders(
 
 export async function createOrder(input: OrderInput): Promise<ServiceResult<Order>> {
   try {
+    if (
+      typeof window !== "undefined" &&
+      isViewOnlyMenuSurface(window.location.hostname, window.location.pathname)
+    ) {
+      return failure(
+        new ServiceError("Ordering is disabled on the menu display", "VIEW_ONLY_MENU")
+      );
+    }
     // New orders are pickup-only; never persist delivery / address / delivery fee.
     const parsed = forcePickupForNewOrder(orderSchema.parse(input));
     const db = getDb();
@@ -354,6 +371,9 @@ export async function updateOrderStatus(
     }
 
     await updateDoc(doc(getDb(), COLLECTIONS.orders, id), patch);
+    if (status === "cancelled") {
+      requestOrderCancelledEmailNotification(id);
+    }
     return success(undefined);
   } catch (error) {
     console.error("[updateOrderStatus] failed:", error);
@@ -389,6 +409,8 @@ export async function updateOrderItemExtras(
     return failure(new ServiceError("Invalid item index", "INVALID_ITEM"));
   }
 
+  const before = order;
+
   const items = order.items.map((item, i) => {
     if (i !== itemIndex) return item;
     const next: OrderItem = {
@@ -414,9 +436,22 @@ export async function updateOrderItemExtras(
   );
   const total = subtotal + (order.delivery ?? 0) - (order.discount ?? 0);
 
-  return updateOrder(orderId, {
+  const result = await updateOrder(orderId, {
     items,
     subtotal,
     total: Math.max(total, 0.01),
   });
+
+  if (result.success) {
+    const changes = computeSignificantOrderChanges(before, result.data);
+    if (changes.length > 0) {
+      requestOrderUpdatedEmailNotification({
+        orderId,
+        changes,
+        fingerprint: fingerprintChanges(changes),
+      });
+    }
+  }
+
+  return result;
 }

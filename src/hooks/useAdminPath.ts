@@ -6,7 +6,9 @@ import {
   adminPath,
   getAdminSurface,
   isLocalDevHost,
+  isMenuHost,
   isPortalHost,
+  isViewOnlyMenuSurface,
   portalUrl,
   shouldHideCustomerChrome,
   type AdminSurface,
@@ -36,10 +38,29 @@ export function useIsPortalHost(): boolean {
   }, []);
 }
 
+export function useIsMenuHost(): boolean {
+  return useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return isMenuHost(window.location.hostname);
+  }, []);
+}
+
+export function useIsViewOnlyMenu(): boolean {
+  const pathname = usePathname();
+  return useMemo(() => {
+    if (typeof window === "undefined") {
+      return pathname.startsWith("/menu-display");
+    }
+    return isViewOnlyMenuSurface(window.location.hostname, pathname);
+  }, [pathname]);
+}
+
 export function useHideCustomerChrome(): boolean {
   const pathname = usePathname();
   return useMemo(() => {
-    if (typeof window === "undefined") return pathname.startsWith("/admin");
+    if (typeof window === "undefined") {
+      return pathname.startsWith("/admin") || pathname.startsWith("/menu-display");
+    }
     return shouldHideCustomerChrome(pathname, window.location.hostname);
   }, [pathname]);
 }

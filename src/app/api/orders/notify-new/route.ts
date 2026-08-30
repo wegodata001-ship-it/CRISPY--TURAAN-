@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { notifyNewOrderEmail } from "@/lib/email/notify-new-order";
+import { notifyNewOrder } from "@/lib/email/notifications";
 
 export const runtime = "nodejs";
 
-/**
- * POST /api/orders/notify-new
- * Body: { orderId: string }
- *
- * Sends the new-order email once. Never fails the customer checkout —
- * callers should fire-and-forget.
- */
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as { orderId?: string };
@@ -18,21 +11,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "orderId required" }, { status: 400 });
     }
 
-    const result = await notifyNewOrderEmail(orderId);
-
-    if (result.status === "sent") {
-      return NextResponse.json({ ok: true, status: result.status, messageId: result.messageId });
-    }
-    if (result.status === "already_sent") {
-      return NextResponse.json({ ok: true, status: result.status });
-    }
-    if (result.status === "skipped") {
-      return NextResponse.json({ ok: false, status: result.status, reason: result.reason }, { status: 404 });
-    }
-    return NextResponse.json(
-      { ok: false, status: result.status, error: result.error },
-      { status: 502 }
-    );
+    const result = await notifyNewOrder(orderId);
+    return jsonNotify(result);
   } catch (error) {
     console.error("[email] Email notification failed", {
       kind: "new_order",
@@ -40,11 +20,31 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : "unknown",
     });
     return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Notification failed",
-      },
+      { ok: false, error: error instanceof Error ? error.message : "Notification failed" },
       { status: 500 }
     );
   }
+}
+
+function jsonNotify(
+  result:
+    | { status: "sent"; messageId?: string }
+    | { status: "already_sent" }
+    | { status: "in_progress" }
+    | { status: "skipped"; reason: string }
+    | { status: "failed"; error: string }
+) {
+  if (result.status === "sent") {
+    return NextResponse.json({ ok: true, status: "SENT", messageId: result.messageId });
+  }
+  if (result.status === "already_sent") {
+    return NextResponse.json({ ok: true, status: "ALREADY_SENT" });
+  }
+  if (result.status === "in_progress") {
+    return NextResponse.json({ ok: true, status: "SKIPPED", reason: "in_progress" });
+  }
+  if (result.status === "skipped") {
+    return NextResponse.json({ ok: false, status: "SKIPPED", reason: result.reason }, { status: 404 });
+  }
+  return NextResponse.json({ ok: false, status: "FAILED", error: result.error }, { status: 502 });
 }
