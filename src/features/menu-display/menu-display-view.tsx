@@ -14,7 +14,9 @@ import {
 } from "@/hooks/useLocalizedContent";
 import { ProductImage } from "@/components/catalog/product-image";
 import { CatalogModifierPreviewProvider, useProductModifierPreview } from "@/features/catalog/catalog-modifier-preview-context";
-import { ProductModifierPreview } from "@/features/catalog/product-modifier-preview";
+import { ProductModifiersTeaser } from "@/features/catalog/product-modifiers-teaser";
+import { MenuProductDetailsModal } from "@/features/menu-display/menu-product-details-modal";
+import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
 import {
   filterMenuDisplayProducts,
   getRootCategories,
@@ -34,8 +36,9 @@ function CategoryTabButton({
     <button
       type="button"
       onClick={onClick}
+      data-hscroll-active={active ? "true" : undefined}
       className={cn(
-        "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors md:px-5 md:text-base",
+        "shrink-0 flex-none rounded-full px-4 py-2 text-sm font-semibold transition-colors md:px-5 md:text-base",
         active
           ? "bg-coffee text-warm-white shadow-soft dark:bg-turquoise"
           : "bg-warm-white text-coffee/75 ring-1 ring-beige-dark/25 hover:bg-beige/50 dark:bg-white/5 dark:text-warm-white/80 dark:ring-white/10"
@@ -51,18 +54,35 @@ function CategoryLabel({ category }: { category: Category }) {
   return <>{localized.name}</>;
 }
 
-function MenuDisplayCard({ product, index }: { product: Product; index: number }) {
+function MenuDisplayCard({
+  product,
+  index,
+  onOpen,
+}: {
+  product: Product;
+  index: number;
+  onOpen: () => void;
+}) {
   const t = useT();
   const localized = useLocalizedProduct(product);
   const modifierPreview = useProductModifierPreview(product.id);
 
   return (
     <motion.article
+      role="button"
+      tabIndex={0}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index, 12) * 0.03, duration: 0.28 }}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
       className={cn(
-        "flex h-full flex-col overflow-hidden rounded-2xl bg-warm-white shadow-soft ring-1 ring-beige-dark/15 dark:bg-[#1a1412] dark:ring-white/10",
+        "flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-warm-white text-start shadow-soft ring-1 ring-beige-dark/15 transition-shadow hover:shadow-md dark:bg-[#1a1412] dark:ring-white/10",
         !product.available && "opacity-60"
       )}
     >
@@ -71,7 +91,7 @@ function MenuDisplayCard({ product, index }: { product: Product; index: number }
           image={product.image}
           categoryId={product.categoryId}
           alt={localized.name}
-          className="object-contain p-2"
+          className="object-cover"
           sizes="(max-width:640px) 100vw, (max-width:1024px) 33vw, 20vw"
         />
         {!product.available && (
@@ -80,16 +100,16 @@ function MenuDisplayCard({ product, index }: { product: Product; index: number }
           </span>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-4 md:p-5">
+      <div className="flex flex-1 flex-col gap-1.5 p-4 md:p-5">
         <h3 className="font-display text-lg font-bold leading-snug text-dark-brown md:text-xl dark:text-warm-white">
           {localized.name}
         </h3>
         {localized.description?.trim() ? (
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-coffee/70 dark:text-warm-white/65">
+          <p className="line-clamp-2 text-sm leading-relaxed text-coffee/70 dark:text-warm-white/65">
             {localized.description}
           </p>
         ) : null}
-        <ProductModifierPreview groups={modifierPreview} />
+        <ProductModifiersTeaser groups={modifierPreview} />
         <p className="mt-auto pt-2 text-xl font-bold text-turquoise md:text-2xl">
           {formatPrice(product.price)}
         </p>
@@ -102,6 +122,7 @@ export function MenuDisplayView() {
   const t = useT();
   const { dir } = useLocale();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const { categories, loading: catsLoading } = useCategories();
   const { products, loading: productsLoading } = useProducts({ active: true });
 
@@ -137,9 +158,10 @@ export function MenuDisplayView() {
         </div>
 
         <div className="mx-auto max-w-[1600px] px-4 pb-3 md:px-6 md:pb-4">
-          <nav
+          <HorizontalScroller
+            activeKey={selectedCategoryId ?? "__all__"}
             aria-label={t("menuDisplay.categories", "קטגוריות")}
-            className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            fadeFromClassName="from-cream dark:from-[#120e0c]"
           >
             <CategoryTabButton
               active={selectedCategoryId == null}
@@ -156,7 +178,7 @@ export function MenuDisplayView() {
                 <CategoryLabel category={category} />
               </CategoryTabButton>
             ))}
-          </nav>
+          </HorizontalScroller>
         </div>
       </header>
 
@@ -177,11 +199,24 @@ export function MenuDisplayView() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
             {visibleProducts.map((product, index) => (
-              <MenuDisplayCard key={product.id} product={product} index={index} />
+              <MenuDisplayCard
+                key={product.id}
+                product={product}
+                index={index}
+                onOpen={() => setSelectedProduct(product)}
+              />
             ))}
           </div>
         )}
       </main>
+
+      <MenuProductDetailsModal
+        product={selectedProduct}
+        open={!!selectedProduct}
+        onOpenChange={(open) => {
+          if (!open) setSelectedProduct(null);
+        }}
+      />
     </div>
     </CatalogModifierPreviewProvider>
   );

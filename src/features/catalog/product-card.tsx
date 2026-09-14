@@ -10,7 +10,7 @@ import { useCart } from "@/features/cart/cart-context";
 import { useSettings } from "@/hooks/useSettings";
 import { useFavorites } from "@/hooks/useFavorites";
 import { ProductImage } from "@/components/catalog/product-image";
-import { ProductModifierPreview } from "@/features/catalog/product-modifier-preview";
+import { ProductModifiersTeaser } from "@/features/catalog/product-modifiers-teaser";
 import { useProductModifierPreview } from "@/features/catalog/catalog-modifier-preview-context";
 import type { Product } from "@/types";
 
@@ -118,7 +118,7 @@ export function ProductCard({ product, index = 0, onClick }: ProductCardProps) {
             {localized.description}
           </p>
         )}
-        <ProductModifierPreview groups={modifierPreview} />
+        <ProductModifiersTeaser groups={modifierPreview} />
         {!product.available && (
           <p className="text-caption mt-1">{t("catalog.unavailable")}</p>
         )}

@@ -29,6 +29,7 @@ import {
   getCollapsedVisibleCategories,
   getRootCategories,
 } from "@/lib/menu/category-tree";
+import { HorizontalScroller } from "@/components/ui/horizontal-scroller";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/types";
 
@@ -89,6 +90,7 @@ function CategoryPill({
   return (
     <motion.button
       type="button"
+      data-hscroll-active={selected ? "true" : undefined}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index, 12) * 0.02, duration: 0.2 }}
@@ -98,7 +100,7 @@ function CategoryPill({
         "inline-flex min-w-0 items-center gap-1.5 rounded-full font-medium transition-all duration-200",
         compact
           ? "h-10 w-full justify-center px-2.5 text-[13px] sm:justify-start sm:px-3"
-          : "h-9 shrink-0 px-3 text-sm",
+          : "h-9 flex-none shrink-0 px-3 text-sm",
         selected
           ? "bg-turquoise text-white shadow-soft"
           : "border border-beige-dark/25 bg-white text-coffee/80 hover:border-turquoise/40 hover:bg-cream"
@@ -160,7 +162,7 @@ export function MenuCategoryStrip({ selectedId, onSelect }: MenuCategoryStripPro
       <div
         className={cn(
           "grid grid-cols-2 gap-2 py-1 sm:grid-cols-3 md:grid-cols-4",
-          "lg:flex lg:flex-wrap lg:gap-2"
+          "lg:flex lg:flex-nowrap lg:gap-2 lg:overflow-hidden"
         )}
       >
         {Array.from({ length: 6 }).map((_, i) => (
@@ -172,27 +174,51 @@ export function MenuCategoryStrip({ selectedId, onSelect }: MenuCategoryStripPro
 
   if (rootCategories.length === 0) return null;
 
+  const pills = visibleCategories.map((cat, index) => (
+    <CategoryPill
+      key={cat.id}
+      cat={cat}
+      count={countProductsInCategory(products, cat.id, categories)}
+      selected={selectedId === cat.id}
+      index={index}
+      onSelect={handleSelect}
+      compact={isCompactLayout}
+    />
+  ));
+
+  // Desktop: single-row horizontal scroller (wheel / drag / arrows).
+  // Mobile/tablet: keep compact grid + expand/collapse.
+  if (!isCompactLayout) {
+    return (
+      <div className="py-1">
+        <HorizontalScroller
+          activeKey={selectedId}
+          aria-label="Categories"
+          fadeFromClassName="from-cream"
+        >
+          {rootCategories.map((cat, index) => (
+            <CategoryPill
+              key={cat.id}
+              cat={cat}
+              count={countProductsInCategory(products, cat.id, categories)}
+              selected={selectedId === cat.id}
+              index={index}
+              onSelect={handleSelect}
+              compact={false}
+            />
+          ))}
+        </HorizontalScroller>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2 py-1">
       <nav
         aria-label="Categories"
-        className={cn(
-          isCompactLayout
-            ? "grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4"
-            : "flex flex-wrap gap-2"
-        )}
+        className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4"
       >
-        {visibleCategories.map((cat, index) => (
-          <CategoryPill
-            key={cat.id}
-            cat={cat}
-            count={countProductsInCategory(products, cat.id, categories)}
-            selected={selectedId === cat.id}
-            index={index}
-            onSelect={handleSelect}
-            compact={isCompactLayout}
-          />
-        ))}
+        {pills}
       </nav>
 
       {canToggle && (
