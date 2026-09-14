@@ -13,6 +13,8 @@ import {
   useLocalizedProduct,
 } from "@/hooks/useLocalizedContent";
 import { ProductImage } from "@/components/catalog/product-image";
+import { CatalogModifierPreviewProvider, useProductModifierPreview } from "@/features/catalog/catalog-modifier-preview-context";
+import { ProductModifierPreview } from "@/features/catalog/product-modifier-preview";
 import {
   filterMenuDisplayProducts,
   getRootCategories,
@@ -52,6 +54,7 @@ function CategoryLabel({ category }: { category: Category }) {
 function MenuDisplayCard({ product, index }: { product: Product; index: number }) {
   const t = useT();
   const localized = useLocalizedProduct(product);
+  const modifierPreview = useProductModifierPreview(product.id);
 
   return (
     <motion.article
@@ -86,6 +89,7 @@ function MenuDisplayCard({ product, index }: { product: Product; index: number }
             {localized.description}
           </p>
         ) : null}
+        <ProductModifierPreview groups={modifierPreview} />
         <p className="mt-auto pt-2 text-xl font-bold text-turquoise md:text-2xl">
           {formatPrice(product.price)}
         </p>
@@ -110,6 +114,7 @@ export function MenuDisplayView() {
   const loading = catsLoading || productsLoading;
 
   return (
+    <CatalogModifierPreviewProvider>
     <div
       dir={dir}
       className="min-h-dvh bg-gradient-to-b from-cream via-[#F5EDE3] to-cream text-dark-brown dark:from-[#120e0c] dark:via-[#16110f] dark:to-[#120e0c]"
@@ -178,5 +183,6 @@ export function MenuDisplayView() {
         )}
       </main>
     </div>
+    </CatalogModifierPreviewProvider>
   );
 }

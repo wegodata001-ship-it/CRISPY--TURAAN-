@@ -6,6 +6,27 @@ export function getRootCategories(categories: Category[]): Category[] {
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
+/**
+ * Compact category preview: first N roots, always including the active
+ * category (swapped into the last slot when it would otherwise be hidden).
+ */
+export function getCollapsedVisibleCategories<T extends { id: string }>(
+  roots: T[],
+  selectedId: string | null,
+  limit: number
+): T[] {
+  if (limit <= 0) return [];
+  if (roots.length <= limit) return roots;
+
+  const head = roots.slice(0, limit);
+  if (!selectedId || head.some((c) => c.id === selectedId)) return head;
+
+  const selected = roots.find((c) => c.id === selectedId);
+  if (!selected) return head;
+
+  return [...head.slice(0, Math.max(0, limit - 1)), selected];
+}
+
 export function getSubcategories(categories: Category[], parentId: string): Category[] {
   return categories
     .filter((c) => c.parentId === parentId && c.active)

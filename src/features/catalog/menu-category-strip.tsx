@@ -26,6 +26,7 @@ import { useCategories, useAllProducts } from "@/hooks/useProducts";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   countProductsInCategory,
+  getCollapsedVisibleCategories,
   getRootCategories,
 } from "@/lib/menu/category-tree";
 import { cn } from "@/lib/utils";
@@ -137,26 +138,22 @@ export function MenuCategoryStrip({ selectedId, onSelect }: MenuCategoryStripPro
   const collapsedLimit = useCollapsedCategoryLimit();
   const [expanded, setExpanded] = useState(false);
 
-  const selectedIndex = useMemo(
-    () => rootCategories.findIndex((c) => c.id === selectedId),
-    [rootCategories, selectedId]
-  );
-
-  // Keep expanded if the active category would be hidden in the collapsed preview
-  useEffect(() => {
-    if (!isCompactLayout) return;
-    if (selectedIndex >= collapsedLimit) {
-      setExpanded(true);
-    }
-  }, [isCompactLayout, selectedIndex, collapsedLimit]);
-
   const visibleCategories = useMemo(() => {
     if (!isCompactLayout || expanded) return rootCategories;
-    return rootCategories.slice(0, collapsedLimit);
-  }, [isCompactLayout, expanded, rootCategories, collapsedLimit]);
+    return getCollapsedVisibleCategories(rootCategories, selectedId, collapsedLimit);
+  }, [isCompactLayout, expanded, rootCategories, selectedId, collapsedLimit]);
 
   const canToggle =
     isCompactLayout && rootCategories.length > collapsedLimit;
+
+  const handleSelect = (categoryId: string) => {
+    // Mobile/tablet compact UX: after picking from the expanded list,
+    // collapse back to the short preview so products are visible immediately.
+    if (isCompactLayout && expanded) {
+      setExpanded(false);
+    }
+    onSelect(categoryId);
+  };
 
   if (loading) {
     return (
@@ -192,7 +189,7 @@ export function MenuCategoryStrip({ selectedId, onSelect }: MenuCategoryStripPro
             count={countProductsInCategory(products, cat.id, categories)}
             selected={selectedId === cat.id}
             index={index}
-            onSelect={onSelect}
+            onSelect={handleSelect}
             compact={isCompactLayout}
           />
         ))}

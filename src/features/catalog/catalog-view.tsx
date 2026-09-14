@@ -11,6 +11,7 @@ import { SubcategoryChips } from "@/features/catalog/subcategory-chips";
 import { ProductFiltersBar } from "@/features/catalog/product-filters-bar";
 import { ProductGrid } from "@/features/catalog/product-grid";
 import { ProductDetailDrawer } from "@/features/catalog/product-detail-drawer";
+import { CatalogModifierPreviewProvider } from "@/features/catalog/catalog-modifier-preview-context";
 import { CatalogSeeder } from "@/components/catalog/catalog-seeder";
 import { Input } from "@/components/ui/input";
 import { useProducts, useAllProducts, useCategories } from "@/hooks/useProducts";
@@ -125,8 +126,14 @@ export function CatalogView() {
   const handleCategorySelect = useCallback((categoryId: string) => {
     setSelectedCategoryId(categoryId);
     setSelectedSubcategoryId(null);
+    // Wait for category strip collapse/layout, then scroll to products.
     requestAnimationFrame(() => {
-      document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      requestAnimationFrame(() => {
+        document.getElementById("menu")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
     });
   }, []);
 
@@ -141,6 +148,7 @@ export function CatalogView() {
     !selectedSubcategoryId;
 
   return (
+    <CatalogModifierPreviewProvider>
     <>
       <CatalogSeeder />
       <SiteHeader />
@@ -191,7 +199,7 @@ export function CatalogView() {
               onToggleFilters={() => setShowFilters(!showFilters)}
             />
 
-            <div id="menu" className="mt-6">
+            <div id="menu" className="mt-6 scroll-mt-[13.5rem] md:scroll-mt-8">
               <div className="mb-4 flex items-end justify-between gap-3">
                 <h2 className="heading-section" dir={localizedHero.dir}>
                   {sectionTitle}
@@ -253,5 +261,6 @@ export function CatalogView() {
       />
 
     </>
+    </CatalogModifierPreviewProvider>
   );
 }
