@@ -102,8 +102,9 @@ async function sendBytes(data: Buffer): Promise<void> {
   try {
     const result = await sendRawToPrinter(data);
     console.info("[Printer] connected");
+    console.info("[Printer] sending receipt");
     console.info(`[Printer] sending ${result.bytesSent} bytes`);
-    console.info("[Printer] print complete");
+    console.info("[Printer] print completed");
   } catch (error) {
     const code = error instanceof PrinterConnectionError ? error.code : undefined;
     if (code === "ETIMEDOUT") {
@@ -161,7 +162,9 @@ async function claimAndPrint(): Promise<boolean> {
   if (!json.job || !json.receipt) return false;
 
   const job = json.job;
-  console.info("[PrintAgent] job claimed", job.id);
+  console.info("[PrintJob] detected", job.id, job.type);
+  console.info("[Order]", json.receipt.orderNumber || job.orderId || "n/a");
+  console.info("[PrintAgent] claimed", job.id);
 
   try {
     const extras = await printReceipt(job, json.receipt);
@@ -176,7 +179,7 @@ async function claimAndPrint(): Promise<boolean> {
     if (!printed.ok) {
       console.error("[PrintAgent] mark PRINTED failed", printed.status);
     } else {
-      console.info("[PrintAgent] job PRINTED");
+      console.info("[PrintJob] PRINTED");
     }
     return true;
   } catch (error) {
@@ -191,28 +194,74 @@ async function claimAndPrint(): Promise<boolean> {
 }
 
 async function main() {
+  console.info("");
+  console.info("[MISHKAH Print Agent]");
+  console.info("");
+
   if (process.env.PRINT_AGENT_ENABLED !== "true") {
-    console.info("[PrintAgent] disabled. Set PRINT_AGENT_ENABLED=true to start.");
+    console.info("PRINT_AGENT_ENABLED: DISABLED");
+    console.info("Set PRINT_AGENT_ENABLED=true in printer-agent/.env to start.");
     process.exit(0);
   }
 
-  requiredEnv("PRINT_AGENT_TOKEN");
+  const token = process.env.PRINT_AGENT_TOKEN?.trim();
+  if (!token) {
+    console.info("Agent authentication: FAIL");
+    console.info("Missing PRINT_AGENT_TOKEN");
+    process.exit(1);
+  }
 
-  const pollMs = getPrintAgentPollMs();
-  const heartbeatMs = getPrintAgentHeartbeatMs();
   const host = getPrinterHost();
   const port = getPrinterPort();
+  const backend = apiBase();
+  const pollMs = getPrintAgentPollMs();
+  const heartbeatMs = getPrintAgentHeartbeatMs();
 
-  console.info("[PrintAgent] starting", {
-    api: apiBase(),
-    agentId: agentId(),
-    printer: `${host}:${port}`,
-    timeoutMs: getPrinterTimeoutMs(),
-    pollMs,
-    heartbeatMs,
-    autoCut: isPrinterAutoCutEnabled(),
-    beep: isPrinterBeepEnabled(),
-  });
+  let backendOk = false;
+  try {
+    const probe = await fetch(`${backend}/api/print-agent/heartbeat`, {
+      method: "POST",
+      headers: agentHeaders(),
+      body: JSON.stringify({
+        agentId: agentId(),
+        hostname: osHostname(),
+        version: VERSION,
+        printerConnectionStatus: "unknown",
+        printerIp: host,
+        printerPort: port,
+      }),
+    });
+    backendOk = probe.ok;
+    console.info(`Backend connection: ${probe.ok ? "PASS" : "FAIL"}`);
+    console.info(`Backend URL: ${backend}`);
+    console.info(`Agent authentication: ${probe.status === 401 || probe.status === 403 ? "FAIL" : probe.ok ? "PASS" : `FAIL HTTP ${probe.status}`}`);
+    if (!probe.ok) {
+      const text = await probe.text().catch(() => "");
+      console.error("[PrintAgent] backend error", probe.status, text.slice(0, 200));
+    }
+  } catch (error) {
+    console.info("Backend connection: FAIL");
+    console.info("Agent authentication: FAIL");
+    console.error("[PrintAgent]", error instanceof Error ? error.message : error);
+  }
+
+  let printerTcp: "PASS" | "FAIL" = "FAIL";
+  try {
+    await probePrinterConnection();
+    printerTcp = "PASS";
+  } catch (error) {
+    console.error("[Printer] TCP FAIL", error instanceof Error ? error.message : error);
+  }
+
+  console.info("");
+  console.info(`Printer: ${host}:${port}`);
+  console.info(`Printer TCP: ${printerTcp}`);
+  console.info("Auto new order print: (cloud flag PRINT_AUTO_NEW_ORDERS — not read by agent)");
+  console.info(`Heartbeat: ${backendOk ? "PASS" : "FAIL"}`);
+  console.info(`Poll every ${pollMs}ms · heartbeat every ${heartbeatMs}ms`);
+  console.info("");
+  console.info("Waiting for print jobs...");
+  console.info("");
 
   let polling = false;
   const tick = async () => {
