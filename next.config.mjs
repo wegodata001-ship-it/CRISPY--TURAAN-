@@ -1,8 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ["html2canvas-pro"],
-  // Native Skia binary — must stay external or Vercel webpack fails on .node files
-  serverExternalPackages: ["@napi-rs/canvas"],
+  // Native Skia binary — must stay external or Vercel webpack fails on .node files.
+  // firebase-admin → jwks-rsa require()'s jose; jose 6 is ESM-only and crashes
+  // Vercel's CJS serverless loader (ERR_REQUIRE_ESM). Keep these unbundled so
+  // the npm override to jose@5 (CJS+ESM) is what Node actually require()s.
+  serverExternalPackages: ["@napi-rs/canvas", "firebase-admin", "jwks-rsa", "jose"],
   eslint: {
     ignoreDuringBuilds: true,
   },
