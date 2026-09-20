@@ -35,6 +35,16 @@ export function escCut(mode: "full" | "partial" = "full"): Buffer {
   return Buffer.from([GS, 0x56, mode === "partial" ? 1 : 0]);
 }
 
+/**
+ * Optional buzzer. ESC B n t is common on Epson-compatible kitchen printers.
+ * Unsupported firmware should ignore this — never treat beep failure as a print failure.
+ */
+export function escBeep(count = 2, duration = 2): Buffer {
+  const n = Math.max(1, Math.min(9, Math.floor(count)));
+  const t = Math.max(1, Math.min(9, Math.floor(duration)));
+  return Buffer.from([ESC, 0x42, n, t]);
+}
+
 export function textLine(text: string, encoding: BufferEncoding = "ascii"): Buffer {
   return Buffer.from(`${text}\n`, encoding);
 }

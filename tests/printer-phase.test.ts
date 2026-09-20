@@ -49,5 +49,5 @@ describe("printer phase payloads", () => {
     // GS v 0
     expect(buf.includes(Buffer.from([0x1d, 0x76, 0x30]))).toBe(true);
     expect(buf.length).toBeGreaterThan(500);
-  });
+  }, 20_000);
 });

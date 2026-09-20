@@ -35,6 +35,7 @@ import {
   calculateLineTotal,
   collectKitchenNotes,
 } from "@/lib/product-builder/engine";
+import { getLocalizedName } from "@/lib/i18n/localized-content";
 import type { Order, OrderStatus, OrderItem, CartItem, PaymentStatus } from "@/types";
 import type { FirestoreOrder, FirestoreOrderItem, FirestoreDoc } from "@/types/firestore";
 
@@ -96,6 +97,7 @@ function buildFirestoreOrder(
   if (parsed.customerPhone?.trim()) order.customerPhone = parsed.customerPhone.trim();
   if (parsed.orderType) order.orderType = parsed.orderType;
   if (parsed.deliveryAddress?.trim()) order.deliveryAddress = parsed.deliveryAddress.trim();
+  if (parsed.locale) order.locale = parsed.locale;
   return order;
 }
 
@@ -277,12 +279,16 @@ export async function createOrderFromCart(
     paymentStatus?: PaymentStatus;
     customerPhone?: string;
     notes?: string;
+    locale?: "ar" | "he" | "en";
   }
 ): Promise<ServiceResult<Order>> {
+  const locale = checkout?.locale;
   const items: OrderItem[] = cartItems.map((item) => {
     const mapped: OrderItem = {
       productId: item.product.id,
-      productName: item.product.name_he || item.product.name_en,
+      productName: locale
+        ? getLocalizedName(item.product, locale)
+        : item.product.name_he || item.product.name_en,
       quantity: item.quantity,
       price: item.unitPrice,
       basePrice: item.product.price,
@@ -328,6 +334,7 @@ export async function createOrderFromCart(
     customerPhone: checkout?.customerPhone,
     orderType: NEW_ORDER_FULFILLMENT,
     notes: checkout?.notes?.trim() ?? "",
+    locale,
   });
 }
 

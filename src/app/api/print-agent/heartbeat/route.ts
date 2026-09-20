@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requirePrintAgent } from "@/lib/print-jobs/auth";
+import { upsertAgentHeartbeat } from "@/lib/print-jobs/heartbeat";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function POST(request: NextRequest) {
+  const auth = requirePrintAgent(request);
+  if (auth instanceof Response) return auth;
+
+  try {
+    const body = (await request.json()) as {
+      agentId?: string;
+      hostname?: string;
+      version?: string;
+      printerConnectionStatus?: "connected" | "disconnected" | "unknown";
+      printerIp?: string;
+      printerPort?: number;
+    };
+    const agentId = body.agentId?.trim();
+    if (!agentId) {
+      return NextResponse.json({ ok: false, error: "agentId required" }, { status: 400 });
+    }
+
+    await upsertAgentHeartbeat({
+      agentId,
+      hostname: body.hostname?.trim() || "unknown",
+      version: body.version?.trim() || "0",
+      printerConnectionStatus: body.printerConnectionStatus ?? "unknown",
+      printerIp: body.printerIp,
+      printerPort: body.printerPort,
+    });
+
+    console.info("[PrintAgent] heartbeat", agentId);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, error: error instanceof Error ? error.message : "heartbeat failed" },
+      { status: 500 }
+    );
+  }
+}

@@ -16,6 +16,7 @@ export function KitchenView({
   onStatusChange,
   onCancel,
   onPrint,
+  onThermalReprint,
 }: {
   open: boolean;
   orders: Order[];
@@ -24,6 +25,7 @@ export function KitchenView({
   onStatusChange: (order: Order, status: OrderStatus) => void;
   onCancel: (order: Order) => void;
   onPrint: (order: Order) => void;
+  onThermalReprint?: (order: Order) => void;
 }) {
   const t = useT();
   const [mounted, setMounted] = useState(false);
@@ -70,6 +72,7 @@ export function KitchenView({
                 onStatusChange={(status) => onStatusChange(order, status)}
                 onCancel={() => onCancel(order)}
                 onPrint={() => onPrint(order)}
+                onThermalReprint={onThermalReprint ? () => onThermalReprint(order) : undefined}
               />
             ))}
           </div>

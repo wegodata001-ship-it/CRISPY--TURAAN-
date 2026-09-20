@@ -21,11 +21,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useT } from "@/components/providers/locale-provider";
+import { useT, useLocale } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
 import { createOrderFromCart, getOrCreateGuestCustomer, GUEST_CUSTOMER_ID } from "@/services";
-import { requestNewOrderEmailNotification, requestCriticalCheckoutFailureNotification } from "@/lib/email/client-notify";
+import { requestNewOrderEmailNotification, requestNewOrderPrintJob, requestCriticalCheckoutFailureNotification } from "@/lib/email/client-notify";
 import { formatPrice } from "@/lib/utils";
 import { calculateLineTotal } from "@/lib/product-builder/engine";
 
@@ -50,6 +50,7 @@ function OrderLineItem({ item }: { item: import("@/types").CartItem }) {
 
 export default function CheckoutPage() {
   const t = useT();
+  const { locale } = useLocale();
   const router = useRouter();
   const {
     items, subtotal, discount, total,
@@ -104,6 +105,7 @@ export default function CheckoutPage() {
         paymentMethod: payment,
         customerPhone: phone.trim(),
         notes: orderNotes || undefined,
+        locale,
       });
       if (!result.success) {
         console.error("[checkout] order failed:", result.error, result.code);
@@ -119,6 +121,7 @@ export default function CheckoutPage() {
 
       // Notification only — never block or fail the completed order.
       requestNewOrderEmailNotification(result.data.id);
+      requestNewOrderPrintJob(result.data.id);
 
       setSuccess(true);
       clearCart();

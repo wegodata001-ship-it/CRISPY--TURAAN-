@@ -22,7 +22,8 @@
     "firebase:deploy-rules": "firebase deploy --only firestore:rules --project mshkah",
     "email:test": "tsx scripts/send-test-email.mts",
     "email:e2e-order": "tsx scripts/email-new-order-e2e.mts",
-    "email:matrix": "tsx scripts/email-notifications-matrix.mts"
+    "email:matrix": "tsx scripts/email-notifications-matrix.mts",
+    "print-agent": "tsx printer-agent/index.mts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

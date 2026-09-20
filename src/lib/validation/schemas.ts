@@ -94,6 +94,7 @@ export const orderSchema = z.object({
   orderType: z.enum(["pickup", "delivery"]).optional(),
   deliveryAddress: z.string().optional(),
   notes: z.string().default(""),
+  locale: z.enum(["ar", "he", "en"]).optional(),
 });
 
 export const bannerSchema = z.object({

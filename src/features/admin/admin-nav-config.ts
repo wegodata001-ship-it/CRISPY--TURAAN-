@@ -66,7 +66,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     labelKey: "admin.nav.group.system",
     items: [
       { segment: "assistant", labelKey: "admin.assistantManager", icon: MessageSquare },
-      { segment: "printer-test", labelKey: "admin.printerTest", icon: Printer },
+      { segment: "printer", labelKey: "admin.printer", icon: Printer },
       { segment: "users", labelKey: "admin.users", icon: UserCog, adminOnly: true },
       { segment: "settings", labelKey: "admin.settings", icon: Settings },
     ],
@@ -95,6 +95,7 @@ export const ADMIN_PAGE_TITLES: Record<string, string> = {
   "/admin/menu-builder": "admin.menuBuilder",
   "/admin/media": "admin.media.title",
   "/admin/assistant": "admin.assistant.title",
+  "/admin/printer": "admin.printer.title",
   "/admin/printer-test": "admin.printerTest.title",
   "/admin/users": "admin.users.title",
   "/admin/settings": "admin.settings.title",

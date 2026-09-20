@@ -58,13 +58,19 @@ export function rgbaToMonoRaster(
   return out;
 }
 
-export function wrapRasterReceipt(raster: Buffer, cut: "full" | "partial" = "full"): Buffer {
-  return concatBuffers(
+export function wrapRasterReceipt(
+  raster: Buffer,
+  cut: "full" | "partial" | "none" = "full"
+): Buffer {
+  const parts = [
     escInit(),
     escAlign("center"),
     raster,
     escAlign("left"),
-    escFeedLines(3),
-    escCut(cut)
-  );
+    escFeedLines(4),
+  ];
+  if (cut !== "none") {
+    parts.push(escCut(cut));
+  }
+  return concatBuffers(...parts);
 }

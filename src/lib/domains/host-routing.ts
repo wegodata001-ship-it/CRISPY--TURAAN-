@@ -121,7 +121,7 @@ export function getAdminSurface(host: string | null | undefined): AdminSurface {
  * - dev (localhost): /admin/products
  */
 export function adminPath(
-  segment: "" | "login" | "products" | "categories" | "modifier-groups" | "product-builder" | "business-rules" | "orders" | "customers" | "banners" | "menu-builder" | "assistant" | "printer-test" | "users" | "settings" | "media" | "ai-assistant",
+  segment: "" | "login" | "products" | "categories" | "modifier-groups" | "product-builder" | "business-rules" | "orders" | "customers" | "banners" | "menu-builder" | "assistant" | "printer" | "printer-test" | "users" | "settings" | "media" | "ai-assistant",
   surface: AdminSurface = "dev"
 ): string {
   if (segment === "login") {

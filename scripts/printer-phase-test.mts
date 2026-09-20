@@ -6,6 +6,9 @@
  *   npx tsx scripts/printer-phase-test.mts hebrew
  *   npx tsx scripts/printer-phase-test.mts arabic
  *   npx tsx scripts/printer-phase-test.mts arabic-raster
+ *   npx tsx scripts/printer-phase-test.mts receipt-ar
+ *   npx tsx scripts/printer-phase-test.mts receipt-he
+ *   npx tsx scripts/printer-phase-test.mts receipt-en
  */
 import "dotenv/config";
 import { sendRawToPrinter } from "../src/lib/printer/tcp";
@@ -15,7 +18,10 @@ import {
   buildHebrewTestPayload,
 } from "../src/lib/printer/test-payloads";
 import { buildArabicRasterTestPayload } from "../src/lib/printer/arabic-raster";
+import { buildReceiptPrintPayload } from "../src/lib/printer/receipt-raster";
+import { buildTestReceiptModel } from "../src/lib/print-jobs/test-receipt";
 import { getPrinterHost, getPrinterPort } from "../src/lib/printer/config";
+import type { PrintLocale } from "../src/lib/print-jobs/types";
 
 async function main() {
   const mode = (process.argv[2] || "cutter").toLowerCase();
@@ -40,9 +46,16 @@ async function main() {
     case "arabic-raster":
       payload = await buildArabicRasterTestPayload();
       break;
+    case "receipt-ar":
+    case "receipt-he":
+    case "receipt-en": {
+      const locale = mode.slice("receipt-".length) as PrintLocale;
+      payload = await buildReceiptPrintPayload(buildTestReceiptModel(locale), "full");
+      break;
+    }
     default:
       console.error(
-        "Unknown mode. Use: cutter | cutter-partial | hebrew | arabic | arabic-raster"
+        "Unknown mode. Use: cutter | cutter-partial | hebrew | arabic | arabic-raster | receipt-ar | receipt-he | receipt-en"
       );
       process.exit(1);
   }

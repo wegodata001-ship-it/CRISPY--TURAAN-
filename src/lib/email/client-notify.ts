@@ -19,6 +19,22 @@ export function requestNewOrderEmailNotification(orderId: string): void {
   });
 }
 
+/** Queue a kitchen print job after the order is saved. Never blocks checkout. */
+export function requestNewOrderPrintJob(orderId: string): void {
+  if (!orderId) return;
+  void fetch("/api/print-jobs/enqueue-new", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ orderId }),
+    keepalive: true,
+  }).catch((error) => {
+    console.error("[PrintJob] enqueue dispatch failed", {
+      orderId,
+      error: error instanceof Error ? error.message : "dispatch failed",
+    });
+  });
+}
+
 export function requestOrderUpdatedEmailNotification(input: {
   orderId: string;
   changes: Array<{ label: string; before: string; after: string }>;

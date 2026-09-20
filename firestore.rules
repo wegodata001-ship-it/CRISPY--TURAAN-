@@ -120,5 +120,15 @@ service cloud.firestore {
     match /pdfMenuPages/{id} {
       allow read, write: if isStaff();
     }
+
+    match /printJobs/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+
+    match /printAgentHeartbeats/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
   }
 }

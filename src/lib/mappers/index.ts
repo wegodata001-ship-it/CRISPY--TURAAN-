@@ -135,6 +135,7 @@ export function mapOrder(doc: FirestoreDoc<FirestoreOrder>): Order {
     orderType: doc.orderType,
     deliveryAddress: doc.deliveryAddress,
     notes: doc.notes,
+    locale: doc.locale,
     createdAt: timestampToIso(doc.createdAt),
     confirmedAt: doc.confirmedAt ? timestampToIso(doc.confirmedAt) : null,
     preparationStartedAt: doc.preparationStartedAt

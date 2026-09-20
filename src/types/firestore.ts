@@ -86,6 +86,8 @@ export interface FirestoreOrder {
   orderType?: "pickup" | "delivery";
   deliveryAddress?: string;
   notes: string;
+  /** UI locale at checkout (ar/he/en). Optional on legacy orders. */
+  locale?: "ar" | "he" | "en";
   createdAt: Timestamp;
   confirmedAt?: Timestamp | null;
   preparationStartedAt?: Timestamp | null;

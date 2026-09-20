@@ -20,7 +20,11 @@ export const COLLECTIONS = {
   pdfMenuCategorySettings: "pdfMenuCategorySettings",
   pdfMenuProductSettings: "pdfMenuProductSettings",
   pdfMenuPages: "pdfMenuPages",
+  printJobs: "printJobs",
+  printAgentHeartbeats: "printAgentHeartbeats",
 } as const;
+
+export const DEFAULT_STORE_ID = "mishkah";
 
 export const STORAGE_PATHS = {
   products: "products",

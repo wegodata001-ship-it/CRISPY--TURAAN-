@@ -32,6 +32,7 @@ import {
 import { kitchenTicketHtml, printKitchenTicket } from "@/lib/orders/kitchen-ticket";
 import { exportHtmlAsPdf } from "@/lib/export-pdf";
 import { useT } from "@/components/providers/locale-provider";
+import { useAuthFetch } from "@/lib/auth/auth-fetch";
 import { AdminPageHeader } from "./components/admin-page-header";
 import type { Order, OrderStatus, PaymentStatus } from "@/types";
 
@@ -41,6 +42,7 @@ type DateFilter = "today" | "week" | "all";
 export function OrdersAdmin() {
   const t = useT();
   const { user } = useAuth();
+  const authFetch = useAuthFetch();
   const { orders, loading, error } = useOrders();
   const [tab, setTab] = useState<OrdersTab>("active");
   const [searchInput, setSearchInput] = useState("");
@@ -166,6 +168,24 @@ export function OrdersAdmin() {
     });
     updatesInFlight.current.delete(order.id);
     return result.success;
+  };
+
+  const reprintThermal = async (order: Order) => {
+    try {
+      const res = await authFetch("/api/admin/printer/reprint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, locale: order.locale }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || json.ok === false) {
+        pushToast(json.error || t("admin.printer.reprint", "Reprint"), "error");
+        return;
+      }
+      pushToast(t("admin.orders.thermalReprint", "הדפס מחדש"));
+    } catch (err) {
+      pushToast(err instanceof Error ? err.message : "Reprint failed", "error");
+    }
   };
 
   const kpis: { status: OrderStatus; value: number }[] = [
@@ -315,6 +335,7 @@ export function OrdersAdmin() {
               }
               onCancel={() => setCancelOrder(order)}
               onPrint={() => printKitchenTicket(order)}
+              onThermalReprint={() => void reprintThermal(order)}
               onExportPdf={() => exportHtmlAsPdf(order.orderNumber, kitchenTicketHtml(order))}
               onCopyNumber={() => {
                 void navigator.clipboard.writeText(order.orderNumber).then(
@@ -356,6 +377,7 @@ export function OrdersAdmin() {
         }
         onCancel={setCancelOrder}
         onPrint={printKitchenTicket}
+        onThermalReprint={(order) => void reprintThermal(order)}
       />
       <AdminToastStack
         toasts={toasts}

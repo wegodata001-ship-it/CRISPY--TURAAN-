@@ -18,7 +18,7 @@ export function PrinterTestAdmin() {
   const [detail, setDetail] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
-  const ip = "192.168.1.30";
+  const ip = "LAN (from PRINTER_IP)";
   const port = 9100;
 
   const run = useCallback(

@@ -99,6 +99,7 @@ export function OrderCard({
   onStatusChange,
   onCancel,
   onPrint,
+  onThermalReprint,
   onExportPdf,
   onCopyNumber,
   onEditItem,
@@ -110,6 +111,7 @@ export function OrderCard({
   onStatusChange: (status: OrderStatus) => void;
   onCancel: () => void;
   onPrint: () => void;
+  onThermalReprint?: () => void;
   onExportPdf?: () => void;
   onCopyNumber?: () => void;
   onEditItem?: (index: number) => void;
@@ -231,6 +233,16 @@ export function OrderCard({
         <Button type="button" variant="outline" size="icon" onClick={onPrint} title={t("admin.orders.printTicket")}>
           <Printer className="h-4 w-4" />
         </Button>
+        {onThermalReprint && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onThermalReprint}
+            title={t("admin.orders.thermalReprint", "הדפס מחדש")}
+          >
+            {t("admin.orders.thermalReprint", "הדפס מחדש")}
+          </Button>
+        )}
         {expanded && onExportPdf && (
           <Button type="button" variant="outline" size="icon" onClick={onExportPdf} title={t("admin.orders.exportPdf")}>
             <FileText className="h-4 w-4" />

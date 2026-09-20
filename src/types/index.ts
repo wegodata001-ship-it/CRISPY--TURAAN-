@@ -94,6 +94,8 @@ export interface Order {
   orderType?: "pickup" | "delivery";
   deliveryAddress?: string;
   notes?: string;
+  /** UI locale at checkout (ar/he/en). Optional on legacy orders. */
+  locale?: "ar" | "he" | "en";
   createdAt: string;
   confirmedAt?: string | null;
   preparationStartedAt?: string | null;

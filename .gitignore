@@ -33,6 +33,7 @@ yarn-error.log*
 .env
 .env*.local
 .firebase-admin-key.json
+printer-agent/.env
 
 # typescript
 *.tsbuildinfo

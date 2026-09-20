@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { notifyNewOrder } from "@/lib/email/notifications";
+import { maybeEnqueueNewOrderPrint } from "@/lib/print-jobs/enqueue-new-order";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,14 @@ export async function POST(request: NextRequest) {
     if (!orderId) {
       return NextResponse.json({ ok: false, error: "orderId required" }, { status: 400 });
     }
+
+    // Print job is independent of email. Unique key prevents duplicates.
+    void maybeEnqueueNewOrderPrint(orderId).catch((error) => {
+      console.error("[PrintJob] enqueue failed", {
+        orderId,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    });
 
     const result = await notifyNewOrder(orderId);
     return jsonNotify(result);
