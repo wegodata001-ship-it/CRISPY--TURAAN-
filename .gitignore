@@ -34,6 +34,11 @@ yarn-error.log*
 .env*.local
 .firebase-admin-key.json
 printer-agent/.env
+printer-agent-standalone/.env
+printer-agent-standalone/node_modules/
+printer-agent-standalone/dist/
+printer-agent-standalone/release/
+printer-agent-standalone/vendor/
 
 # typescript
 *.tsbuildinfo

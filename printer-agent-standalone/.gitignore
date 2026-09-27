@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-win/
+release/
+.env
+logs/*.log
+vendor/
+*.zip

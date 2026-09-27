@@ -35,6 +35,7 @@ import { AdminPageHeader } from "./components/admin-page-header";
 import { AdminKpiCard } from "./components/admin-kpi-card";
 import { AdminCard } from "./components/admin-card";
 import { AdminEmptyState } from "./components/admin-empty-state";
+import { QrLinksGrid } from "./qr-links-admin";
 import type { OrderStatus } from "@/types";
 
 function isToday(iso: string) {
@@ -171,6 +172,11 @@ export function AdminDashboard() {
         {statsCards.map((card, i) => (
           <AdminKpiCard key={card.label} {...card} loading={loading} index={i} />
         ))}
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-dark-brown dark:text-warm-white">{t("admin.qr.title")}</h2>
+        <QrLinksGrid />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
