@@ -166,7 +166,10 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-5">
-      <AdminPageHeader title={t("admin.dashboard.title")} />
+      <AdminPageHeader
+        title={`👋 ${t("admin.welcome")}`}
+        subtitle={t("admin.dashboard.title")}
+      />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 md:gap-4">
         {statsCards.map((card, i) => (
@@ -189,17 +192,17 @@ export function AdminDashboard() {
                 <AreaChart data={metrics.chartData}>
                   <defs>
                     <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#007A80" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#007A80" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#D71920" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#D71920" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#3D2B2440" />
-                  <YAxis tick={{ fontSize: 11 }} stroke="#3D2B2440" />
+                  <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#6B625A" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="#6B625A" />
                   <Tooltip formatter={(v) => formatPrice(Number(v))} />
                   <Area
                     type="monotone"
                     dataKey="sales"
-                    stroke="#007A80"
+                    stroke="#D71920"
                     fill="url(#salesGrad)"
                     strokeWidth={2}
                   />
@@ -216,10 +219,10 @@ export function AdminDashboard() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={metrics.chartData}>
-                  <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#3D2B2440" />
-                  <YAxis tick={{ fontSize: 11 }} stroke="#3D2B2440" />
+                  <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#6B625A" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="#6B625A" />
                   <Tooltip />
-                  <Bar dataKey="orders" fill="#3D2B24" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="orders" fill="#171717" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -237,10 +240,10 @@ export function AdminDashboard() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={metrics.popularProducts}>
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#3D2B2440" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#6B625A" />
                   <YAxis hide />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#D4A76A" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="count" fill="#F6B800" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -254,10 +257,10 @@ export function AdminDashboard() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={metrics.topCategories}>
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#3D2B2440" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#6B625A" />
                   <YAxis hide />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#007A80" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="count" fill="#D71920" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

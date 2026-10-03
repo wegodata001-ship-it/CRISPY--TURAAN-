@@ -6,29 +6,16 @@ import { subscribeToProducts } from "@/services/productService";
 import { subscribeToCategories } from "@/services/categoryService";
 import { subscribeToAllBanners } from "@/services/bannerService";
 import { isBannerLive } from "@/lib/mappers";
-import {
-  mapMasterMenuCategories,
-  mapMasterMenuProducts,
-  applyProductFilters,
-} from "@/lib/menu/map-master-menu";
 
 function isIndexError(message: string): boolean {
   return message.includes("requires an index") || message.includes("FAILED_PRECONDITION");
-}
-
-function useMasterMenuFallback() {
-  const categories = useMemo(() => mapMasterMenuCategories(), []);
-  const products = useMemo(() => mapMasterMenuProducts(), []);
-  return { categories, products };
 }
 
 export function useProducts(filters?: ProductFilters, options?: { admin?: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [usingFallback, setUsingFallback] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-  const { products: fallbackProducts } = useMasterMenuFallback();
   const adminMode = options?.admin ?? false;
 
   const filterKey = useMemo(() => JSON.stringify(filters ?? {}), [filters]);
@@ -40,7 +27,6 @@ export function useProducts(filters?: ProductFilters, options?: { admin?: boolea
   useEffect(() => {
     setLoading(true);
     setError(null);
-    setUsingFallback(false);
     const parsedFilters = filterKey
       ? (JSON.parse(filterKey) as ProductFilters)
       : undefined;
@@ -48,36 +34,26 @@ export function useProducts(filters?: ProductFilters, options?: { admin?: boolea
     const unsubscribe = subscribeToProducts(
       parsedFilters,
       (data) => {
-        if (data.length === 0 && !adminMode) {
-          setUsingFallback(true);
-          setProducts(applyProductFilters(fallbackProducts, parsedFilters));
-        } else {
-          setProducts(data);
-        }
+        setProducts(data);
         setLoading(false);
         setError(null);
       },
       (err) => {
         console.error("[Products] Failed to load products:", err);
         setError(err);
-        if (!adminMode) {
-          setUsingFallback(true);
-          setProducts(applyProductFilters(fallbackProducts, parsedFilters));
-        } else {
-          setProducts([]);
-        }
+        setProducts([]);
         setLoading(false);
       }
     );
 
     return unsubscribe;
-  }, [filterKey, fallbackProducts, adminMode, retryKey]);
+  }, [filterKey, adminMode, retryKey]);
 
   return {
     products,
     loading,
     error,
-    usingFallback,
+    usingFallback: false,
     isIndexError: error ? isIndexError(error) : false,
     retry,
   };
@@ -87,23 +63,22 @@ export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { categories: fallbackCategories } = useMasterMenuFallback();
 
   useEffect(() => {
     setLoading(true);
     const unsubscribe = subscribeToCategories(
       (data) => {
-        setCategories(data.length > 0 ? data : fallbackCategories);
+        setCategories(data);
         setLoading(false);
       },
       (err) => {
         setError(err);
-        setCategories(fallbackCategories);
+        setCategories([]);
         setLoading(false);
       }
     );
     return unsubscribe;
-  }, [fallbackCategories]);
+  }, []);
 
   return { categories, loading, error };
 }
@@ -114,7 +89,6 @@ export function useAllCategories() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
-  const { categories: fallbackCategories } = useMasterMenuFallback();
 
   const retry = useCallback(() => {
     setRetryKey((k) => k + 1);
@@ -125,20 +99,20 @@ export function useAllCategories() {
     setError(null);
     const unsubscribe = subscribeToCategories(
       (data) => {
-        setCategories(data.length > 0 ? data : fallbackCategories);
+        setCategories(data);
         setLoading(false);
         setError(null);
       },
       (err) => {
         console.error("[Categories] Failed to load categories:", err);
         setError(err);
-        setCategories(fallbackCategories);
+        setCategories([]);
         setLoading(false);
       },
       { includeInactive: true }
     );
     return unsubscribe;
-  }, [fallbackCategories, retryKey]);
+  }, [retryKey]);
 
   return { categories, loading, error, retry };
 }
@@ -146,22 +120,21 @@ export function useAllCategories() {
 export function useAllProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const { products: fallbackProducts } = useMasterMenuFallback();
 
   useEffect(() => {
     const unsubscribe = subscribeToProducts(
       { active: true },
       (data) => {
-        setProducts(data.length > 0 ? data : fallbackProducts);
+        setProducts(data);
         setLoading(false);
       },
       () => {
-        setProducts(fallbackProducts);
+        setProducts([]);
         setLoading(false);
       }
     );
     return unsubscribe;
-  }, [fallbackProducts]);
+  }, []);
 
   return { products, loading };
 }

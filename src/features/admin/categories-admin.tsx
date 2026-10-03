@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, Loader2, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Eye, FolderTree } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAllCategories, useProducts } from "@/hooks/useProducts";
@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { isAllowedProductImageUrl } from "@/lib/menu/placeholders";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
+import { AdminEmptyState } from "./components/admin-empty-state";
 import {
   countProductsInCategory,
   countProductsInSubcategory,
@@ -322,9 +323,16 @@ export function CategoriesAdmin() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-beige-dark/30 py-12 text-center text-sm text-coffee/50">
-          {t("admin.categories.noResults")}
-        </p>
+        <AdminEmptyState
+          icon={FolderTree}
+          title={t("admin.categories.noResults")}
+          action={
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              {t("admin.categories.new")}
+            </Button>
+          }
+        />
       ) : statusFilter === "all" ? (
         <SortableList
           className="space-y-3"
@@ -505,8 +513,11 @@ export function CategoriesAdmin() {
               label={t("admin.categories.coverImage")}
               value={form.watch("imageUrl") ?? ""}
               onChange={(url) => form.setValue("imageUrl", url)}
-              onUpload={(file, onProgress) =>
-                uploadCategoryImage(file, editing?.id ?? `new-${Date.now()}`, onProgress)
+              onUpload={(file, onProgress, options) =>
+                uploadCategoryImage(file, editing?.id ?? `new-${Date.now()}`, {
+                  onProgress,
+                  signal: options?.signal,
+                })
               }
               onDelete={deleteImageByUrl}
             />

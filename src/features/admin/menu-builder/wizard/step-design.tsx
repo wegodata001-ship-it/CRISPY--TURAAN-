@@ -114,7 +114,9 @@ export function StepDesign({ draft, logoUrl, hasOrderUrl, categoryNames, onChang
               compact
               value={draft.logoOverrideUrl}
               onChange={(url) => onChange({ logoOverrideUrl: url, showLogo: true })}
-              onUpload={async (file, onProgress) => uploadSettingsImage(file, "logo", onProgress)}
+              onUpload={async (file, onProgress, options) =>
+                uploadSettingsImage(file, "logo", { onProgress, signal: options?.signal })
+              }
             />
           )}
           <Toggle label="إظهار الشعار" checked={draft.showLogo} onChange={(v) => onChange({ showLogo: v })} />

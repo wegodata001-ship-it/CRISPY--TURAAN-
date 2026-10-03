@@ -13,7 +13,7 @@ describe("printer phase payloads", () => {
   it("ASCII includes init, title, and one full cut", () => {
     const buf = buildAsciiTestPayload(new Date("2026-08-24T12:00:00Z"));
     expect(buf.includes(escInit())).toBe(true);
-    expect(buf.includes(Buffer.from("MISHKAH PRINTER TEST", "ascii"))).toBe(true);
+    expect(buf.includes(Buffer.from("CRISPY PRINTER TEST", "ascii"))).toBe(true);
     expect(buf.includes(escCut("full"))).toBe(true);
   });
 

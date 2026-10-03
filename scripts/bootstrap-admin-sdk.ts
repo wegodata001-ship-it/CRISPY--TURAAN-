@@ -5,9 +5,15 @@ import { getAdminAuth, getAdminDb } from "../src/lib/firebase/admin";
 import { COLLECTIONS } from "../src/lib/firebase/collections";
 import { FieldValue } from "firebase-admin/firestore";
 
-const EMAIL = process.env.ADMIN_BOOTSTRAP_EMAIL ?? "admin@mishkat.cafe";
-const PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD ?? "MishkatAdmin2026!";
-const NAME = process.env.ADMIN_BOOTSTRAP_NAME ?? "MISHKAT Admin";
+const EMAIL = process.env.ADMIN_BOOTSTRAP_EMAIL;
+const PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+const NAME = process.env.ADMIN_BOOTSTRAP_NAME ?? "CRISPY Admin";
+
+if (!EMAIL || !PASSWORD) {
+  throw new Error(
+    "Configuration Error: set ADMIN_BOOTSTRAP_EMAIL and ADMIN_BOOTSTRAP_PASSWORD in .env.local"
+  );
+}
 
 async function main() {
   const auth = getAdminAuth();
@@ -43,7 +49,7 @@ async function main() {
   );
 
   console.log("Admin profile saved. UID:", uid);
-  console.log("Login:", EMAIL, "/", PASSWORD);
+  console.log("Admin ready. Login with ADMIN_BOOTSTRAP_EMAIL from .env.local");
 }
 
 main().catch((e) => {

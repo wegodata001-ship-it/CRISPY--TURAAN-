@@ -31,8 +31,8 @@ export const GUEST_CUSTOMER_ID = "guest-checkout";
 
 const GUEST_CUSTOMER_INPUT: CustomerInput = {
   name: "Guest Customer",
-  phone: "guest@mishkat.local",
-  email: "guest@mishkat.local",
+  phone: "guest@crispy.local",
+  email: "guest@crispy.local",
   address: "Walk-in",
   favoriteProducts: [],
   notes: "",

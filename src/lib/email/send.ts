@@ -2,7 +2,7 @@ import { sendViaBrevo } from "@/lib/email/brevo";
 import {
   getBrevoConfig,
   getBusinessAlertRecipients,
-  getMishkahNotificationEmails,
+  getNotificationEmails,
 } from "@/lib/email/config";
 import {
   renderCriticalCheckoutFailureEmail,
@@ -13,22 +13,22 @@ import {
   type OrderEmailBase,
 } from "@/lib/email/templates";
 import type { OrderChange } from "@/lib/email/significant-diff";
-import type { MishkahEmailKind, SendEmailResult } from "@/lib/email/types";
+import type { BusinessEmailKind, SendEmailResult } from "@/lib/email/types";
 
-export type SendMishkahEmailOptions = {
+export type SendBusinessEmailOptions = {
   to?: string | string[];
   subject: string;
   html: string;
   text?: string;
-  kind?: MishkahEmailKind;
+  kind?: BusinessEmailKind;
 };
 
 /**
- * Central email entry-point for MISHKAH CAFE.
+ * Central email entry-point for CRISPY.
  * Always server-side. Never throw secrets.
  */
-export async function sendMishkahEmail(
-  options: SendMishkahEmailOptions
+export async function sendBusinessEmail(
+  options: SendBusinessEmailOptions
 ): Promise<SendEmailResult> {
   const defaultRecipients = getBusinessAlertRecipients();
   const to = options.to ?? defaultRecipients;
@@ -38,7 +38,7 @@ export async function sendMishkahEmail(
     subject: options.subject,
     html: options.html,
     text: options.text,
-    tags: options.kind ? [`mishkah`, options.kind] : ["mishkah"],
+    tags: options.kind ? [`crispy`, options.kind] : ["crispy"],
   });
 
   if (!result.ok) {
@@ -54,14 +54,14 @@ export async function sendMishkahEmail(
   return result;
 }
 
-export async function sendMishkahTestEmail(
+export async function sendBusinessTestEmail(
   to?: string | string[]
 ): Promise<SendEmailResult & { recipients: string[] }> {
   const recipients = to
     ? (Array.isArray(to) ? to : [to]).map((e) => e.trim()).filter(Boolean)
-    : getMishkahNotificationEmails().recipients;
+    : getNotificationEmails().recipients;
   const content = renderTestEmailHtml();
-  const result = await sendMishkahEmail({
+  const result = await sendBusinessEmail({
     to: recipients,
     subject: content.subject,
     html: content.html,
@@ -75,7 +75,7 @@ export async function sendNewOrderNotificationEmail(
   payload: OrderEmailBase
 ): Promise<SendEmailResult> {
   const content = renderNewOrderEmail(payload);
-  return sendMishkahEmail({
+  return sendBusinessEmail({
     subject: content.subject,
     html: content.html,
     text: content.text,
@@ -87,7 +87,7 @@ export async function sendOrderUpdatedNotificationEmail(
   payload: OrderEmailBase & { changes: OrderChange[] }
 ): Promise<SendEmailResult> {
   const content = renderOrderUpdatedEmail(payload);
-  return sendMishkahEmail({
+  return sendBusinessEmail({
     subject: content.subject,
     html: content.html,
     text: content.text,
@@ -99,7 +99,7 @@ export async function sendOrderCancelledNotificationEmail(
   payload: OrderEmailBase & { cancelReason?: string }
 ): Promise<SendEmailResult> {
   const content = renderOrderCancelledEmail(payload);
-  return sendMishkahEmail({
+  return sendBusinessEmail({
     subject: content.subject,
     html: content.html,
     text: content.text,
@@ -113,7 +113,7 @@ export async function sendCriticalCheckoutFailureEmail(payload: {
   occurredAt: string;
 }): Promise<SendEmailResult> {
   const content = renderCriticalCheckoutFailureEmail(payload);
-  return sendMishkahEmail({
+  return sendBusinessEmail({
     subject: content.subject,
     html: content.html,
     text: content.text,

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useLocale } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 import { normalizeImageUrl } from "@/lib/menu/placeholders";
+import { BRAND } from "@/lib/brand";
 import type { BannerSlide } from "@/types";
 
 function localizedBanner(banner: BannerSlide, locale: "he" | "ar" | "en") {
@@ -56,8 +57,8 @@ export function BannerHero({
   const content = localizedBanner(banner, locale);
   const mobile = device === "mobile";
   const rawImage = mobile ? banner.mobileImage || banner.image : banner.image;
-  let image = normalizeImageUrl(rawImage) || "/meskahphoto.png";
-  if (image === "/store.jpg") image = "/meskahphoto.png";
+  let image = normalizeImageUrl(rawImage) || BRAND.logo;
+  if (image === "/store.jpg" || image === "/meskahphoto.png") image = BRAND.logo;
   const x = mobile ? banner.mobilePositionX : banner.desktopPositionX;
   const y = mobile ? banner.mobilePositionY : banner.desktopPositionY;
   const zoom = mobile ? banner.mobileZoom : banner.desktopZoom;

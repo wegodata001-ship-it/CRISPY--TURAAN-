@@ -23,8 +23,8 @@ export function LocaleHtmlScript() {
         display: "var(--font-assistant), var(--font-heebo), ui-sans-serif, sans-serif",
       },
       en: {
-        sans: "var(--font-inter), ui-sans-serif, system-ui, sans-serif",
-        display: "var(--font-playfair), Georgia, 'Times New Roman', serif",
+        sans: "var(--font-heebo), ui-sans-serif, system-ui, sans-serif",
+        display: "var(--font-assistant), var(--font-heebo), ui-sans-serif, sans-serif",
       },
       ar: {
         sans: "var(--font-tajawal), ui-sans-serif, system-ui, sans-serif",

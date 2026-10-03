@@ -8,6 +8,7 @@ export type AppLogoProps = {
   className?: string;
   priority?: boolean;
   href?: string | null;
+  pulse?: boolean;
 };
 
 const SIZE_CLASS: Record<LogoSize, string> = {
@@ -19,14 +20,14 @@ const SIZE_CLASS: Record<LogoSize, string> = {
 };
 
 /**
- * Single source of truth for the official Mishkat logo asset.
- * Uses `public/logo-transparent.png` (derived from `public/logo.png`).
+ * Single CRISPY logo. The PNG has real alpha — wrappers stay transparent.
  */
 export function AppLogo({
   size = "md",
   className,
   priority = false,
   href = "/",
+  pulse = false,
 }: AppLogoProps) {
   const height = LOGO_HEIGHT[size];
   const width = Math.round(height * BRAND.logoAspect);
@@ -38,21 +39,31 @@ export function AppLogo({
       width={width}
       height={height}
       priority={priority}
-      className={cn("max-w-none object-contain", SIZE_CLASS[size], className)}
+      placeholder="empty"
+      unoptimized
+      className={cn("bg-transparent object-contain", pulse && "crispy-logo-pulse")}
+      style={{
+        backgroundColor: "transparent",
+        width: "auto",
+        height: "100%",
+        maxHeight: "100%",
+      }}
     />
+  );
+
+  const wrapClass = cn(
+    "inline-flex shrink-0 items-center border-0 bg-transparent p-0 shadow-none",
+    SIZE_CLASS[size],
+    className
   );
 
   if (href !== undefined && href !== null) {
     return (
-      <Link
-        href={href}
-        className="inline-flex shrink-0 items-center transition-opacity hover:opacity-90"
-        aria-label={BRAND.name}
-      >
+      <Link href={href} className={wrapClass} aria-label={BRAND.name}>
         {image}
       </Link>
     );
   }
 
-  return <span className="inline-flex shrink-0 items-center">{image}</span>;
+  return <span className={wrapClass}>{image}</span>;
 }

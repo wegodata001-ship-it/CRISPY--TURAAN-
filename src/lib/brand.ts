@@ -1,33 +1,33 @@
 /** Central brand asset paths */
 export const BRAND = {
-  /** Display logo — transparent PNG derived from logo.png */
-  logo: "/logo-transparent.png",
-  /** Original asset preserved in repo */
+  /** Official CRISPY / Almostafa Chicken logo */
+  logo: "/logo.png",
   logoOriginal: "/logo.png",
   /** width / height from public/logo.png */
-  logoAspect: 1059 / 931,
-  store: "/meskahphoto.png",
-  /** Local fallback when remote store image fails */
-  storeFallback: "/meskahphoto.png",
-  name: "MISHKAT CAFÉ",
-  nameShort: "Mishkat",
-  tagline: "Coffee • Crêpes • Desserts",
-  taglineAlt: "Where Light Meets Coffee",
+  logoAspect: 1182 / 1330,
+  store: "/logo.png",
+  storeFallback: "/logo.png",
+  name: "CRISPY",
+  nameShort: "CRISPY",
+  tagline: "קריספי & שניצל",
+  taglineAlt: "חם. קריספי. בדיוק כמו שצריך.",
   welcome: "Welcome to",
 } as const;
 
-/** Sampled from official logo & storefront */
 export const BRAND_COLORS = {
-  primary: "#3D2B24",
-  primaryLight: "#5a4038",
-  secondary: "#D4A76A",
-  accent: "#007A80",
-  accentLight: "#0099a0",
-  cream: "#F8F3ED",
-  warmWhite: "#FFFEFB",
+  primary: "#D71920",
+  primaryLight: "#A90F16",
+  secondary: "#F6B800",
+  accent: "#D71920",
+  accentLight: "#A90F16",
+  cream: "#FFF5E6",
+  warmWhite: "#FFFFFF",
+  black: "#171717",
+  muted: "#6B625A",
+  border: "#EADBC8",
+  success: "#2E9B55",
 } as const;
 
-/** Tiny blur placeholders for Next/Image */
 export const BLUR = {
   logo: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
   store: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBEQCEAD8AVAX/AP/Z",
@@ -35,22 +35,19 @@ export const BLUR = {
 
 export type LogoSize = "xs" | "sm" | "md" | "lg" | "xl";
 
-/** Logo display heights — mobile 38–48px, desktop 48–64px */
 export const LOGO_HEIGHT: Record<LogoSize, number> = {
-  xs: 32,
-  sm: 40,
-  md: 48,
-  lg: 56,
-  xl: 64,
+  xs: 36,
+  sm: 48,
+  md: 56,
+  lg: 72,
+  xl: 88,
 };
 
-/** Resolve hero/store image: Firestore settings URL → local file */
 export function getStoreImageSrc(settingsUrl?: string | null): string {
   if (settingsUrl?.trim()) return settingsUrl.trim();
   return BRAND.store;
 }
 
-/** Official logo — always the local transparent asset */
 export function getLogoSrc(_settingsUrl?: string | null): string {
   return BRAND.logo;
 }

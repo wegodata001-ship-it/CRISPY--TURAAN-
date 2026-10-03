@@ -129,7 +129,7 @@ export function PrinterAdmin() {
         <div className="mb-4 flex items-center gap-2 text-coffee">
           <Printer className="h-5 w-5 text-turquoise" strokeWidth={1.75} />
           <h2 className="text-base font-semibold">
-            {data?.printer?.name || t("admin.printer.name", "MISHKAH Kitchen Printer")}
+            {data?.printer?.name || t("admin.printer.name", "CRISPY Kitchen Printer")}
           </h2>
         </div>
 

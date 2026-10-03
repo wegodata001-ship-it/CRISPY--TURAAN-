@@ -168,7 +168,7 @@ export const DEFAULT_COVER_SETTINGS: PdfCoverSettings = {
   enabled: true,
   logoUrl: "",
   backgroundUrl: "",
-  businessName: "MISHKAT CAFÉ",
+  businessName: "CRISPY",
   subtitle: "",
   phone: "",
   instagram: "",
@@ -179,7 +179,7 @@ export const DEFAULT_COVER_SETTINGS: PdfCoverSettings = {
 
 export const DEFAULT_FOOTER_SETTINGS: PdfFooterSettings = {
   enabled: true,
-  businessName: "MISHKAT CAFÉ",
+  businessName: "CRISPY",
   phone: "",
   instagram: "",
   website: "",

@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 config({ path: ".env" });
+config({ path: ".env.local", override: true });
 
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
@@ -36,7 +37,7 @@ function step(n: number, name: string, passed: boolean, detail: string, duration
 
 async function run() {
   process.stdout.write("\n╔══════════════════════════════════════════╗\n");
-  process.stdout.write("║   MISHKAT CAFÉ — Full Firebase Audit    ║\n");
+  process.stdout.write("║   CRISPY — Full Firebase Audit           ║\n");
   process.stdout.write("╚══════════════════════════════════════════╝\n\n");
 
   // ── 1. Firebase App configuration ──
@@ -66,7 +67,7 @@ async function run() {
   step(
     2,
     "Current projectId",
-    projectId === "mshkah" && projectId.length > 0,
+    projectId.length > 0 && !["mshkah", "mishkah", "mishkat"].includes(projectId),
     `projectId="${projectId}"`,
     Date.now() - t2
   );

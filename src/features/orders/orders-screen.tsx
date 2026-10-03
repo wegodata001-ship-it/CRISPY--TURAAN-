@@ -53,7 +53,7 @@ export function OrdersScreen() {
 
   const statCards = [
     { key: "pending" as const, count: stats.pending, color: "text-amber-600" },
-    { key: "preparing" as const, count: stats.preparing, color: "text-blue-600" },
+    { key: "preparing" as const, count: stats.preparing, color: "text-orange-600" },
     { key: "ready" as const, count: stats.ready, color: "text-emerald-600" },
     { key: "delivered" as const, count: stats.delivered, color: "text-green-600" },
     { key: "cancelled" as const, count: stats.cancelled, color: "text-red-500" },

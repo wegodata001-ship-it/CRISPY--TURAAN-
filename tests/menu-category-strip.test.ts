@@ -9,24 +9,15 @@ describe("menu category strip mobile UX", () => {
     "utf8"
   );
 
-  it("does not use horizontal overflow scroll on compact layout", () => {
+  it("uses a horizontal scroller and avoids LTR direction hacks", () => {
+    expect(source).toMatch(/HorizontalScroller/);
     expect(source).not.toMatch(/overflow-x-auto/);
-    expect(source).not.toMatch(/snap-x/);
-    expect(source).toMatch(/grid-cols-2/);
-    expect(source).toMatch(/catalog\.showAll/);
-    expect(source).toMatch(/catalog\.showLess/);
-  });
-
-  it("keeps desktop wrap path and avoids LTR direction hacks", () => {
-    expect(source).toMatch(/flex-wrap/);
     expect(source).not.toMatch(/direction:\s*ltr/);
     expect(source).not.toMatch(/dir=["']ltr["']/);
   });
 
-  it("collapses expanded categories after selection on compact layout", () => {
-    expect(source).toMatch(/setExpanded\(false\)/);
-    expect(source).toMatch(/getCollapsedVisibleCategories/);
-    expect(source).not.toMatch(/setExpanded\(true\)/);
+  it("highlights the selected category in yellow", () => {
+    expect(source).toMatch(/bg-gold/);
   });
 });
 

@@ -3,27 +3,47 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { SiteHeader } from "@/components/layout/header";
 import { HeroBanner } from "@/features/catalog/hero-banner";
 import { MenuCategoryStrip } from "@/features/catalog/menu-category-strip";
 import { SubcategoryChips } from "@/features/catalog/subcategory-chips";
-import { ProductFiltersBar } from "@/features/catalog/product-filters-bar";
 import { ProductGrid } from "@/features/catalog/product-grid";
+import { CategoryProductSection } from "@/features/catalog/category-product-section";
 import { ProductDetailDrawer } from "@/features/catalog/product-detail-drawer";
 import { CatalogModifierPreviewProvider } from "@/features/catalog/catalog-modifier-preview-context";
 import { CatalogSeeder } from "@/components/catalog/catalog-seeder";
+import { CartSidebar } from "@/features/cart/cart-sidebar";
 import { Input } from "@/components/ui/input";
 import { useProducts, useAllProducts, useCategories } from "@/hooks/useProducts";
 import { useT, useLocale } from "@/components/providers/locale-provider";
 import { useLocalizedCategory } from "@/hooks/useLocalizedContent";
 import {
+  filterMenuDisplayProducts,
   filterMenuProducts,
   getRootCategories,
-  hasSubcategories,
   sortProducts,
 } from "@/lib/menu/category-tree";
-import type { Product, ProductFilters } from "@/types";
+import type { Category, Product, ProductFilters } from "@/types";
+
+function CategoryHeading({ category }: { category: Category | undefined }) {
+  const localized = useLocalizedCategory(category ?? null);
+  if (!category) return null;
+  return (
+    <h2 className="mb-3 font-display text-lg font-bold text-dark-brown" dir={localized.dir}>
+      {localized.name}
+    </h2>
+  );
+}
+
+function rootCategoryId(product: Product, categories: Category[]): string {
+  const own = categories.find((category) => category.id === product.categoryId);
+  if (own?.parentId) return own.parentId;
+  if (product.subcategoryId) {
+    const sub = categories.find((category) => category.id === product.subcategoryId);
+    if (sub?.parentId) return sub.parentId;
+  }
+  return product.categoryId;
+}
 
 export function CatalogView() {
   const t = useT();
@@ -33,12 +53,7 @@ export function CatalogView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [filters, setFilters] = useState<ProductFilters>({
-    sortBy: "popular",
-    active: true,
-  });
   const bannerTargetApplied = useRef(false);
 
   const { categories } = useCategories();
@@ -63,37 +78,26 @@ export function CatalogView() {
     }
   }, [allProducts, categories]);
 
-  useEffect(() => {
-    if (bannerTargetApplied.current || selectedCategoryId || rootCategories.length === 0) return;
-    setSelectedCategoryId(rootCategories[0]!.id);
-  }, [rootCategories, selectedCategoryId]);
-
   const isSearchMode = searchQuery.trim().length > 0;
 
-  const combinedFilters = useMemo<ProductFilters>(
+  const searchFilters = useMemo<ProductFilters>(
     () => ({
-      ...filters,
       search: searchQuery || undefined,
-      categoryId: isSearchMode ? undefined : selectedCategoryId ?? undefined,
-      subcategoryId: isSearchMode ? undefined : selectedSubcategoryId ?? undefined,
       active: true,
     }),
-    [filters, searchQuery, isSearchMode, selectedCategoryId, selectedSubcategoryId]
+    [searchQuery]
   );
 
   const { products: searchProducts, loading: searchLoading } = useProducts(
-    isSearchMode ? combinedFilters : undefined
+    isSearchMode ? searchFilters : undefined
   );
 
   const menuProducts = useMemo(() => {
     if (isSearchMode) return sortProducts(searchProducts);
-    const filtered = filterMenuProducts(
-      allProducts,
-      selectedCategoryId,
-      selectedSubcategoryId,
-      categories
-    );
-    return sortProducts(filtered);
+    if (selectedSubcategoryId) {
+      return sortProducts(filterMenuProducts(allProducts, selectedCategoryId, selectedSubcategoryId, categories));
+    }
+    return filterMenuDisplayProducts(allProducts, selectedCategoryId, categories);
   }, [
     isSearchMode,
     searchProducts,
@@ -105,63 +109,62 @@ export function CatalogView() {
 
   const loading = isSearchMode ? searchLoading : allLoading;
 
-  const selectedCategory = categories.find((c) => c.id === selectedCategoryId) ?? null;
-  const selectedSub = selectedSubcategoryId
-    ? categories.find((c) => c.id === selectedSubcategoryId) ?? null
-    : null;
+  const bestsellers = useMemo(
+    () => allProducts.filter((product) => product.active && product.isPopular).slice(0, 10),
+    [allProducts]
+  );
 
-  const heroCategory = selectedSub ?? selectedCategory;
-  const localizedHero = useLocalizedCategory(heroCategory);
+  const groupedMenu = useMemo(() => {
+    if (isSearchMode || selectedCategoryId) return [];
+    return rootCategories
+      .map((category) => ({
+        category,
+        products: menuProducts.filter((product) => rootCategoryId(product, categories) === category.id),
+      }))
+      .filter((group) => group.products.length > 0);
+  }, [isSearchMode, selectedCategoryId, rootCategories, menuProducts, categories]);
 
-  const sectionTitle = useMemo(() => {
-    if (isSearchMode) return t("catalog.fullMenu");
-    return localizedHero.name || t("catalog.menuSection");
-  }, [isSearchMode, localizedHero.name, t]);
-
-  const showProducts =
-    isSearchMode ||
-    (selectedCategoryId &&
-      (!hasSubcategories(categories, selectedCategoryId) || selectedSubcategoryId));
-
-  const handleCategorySelect = useCallback((categoryId: string) => {
+  const handleCategorySelect = useCallback((categoryId: string | null) => {
     setSelectedCategoryId(categoryId);
     setSelectedSubcategoryId(null);
-    // Wait for category strip collapse/layout, then scroll to products.
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        document.getElementById("menu")?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+      document.getElementById("menu")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
       });
     });
   }, []);
 
-  const handleSubcategorySelect = useCallback((subcategoryId: string) => {
-    setSelectedSubcategoryId(subcategoryId);
-  }, []);
-
-  const needsSubcategoryPick =
-    !isSearchMode &&
-    selectedCategoryId &&
-    hasSubcategories(categories, selectedCategoryId) &&
-    !selectedSubcategoryId;
+  const showBestsellers = isHome && !isSearchMode && !selectedCategoryId && bestsellers.length > 0;
 
   return (
     <CatalogModifierPreviewProvider>
-    <>
-      <CatalogSeeder />
-      <SiteHeader />
+      <>
+        <CatalogSeeder />
+        <SiteHeader />
+        {isHome && <HeroBanner />}
 
-      {isHome && <HeroBanner />}
+        <div className="mx-auto max-w-[1180px] px-4 md:px-6">
+          <div className="grid gap-6 pb-28 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:pb-12">
+            <div className="min-w-0">
+              <div className="relative mt-4">
+                <Search
+                  className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee-light"
+                  strokeWidth={1.75}
+                />
+                <Input
+                  id="menu-search"
+                  placeholder={t("header.search")}
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  aria-label={t("header.search")}
+                  dir={dir}
+                  className="h-12 rounded-2xl border-beige-dark bg-warm-white ps-10 text-base shadow-soft"
+                />
+              </div>
 
-      <div className="mx-auto max-w-[1280px] px-4 md:px-8 lg:px-10">
-        <div className="mt-6">
-          <div className="min-w-0 pb-28 lg:pb-12">
-            {/* Mobile: Sticky categories + search bar */}
-            {!isSearchMode && (
-              <div className="sticky top-[52px] z-30 -mx-4 bg-cream/95 px-4 pb-2 pt-1 backdrop-blur-md md:static md:mx-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0 md:backdrop-blur-none">
-                <section className="space-y-3">
+              {!isSearchMode && (
+                <div className="sticky top-[72px] z-30 -mx-4 mt-3 bg-cream/95 px-4 py-2 backdrop-blur-md md:top-[80px]">
                   <MenuCategoryStrip
                     selectedId={selectedCategoryId}
                     onSelect={handleCategorySelect}
@@ -169,98 +172,73 @@ export function CatalogView() {
                   <SubcategoryChips
                     parentId={selectedCategoryId}
                     selectedSubId={selectedSubcategoryId}
-                    onSelect={handleSubcategorySelect}
+                    onSelect={setSelectedSubcategoryId}
+                  />
+                </div>
+              )}
+
+              {showBestsellers && (
+                <section className="mt-5">
+                  <h2 className="mb-3 font-display text-lg font-bold text-dark-brown">
+                    {t("catalog.hotSellers")}
+                  </h2>
+                  <ProductGrid
+                    products={bestsellers}
+                    loading={false}
+                    variant="featured"
+                    onProductClick={setSelectedProduct}
                   />
                 </section>
-              </div>
-            )}
+              )}
 
-            {/* Search */}
-            <div className="relative mt-4 max-w-md">
-              <Search
-                className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee/40"
-                strokeWidth={1.75}
-              />
-              <Input
-                placeholder={t("header.search")}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label={t("header.search")}
-                dir={dir}
-                className="h-10 border-beige-dark/25 bg-warm-white ps-10 shadow-none"
-              />
-            </div>
-
-
-            <ProductFiltersBar
-              filters={combinedFilters}
-              onFiltersChange={setFilters}
-              showFilters={showFilters}
-              onToggleFilters={() => setShowFilters(!showFilters)}
-            />
-
-            <div id="menu" className="mt-6 scroll-mt-[13.5rem] md:scroll-mt-8">
-              <div className="mb-4 flex items-end justify-between gap-3">
-                <h2 className="heading-section" dir={localizedHero.dir}>
-                  {sectionTitle}
-                </h2>
-                {showProducts && (
-                  <span className="text-caption shrink-0">
-                    {loading ? "..." : `${menuProducts.length} ${t("catalog.productsCount")}`}
-                  </span>
-                )}
-              </div>
-
-              <AnimatePresence mode="wait">
-                {needsSubcategoryPick ? (
-                  <motion.p
-                    key="pick-sub"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="text-body py-12 text-center"
-                  >
-                    {t("catalog.pickSubcategory")}
-                  </motion.p>
-                ) : showProducts ? (
-                  <motion.div
-                    key={`${selectedCategoryId}-${selectedSubcategoryId}-${searchQuery}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
+              <div id="menu" className="mt-6 scroll-mt-[8.5rem]">
+                {loading ? (
+                  <ProductGrid products={[]} loading onProductClick={setSelectedProduct} />
+                ) : isSearchMode || selectedCategoryId ? (
+                  <>
+                    {selectedCategoryId && !isSearchMode && (
+                      <CategoryHeading
+                        category={categories.find((category) => category.id === selectedCategoryId)}
+                      />
+                    )}
                     <ProductGrid
                       products={menuProducts}
-                      loading={loading}
+                      loading={false}
                       onProductClick={setSelectedProduct}
                     />
-                  </motion.div>
+                  </>
+                ) : groupedMenu.length > 0 ? (
+                  <div className="space-y-6">
+                    {groupedMenu.map(({ category, products }) => (
+                      <CategoryProductSection
+                        key={category.id}
+                        category={category}
+                        products={products}
+                        onProductClick={setSelectedProduct}
+                      />
+                    ))}
+                  </div>
                 ) : (
-                  <motion.p
-                    key="pick-cat"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-body py-12 text-center"
-                  >
-                    {t("catalog.pickCategory")}
-                  </motion.p>
+                  <ProductGrid
+                    products={menuProducts}
+                    loading={false}
+                    onProductClick={setSelectedProduct}
+                  />
                 )}
-              </AnimatePresence>
+              </div>
             </div>
+
+            <CartSidebar className="hidden lg:block" />
           </div>
-
         </div>
-      </div>
 
-      <ProductDetailDrawer
-        product={selectedProduct}
-        open={!!selectedProduct}
-        onOpenChange={(open) => !open && setSelectedProduct(null)}
-        onSelectProduct={setSelectedProduct}
-      />
-
-    </>
+        <ProductDetailDrawer
+          product={selectedProduct}
+          open={!!selectedProduct}
+          onOpenChange={(open) => !open && setSelectedProduct(null)}
+          onSelectProduct={setSelectedProduct}
+        />
+      </>
     </CatalogModifierPreviewProvider>
   );
 }

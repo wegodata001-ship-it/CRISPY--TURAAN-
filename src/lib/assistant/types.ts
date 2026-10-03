@@ -65,9 +65,9 @@ export const BEVERAGE_CATEGORIES = [
 export const DEFAULT_ASSISTANT_CONFIG: AssistantConfig = {
   enabled: true,
   greeting: {
-    he: "שלום!\n\nאני העוזר של MISHKAT CAFÉ.\n\nאיך אפשר לעזור?\n\nאפשר לבחור אחת מהאפשרויות למטה.",
-    ar: "مرحباً!\n\nأنا مساعد MISHKAT CAFÉ.\n\nكيف يمكنني مساعدتك؟\n\nاختر أحد الخيارات أدناه.",
-    en: "Hello!\n\nI'm the MISHKAT CAFÉ assistant.\n\nHow can I help?\n\nChoose one of the options below.",
+    he: "שלום!\n\nאני העוזר של CRISPY.\n\nאיך אפשר לעזור?\n\nאפשר לבחור אחת מהאפשרויות למטה.",
+    ar: "مرحباً!\n\nأنا مساعد CRISPY.\n\nكيف يمكنني مساعدتك؟\n\nاختر أحد الخيارات أدناه.",
+    en: "Hello!\n\nI'm the CRISPY assistant.\n\nHow can I help?\n\nChoose one of the options below.",
   },
   suggestedQuestions: [
     { he: "שעות פתיחה", ar: "ساعات العمل", en: "Opening hours" },

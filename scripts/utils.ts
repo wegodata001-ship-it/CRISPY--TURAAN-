@@ -34,8 +34,10 @@ export function isFirestoreDisabledError(error: unknown): boolean {
   );
 }
 
+const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
+
 export const FIRESTORE_ENABLE_URL =
-  "https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=mshkah";
+  `https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=${firebaseProjectId}`;
 
 export const FIREBASE_CONSOLE_URL =
-  "https://console.firebase.google.com/project/mshkah/firestore";
+  `https://console.firebase.google.com/project/${firebaseProjectId}/firestore`;

@@ -1,5 +1,5 @@
 /**
- * Safe Brevo test email sender for MISHKAH CAFE.
+ * Safe Brevo test email sender for CRISPY.
  * Usage: npm run email:test
  *
  * Never prints BREVO_API_KEY or other secrets.
@@ -10,15 +10,15 @@ import { resolve } from "node:path";
 loadEnv({ path: resolve(process.cwd(), ".env") });
 
 async function main() {
-  const { assertBrevoReady, getBrevoConfig, getMishkahNotificationEmails } =
+  const { assertBrevoReady, getBrevoConfig, getNotificationEmails } =
     await import("../src/lib/email/config");
-  const { sendMishkahTestEmail } = await import("../src/lib/email/send");
+  const { sendBusinessTestEmail } = await import("../src/lib/email/send");
 
   const ready = assertBrevoReady();
   const cfg = getBrevoConfig();
-  const recipients = getMishkahNotificationEmails().recipients;
+  const recipients = getNotificationEmails().recipients;
 
-  console.log("=== MISHKAH CAFE — Brevo email test ===");
+  console.log("=== CRISPY — Brevo email test ===");
   console.log(`MAIL_PROVIDER: ${process.env.MAIL_PROVIDER ?? "(unset)"}`);
   console.log(`Sender name: ${cfg.senderName}`);
   console.log(`Sender email: ${cfg.senderEmail || "(missing)"}`);
@@ -42,7 +42,7 @@ async function main() {
   }> = [];
 
   for (const to of recipients) {
-    const result = await sendMishkahTestEmail(to);
+    const result = await sendBusinessTestEmail(to);
     if (result.ok) {
       anyMessageId = anyMessageId || Boolean(result.messageId);
       results.push({

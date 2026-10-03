@@ -4,6 +4,22 @@ import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST() {
   try {
+    const email = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim();
+    const password = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+    const displayName = process.env.ADMIN_BOOTSTRAP_NAME?.trim() || "CRISPY Admin";
+
+    if (!email || !password) {
+      return Response.json(
+        {
+          bootstrapped: false,
+          created: false,
+          error:
+            "Configuration Error: set ADMIN_BOOTSTRAP_EMAIL and ADMIN_BOOTSTRAP_PASSWORD in .env.local to create the first admin.",
+        },
+        { status: 503 }
+      );
+    }
+
     const db = getAdminDb();
     const auth = getAdminAuth();
 
@@ -16,13 +32,6 @@ export async function POST() {
     if (!admins.empty) {
       return Response.json({ bootstrapped: true, created: false });
     }
-
-    const email =
-      process.env.ADMIN_BOOTSTRAP_EMAIL ?? "admin@mishkat.cafe";
-    const password =
-      process.env.ADMIN_BOOTSTRAP_PASSWORD ?? "MishkatAdmin2026!";
-    const displayName =
-      process.env.ADMIN_BOOTSTRAP_NAME ?? "MISHKAT Admin";
 
     let uid: string;
     try {

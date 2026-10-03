@@ -41,7 +41,7 @@ export function buildAsciiTestPayload(now = new Date()): Buffer {
     escInit(),
     escAlign("center"),
     escBold(true),
-    textLine("MISHKAH PRINTER TEST"),
+    textLine("CRISPY PRINTER TEST"),
     escBold(false),
     divider(),
     textLine("Printer connection OK"),

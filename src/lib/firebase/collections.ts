@@ -24,7 +24,7 @@ export const COLLECTIONS = {
   printAgentHeartbeats: "printAgentHeartbeats",
 } as const;
 
-export const DEFAULT_STORE_ID = "mishkah";
+export const DEFAULT_STORE_ID = "crispy";
 
 export const STORAGE_PATHS = {
   products: "products",

@@ -7,7 +7,7 @@ import { useT } from "@/components/providers/locale-provider";
 import { PWA_APP_NAME } from "@/lib/pwa/config";
 import { isPortalHost, isMenuHost } from "@/lib/domains/host-routing";
 
-const INSTALL_DISMISS_KEY = "mshkah-pwa-install-dismissed";
+const INSTALL_DISMISS_KEY = "crispy-pwa-install-dismissed";
 
 export function PwaManager() {
   const t = useT();

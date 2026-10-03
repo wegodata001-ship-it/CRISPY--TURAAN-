@@ -44,9 +44,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   hours: "Sun–Thu 7:00–22:00",
   currency: "ILS",
   theme: {
-    primary: "#3D2B24",
-    accent: "#007A80",
-    background: "#F8F3ED",
+    primary: "#D71920",
+    accent: "#F6B800",
+    background: "#FFF4E2",
   },
   seo: { title: BRAND.name, description: BRAND.taglineAlt },
   social: { instagram: "", facebook: "", whatsapp: "" },

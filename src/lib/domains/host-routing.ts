@@ -4,13 +4,13 @@
  */
 
 export const PUBLIC_HOST =
-  process.env.NEXT_PUBLIC_PUBLIC_HOST?.trim().toLowerCase() || "mishkatcafe.dev";
+  process.env.NEXT_PUBLIC_PUBLIC_HOST?.trim().toLowerCase() || "localhost";
 
 export const PORTAL_HOST =
-  process.env.NEXT_PUBLIC_PORTAL_HOST?.trim().toLowerCase() || "portal.mishkatcafe.dev";
+  process.env.NEXT_PUBLIC_PORTAL_HOST?.trim().toLowerCase() || "portal.localhost";
 
 export const MENU_HOST =
-  process.env.NEXT_PUBLIC_MENU_HOST?.trim().toLowerCase() || "menu.mishkatcafe.dev";
+  process.env.NEXT_PUBLIC_MENU_HOST?.trim().toLowerCase() || "menu.localhost";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
@@ -24,7 +24,7 @@ export const CUSTOMER_ONLY_PATH_PREFIXES = [
   "/pdf-smoke",
 ] as const;
 
-/** Ordering paths blocked on menu.mishkatcafe.dev */
+/** Ordering paths blocked on the menu display host */
 export const ORDERING_PATH_PREFIXES = [
   "/cart",
   "/checkout",

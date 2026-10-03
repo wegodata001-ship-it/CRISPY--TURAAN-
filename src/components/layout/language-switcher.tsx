@@ -117,16 +117,16 @@ function LanguageDropdown({ className }: { className?: string }) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex h-10 items-center gap-1.5 rounded-xl border border-beige-dark/25 bg-warm-white/80 px-2.5 text-sm font-medium text-coffee/80 shadow-soft backdrop-blur-sm transition-colors hover:bg-beige/40 dark:border-white/10 dark:bg-white/5 dark:text-warm-white/80 dark:hover:bg-white/10"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-dark-brown sm:h-10 sm:w-auto sm:gap-1.5 sm:rounded-xl sm:border sm:border-beige-dark/25 sm:bg-warm-white/80 sm:px-2.5 sm:text-sm sm:font-medium sm:text-coffee/80"
         aria-label={t("lang.switch")}
         aria-expanded={open}
         aria-haspopup="listbox"
       >
-        <Globe className="h-4 w-4 shrink-0 text-coffee/50 dark:text-warm-white/50" strokeWidth={1.75} />
-        <span className="max-w-[72px] truncate">{currentMeta.nativeLabel}</span>
+        <Globe className="h-5 w-5 shrink-0 sm:h-4 sm:w-4 sm:text-coffee/50" strokeWidth={1.75} />
+        <span className="hidden max-w-[72px] truncate sm:inline">{currentMeta.nativeLabel}</span>
         <ChevronDown
           className={cn(
-            "h-3.5 w-3.5 shrink-0 text-coffee/40 transition-transform duration-200 dark:text-warm-white/40",
+            "hidden h-3.5 w-3.5 shrink-0 text-coffee/40 transition-transform duration-200 sm:block",
             open && "rotate-180"
           )}
           strokeWidth={2}

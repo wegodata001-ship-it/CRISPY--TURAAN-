@@ -1,71 +1,64 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
 import { ProductCard } from "./product-card";
 import { ProductGridSkeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
 import { useT } from "@/components/providers/locale-provider";
-import { CATALOG_GRID_CLASS } from "@/features/catalog/category-product-section";
-import { Search } from "lucide-react";
 import type { Product } from "@/types";
 
 interface ProductGridProps {
   products: Product[];
   loading: boolean;
   onProductClick?: (product: Product) => void;
+  variant?: "row" | "featured";
 }
 
 export function ProductGrid({
   products,
   loading,
   onProductClick,
+  variant = "row",
 }: ProductGridProps) {
   const t = useT();
 
   if (loading) {
-    return <ProductGridSkeleton count={3} />;
+    return <ProductGridSkeleton count={6} />;
   }
 
   if (products.length === 0) {
     return (
-      <div className="mx-4 md:mx-6">
-        <EmptyState
-          icon={Search}
-          title={t("catalog.noProducts")}
-          description={t("catalog.noProductsHint")}
-          actionLabel={t("cart.continueShopping")}
-          actionHref="/"
-        />
+      <p className="py-10 text-center text-sm text-coffee-light">
+        {t("catalog.noProducts")}
+      </p>
+    );
+  }
+
+  if (variant === "featured") {
+    return (
+      <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {products.map((product, index) => (
+          <ProductCard
+            key={product.id}
+            product={product}
+            index={index}
+            variant="featured"
+            onClick={onProductClick ? () => onProductClick(product) : undefined}
+          />
+        ))}
       </div>
     );
   }
 
   return (
-    <div className={CATALOG_GRID_CLASS}>
-      <div className="px-3 sm:px-4">
-        <AnimatePresence mode="popLayout">
-          {products.map((product, index) => (
-            <motion.div
-              key={product.id}
-              layout
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{
-                duration: 0.3,
-                delay: Math.min(index, 8) * 0.03,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-            >
-              <ProductCard
-                product={product}
-                index={index}
-                onClick={onProductClick ? () => onProductClick(product) : undefined}
-              />
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+    <div className="flex flex-col gap-3">
+      {products.map((product, index) => (
+        <ProductCard
+          key={product.id}
+          product={product}
+          index={index}
+          variant="row"
+          onClick={onProductClick ? () => onProductClick(product) : undefined}
+        />
+      ))}
     </div>
   );
 }

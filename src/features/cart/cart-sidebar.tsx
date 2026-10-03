@@ -7,7 +7,7 @@ export function CartSidebar({ className }: { className?: string }) {
   return (
     <aside
       className={cn(
-        "sticky top-[88px] hidden h-[calc(100vh-7rem)] w-[340px] shrink-0 xl:w-[380px] lg:block",
+        "sticky top-[88px] hidden h-[calc(100vh-7rem)] w-full shrink-0 lg:block",
         className
       )}
     >

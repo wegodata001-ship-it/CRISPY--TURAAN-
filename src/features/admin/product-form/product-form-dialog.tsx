@@ -18,7 +18,7 @@ import {
   getProductModifierGroups,
   saveProductEditorChanges,
 } from "@/services";
-import { uploadProductImage, deleteImageByUrl } from "@/services/storageService";
+import { uploadProductImage, deleteImageByUrl, type UploadImageOptions } from "@/services/storageService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,6 +99,7 @@ export function ProductFormDialog({
   const [savedProductId, setSavedProductId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [imageUploading, setImageUploading] = useState(false);
   const [toasts, setToasts] = useState<AdminToast[]>([]);
   const [draftBanner, setDraftBanner] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<ProductDraftPayload | null>(null);
@@ -511,9 +512,16 @@ export function ProductFormDialog({
     }
   };
 
-  const handleUploadProductImage = async (file: File, onProgress: (pct: number) => void) => {
+  const handleUploadProductImage = async (
+    file: File,
+    onProgress: (pct: number) => void,
+    options?: UploadImageOptions
+  ) => {
     const id = productId ?? `new-${Date.now()}`;
-    const result = await uploadProductImage(file, id, onProgress);
+    const result = await uploadProductImage(file, id, {
+      onProgress,
+      signal: options?.signal,
+    });
     if (result.success && result.data) {
       setIsDirty(true);
     }
@@ -828,6 +836,7 @@ export function ProductFormDialog({
               onChange={handleImageChange}
               onUpload={handleUploadProductImage}
               onDelete={deleteImageByUrl}
+              onUploadingChange={setImageUploading}
             />
           )}
 
@@ -889,7 +898,7 @@ export function ProductFormDialog({
           <Button
             type="button"
             className="h-11 min-w-[140px] flex-1 rounded-xl sm:flex-none"
-            disabled={saving}
+            disabled={saving || imageUploading}
             onClick={() => void submit()}
           >
             {saving ? (
@@ -897,6 +906,8 @@ export function ProductFormDialog({
                 <Loader2 className="h-4 w-4 animate-spin" />
                 {t("admin.productForm.saving")}
               </>
+            ) : imageUploading ? (
+              t("admin.upload.uploading")
             ) : saveState === "saved" ? (
               t("admin.productForm.savedLabel")
             ) : (

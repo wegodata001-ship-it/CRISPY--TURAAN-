@@ -1,4 +1,4 @@
-export const PRODUCTION_SITE_URL = "https://mshkah.vercel.app";
+export const PRODUCTION_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
 
 function stripTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
@@ -18,8 +18,7 @@ function isPrivateOrLocalHost(hostname: string): boolean {
 
 function isVercelPreviewHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
-  if (host === "mshkah.vercel.app") return false;
-  return host.endsWith(".vercel.app");
+  return host.endsWith(".vercel.app") && host.includes("-git-");
 }
 
 export function isPublicCustomerUrl(value: string): boolean {
@@ -56,7 +55,8 @@ export function getPublicSiteUrl(): string {
 
 /** Customer order page — the live catalog homepage. */
 export function getPublicOrderUrl(): string {
-  return `${getPublicSiteUrl()}/`;
+  const site = getPublicSiteUrl();
+  return site ? `${site}/` : "/";
 }
 
 /** Any candidate (including localhost) is replaced with the public order URL when invalid. */

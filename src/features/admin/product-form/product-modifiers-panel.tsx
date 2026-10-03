@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { useModifierOptions } from "@/hooks/useModifiers";
 import { getProductModifierOptions, updateModifierOption } from "@/services";
 import { uploadModifierOptionImage, deleteImageByUrl } from "@/services/storageService";
+import { compressProductImage } from "@/lib/images/compress-image";
 import { useT } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 import {
@@ -65,7 +66,8 @@ function OptionImageButton({
   const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) return;
     setUploading(true);
-    const result = await uploadModifierOptionImage(file, option.groupId, option.id);
+    const compressed = await compressProductImage(file);
+    const result = await uploadModifierOptionImage(compressed, option.groupId, option.id);
     if (result.success && result.data) {
       if (option.image) await deleteImageByUrl(option.image).catch(() => {});
       await updateModifierOption(

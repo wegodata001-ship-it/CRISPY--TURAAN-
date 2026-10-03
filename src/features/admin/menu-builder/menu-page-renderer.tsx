@@ -89,7 +89,7 @@ function makePalette(page: MenuPage, isCover: boolean): Palette {
   const dark = darkPage || isDarkColor(bg);
   const text = settings.textColor || (dark ? "#FFF8F3" : "#1A1410");
   const heading = settings.headingColor || text;
-  const accent = settings.accentColor || "#D4A76A";
+  const accent = settings.accentColor || "#F6B800";
   return {
     bg,
     text,
@@ -435,7 +435,7 @@ function CoverBody({
           lineHeight: 1.15,
         }}
       >
-        {cover?.businessName || "MISHKAT"}
+        {cover?.businessName || "CRISPY"}
       </h1>
       <div
         style={{

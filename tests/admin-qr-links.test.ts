@@ -8,8 +8,8 @@ describe("admin QR links", () => {
     expect(links).toHaveLength(2);
     expect(links[0]?.id).toBe("menu");
     expect(links[1]?.id).toBe("order");
-    expect(links[0]?.filename).toBe("mishkah-qr-menu.png");
-    expect(links[1]?.filename).toBe("mishkah-qr-order.png");
+    expect(links[0]?.filename).toBe("crispy-qr-menu.png");
+    expect(links[1]?.filename).toBe("crispy-qr-order.png");
     expect(links[0]?.url).toMatch(/^https:\/\//);
     expect(links[1]?.url).toMatch(/^https:\/\//);
     expect(links[0]?.url).not.toBe(links[1]?.url);

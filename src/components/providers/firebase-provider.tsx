@@ -67,8 +67,16 @@ export function FirebaseProvider({ children }: { children: ReactNode }) {
             <div className="flex items-start gap-3 rounded-2xl border border-beige-dark/40 bg-warm-white px-4 py-3 shadow-elevated">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gold" strokeWidth={1.75} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-dark-brown">{t("error.network")}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-coffee/70">{t("error.firebase")}</p>
+                <p className="text-sm font-semibold text-dark-brown">
+                  {result?.error?.startsWith("Missing environment")
+                    ? "Configuration Error"
+                    : t("error.network")}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-coffee/70">
+                  {result?.error?.startsWith("Missing environment")
+                    ? result.error
+                    : t("error.firebase")}
+                </p>
               </div>
               <button
                 type="button"

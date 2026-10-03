@@ -68,7 +68,7 @@ async function verifyFirestoreAccess(useAdmin: boolean) {
         (error.message.includes("timed out") || error.message.includes("permission")))
     ) {
       process.stderr.write(
-        `\nCannot write to Firestore for project 'mshkah'.\n\n` +
+        `\nCannot write to Firestore for project '${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? ""}'.\n\n` +
           `Option A — Admin SDK (recommended for seed):\n` +
           `  Set FIREBASE_ADMIN_CLIENT_EMAIL + FIREBASE_ADMIN_PRIVATE_KEY in .env\n\n` +
           `Option B — Client SDK:\n` +

@@ -290,10 +290,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const applyCoupon = useCallback((code: string) => {
     const normalized = code.trim().toUpperCase();
-    if (normalized === "MISHKAT10") {
-      dispatch({ type: "SET_COUPON", code: normalized, discount: 0.1 });
-      return true;
-    }
     if (normalized === "WELCOME15") {
       dispatch({ type: "SET_COUPON", code: normalized, discount: 0.15 });
       return true;

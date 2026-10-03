@@ -3,9 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Minus, Pencil, Plus, Trash2, ShoppingBag, Tag, ArrowRight } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { formatPrice } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
 import { useT } from "@/components/providers/locale-provider";
@@ -23,16 +22,15 @@ function CartLineItem({
   onRemove,
   onUpdateQuantity,
   onEdit,
-  compact,
 }: {
   item: CartItem;
   onRemove: () => void;
   onUpdateQuantity: (qty: number) => void;
   onEdit?: (config: ProductBuilderConfig) => void;
-  compact?: boolean;
 }) {
   const t = useT();
   const localized = useLocalizedProduct(item.product);
+  const extras = item.selections.map((selection) => selection.optionName).join(" · ");
   const { config: modifierConfig, loading: loadingModifiers } =
     useProductBuilderConfig(onEdit ? item.product.id : null);
 
@@ -42,83 +40,71 @@ function CartLineItem({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0 }}
-      className="border-b border-beige-dark/15 py-3 last:border-b-0"
+      className="rounded-[18px] border border-beige-dark bg-warm-white p-3"
     >
       <div className="flex items-start gap-3">
-        {!compact && (
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-beige/30">
-            <ProductImage
-              image={item.product.image}
-              categoryId={item.product.categoryId}
-              alt={localized.name}
-              thumbnail
-              sizes="56px"
-            />
-          </div>
-        )}
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-cream">
+          <ProductImage
+            image={item.product.image}
+            categoryId={item.product.categoryId}
+            alt={localized.name}
+            thumbnail
+            sizes="64px"
+          />
+        </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <h4 className="heading-product text-sm" dir={localized.dir}>
-              {localized.name}
-            </h4>
-            <div className="flex shrink-0 items-center gap-1">
-              {onEdit && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (modifierConfig) onEdit(modifierConfig);
-                  }}
-                  disabled={loadingModifiers || !modifierConfig}
-                  className="rounded-md p-1.5 text-coffee/45 transition-colors hover:bg-beige/40 hover:text-turquoise"
-                  aria-label={t("cart.editItem")}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onRemove}
-                className="rounded-md p-1.5 text-coffee/35 transition-colors hover:text-red-500"
-                aria-label={t("common.remove", "Remove")}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-          <p className="text-price mt-0.5 text-base">{formatPrice(item.unitPrice)}</p>
-          {item.selections.length > 0 && (
-            <ul className="mt-1 space-y-0.5">
-              {item.selections.map((s) => (
-                <li key={`${s.groupId}-${s.optionId}`} className="text-caption">
-                  {s.optionName}
-                  {s.quantity > 1 ? ` ×${s.quantity}` : ""}
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="mt-2 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
+          <h4 className="text-sm font-bold text-dark-brown" dir={localized.dir}>
+            {localized.name}
+          </h4>
+          {extras && <p className="mt-0.5 text-xs text-coffee-light">{extras}</p>}
+          {item.notes && <p className="mt-0.5 text-xs text-coffee-light">{item.notes}</p>}
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => onUpdateQuantity(item.quantity - 1)}
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-beige-dark/30 bg-warm-white transition-colors hover:border-turquoise"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-beige-dark"
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className="w-5 text-center text-sm font-semibold">{item.quantity}</span>
+              <span className="w-5 text-center text-sm font-bold">{item.quantity}</span>
               <button
                 type="button"
                 onClick={() => onUpdateQuantity(item.quantity + 1)}
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-beige-dark/30 bg-warm-white transition-colors hover:border-turquoise"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-beige-dark"
               >
                 <Plus className="h-3 w-3" />
               </button>
             </div>
-            <span className="text-price text-base">
+            <span className="text-base font-bold tabular-nums">
               {formatPrice(calculateLineTotal(item.unitPrice, item.quantity))}
             </span>
           </div>
         </div>
+      </div>
+      <div className="mt-2 flex items-center justify-between">
+        {onEdit ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (modifierConfig) onEdit(modifierConfig);
+            }}
+            disabled={loadingModifiers || !modifierConfig}
+            className="text-xs font-semibold text-turquoise"
+          >
+            {t("cart.editItem")}
+          </button>
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          onClick={onRemove}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-coffee-light"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          {t("cart.remove")}
+        </button>
       </div>
     </motion.div>
   );
@@ -130,7 +116,7 @@ interface CartPanelProps {
   className?: string;
 }
 
-export function CartPanel({ compact, onCheckout, className }: CartPanelProps) {
+export function CartPanel({ onCheckout, className }: CartPanelProps) {
   const t = useT();
   const {
     items,
@@ -141,33 +127,29 @@ export function CartPanel({ compact, onCheckout, className }: CartPanelProps) {
     discount,
     total,
     itemCount,
-    applyCoupon,
-    couponCode,
   } = useCart();
-  const [couponInput, setCouponInput] = useState("");
-  const [couponError, setCouponError] = useState<string | null>(null);
+  const extrasTotal = items.reduce(
+    (sum, item) => sum + Math.max(0, item.unitPrice - item.product.price) * item.quantity,
+    0
+  );
+  const baseSubtotal = Math.max(0, subtotal - extrasTotal);
   const [editing, setEditing] = useState<{
     item: CartItem;
     config: ProductBuilderConfig;
   } | null>(null);
 
-  const handleCoupon = () => {
-    if (!couponInput.trim()) return;
-    const ok = applyCoupon(couponInput);
-    setCouponError(ok ? null : t("error.generic", "Invalid coupon code"));
-  };
-
   return (
     <div className={className}>
-      <div className="flex shrink-0 items-center gap-2 border-b border-beige-dark/15 pb-4">
-        <ShoppingBag className="h-5 w-5 text-coffee" strokeWidth={1.75} />
-        <h2 className="heading-section text-lg">{t("cart.title")}</h2>
+      <div className="shrink-0 border-b border-beige-dark/20 pb-4">
+        <h2 className="font-display text-xl font-bold text-dark-brown">{t("cart.title")}</h2>
         {itemCount > 0 && (
-          <span className="text-caption">({itemCount})</span>
+          <p className="mt-0.5 text-sm text-coffee-light">
+            {itemCount} {t("catalog.productsCount")}
+          </p>
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto py-2">
+      <div className="min-h-0 flex-1 overflow-y-auto py-3">
         <AnimatePresence mode="popLayout">
           {items.length === 0 ? (
             <motion.div
@@ -176,16 +158,15 @@ export function CartPanel({ compact, onCheckout, className }: CartPanelProps) {
               className="flex flex-col items-center py-10 text-center"
             >
               <Logo size="md" href={null} className="h-12 w-auto opacity-80" />
-              <p className="text-body mt-3">{t("cart.empty")}</p>
-              <p className="text-caption mt-1">{t("cart.emptyHint")}</p>
+              <p className="mt-3 text-sm font-semibold">{t("cart.empty")}</p>
+              <p className="mt-1 text-xs text-coffee-light">{t("cart.emptyHint")}</p>
             </motion.div>
           ) : (
-            <div>
+            <div className="flex flex-col gap-3">
               {items.map((item) => (
                 <CartLineItem
                   key={item.lineId}
                   item={item}
-                  compact={compact}
                   onRemove={() => removeItem(item.lineId)}
                   onUpdateQuantity={(qty) => updateQuantity(item.lineId, qty)}
                   onEdit={
@@ -201,51 +182,36 @@ export function CartPanel({ compact, onCheckout, className }: CartPanelProps) {
       </div>
 
       {items.length > 0 && (
-        <div className="shrink-0 border-t border-beige-dark/15 pt-4">
-          {!compact && (
-            <div className="mb-3 flex gap-2">
-              <Input
-                value={couponInput}
-                onChange={(e) => setCouponInput(e.target.value)}
-                placeholder={t("cart.coupon", "Coupon code")}
-                className="h-9 text-sm"
-              />
-              <Button variant="outline" size="sm" onClick={handleCoupon} className="shrink-0">
-                <Tag className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          )}
-          {couponError && <p className="mb-2 text-xs text-red-600">{couponError}</p>}
-          {couponCode && <p className="mb-2 text-xs text-turquoise">{couponCode}</p>}
-
-          <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between text-coffee/70">
+        <div className="shrink-0 border-t border-beige-dark/20 pt-4">
+          <h3 className="text-sm font-bold">{t("cart.summary")}</h3>
+          <div className="mt-2 space-y-1.5 text-sm">
+            <div className="flex justify-between text-coffee-light">
               <span>{t("cart.subtotal")}</span>
-              <span>{formatPrice(subtotal)}</span>
+              <span>{formatPrice(baseSubtotal)}</span>
             </div>
+            {extrasTotal > 0 && (
+              <div className="flex justify-between text-coffee-light">
+                <span>{t("cart.extras")}</span>
+                <span>{formatPrice(extrasTotal)}</span>
+              </div>
+            )}
             {discount > 0 && (
               <div className="flex justify-between text-turquoise">
-                <span>{t("cart.discount", "Discount")}</span>
+                <span>{t("cart.discount")}</span>
                 <span>-{formatPrice(discount)}</span>
               </div>
             )}
-            <p className="text-xs text-coffee/50">
-              {t("cart.pickupOnly", "איסוף עצמי בלבד")}
-            </p>
-            <div className="flex justify-between border-t border-beige-dark/15 pt-2">
-              <span className="font-semibold text-dark-brown">{t("cart.total")}</span>
-              <span className="text-price text-xl">{formatPrice(total)}</span>
+            <div className="flex items-end justify-between border-t border-beige-dark/20 pt-2">
+              <span className="text-base font-bold">{t("cart.total")}</span>
+              <span className="text-2xl font-bold tabular-nums text-dark-brown">
+                {formatPrice(total)}
+              </span>
             </div>
           </div>
 
           <Link href="/checkout" onClick={onCheckout}>
-            <Button
-              variant="turquoise"
-              size="lg"
-              className="mt-4 h-12 w-full rounded-xl text-base transition-transform hover:scale-[1.01]"
-            >
+            <Button variant="turquoise" size="lg" className="mt-4 h-12 w-full rounded-2xl text-base font-bold">
               {t("cart.checkout")}
-              <ArrowRight className="ms-2 h-4 w-4 rtl:rotate-180" strokeWidth={1.75} />
             </Button>
           </Link>
         </div>

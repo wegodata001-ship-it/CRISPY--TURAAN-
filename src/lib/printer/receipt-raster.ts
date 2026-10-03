@@ -16,7 +16,7 @@ export const RECEIPT_WIDTH_PX = 576;
  */
 const FONT = {
   banner: 24, // "TEST PRINT" banner (test-only)
-  brandTitle: 56, // MISHKAH CAFE
+  brandTitle: 56, // CRISPY
   brandSecondary: 30, // secondary script line under brand
   headline: 34, // "NEW ORDER" / "طلب جديد" / "הזמנה חדשה"
   orderNumber: 52, // #1234
@@ -112,8 +112,8 @@ export async function renderReceiptRaster(
   let fontFamily = "sans-serif";
   for (const path of FONT_CANDIDATES) {
     if (existsSync(path)) {
-      GlobalFonts.registerFromPath(path, "MishkahReceipt");
-      fontFamily = "MishkahReceipt";
+      GlobalFonts.registerFromPath(path, "CrispyReceipt");
+      fontFamily = "CrispyReceipt";
       break;
     }
   }

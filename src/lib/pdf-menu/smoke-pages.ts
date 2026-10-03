@@ -42,7 +42,7 @@ const COFFEE = {
   headingColor: "#3D2B24",
 };
 
-const PHOTO = "/meskahphoto.png";
+const PHOTO = "/logo.png";
 
 function page(
   id: string,
@@ -80,19 +80,19 @@ export function createSmokeMenuExport(): { pages: MenuPage[]; template: PdfMenuT
     coverSettings: {
       ...DEFAULT_COVER_SETTINGS,
       enabled: true,
-      logoUrl: "/logo-transparent.png",
-      businessName: "MISHKAT CAFÉ",
+      logoUrl: "/logo.png",
+      businessName: "CRISPY",
       subtitle: "القائمة",
       phone: "050-000-0000",
-      instagram: "mishkat.cafe",
+      instagram: "",
       showQr: true,
-      qrUrl: "/logo-transparent.png",
+      qrUrl: "/logo.png",
     },
     footerSettings: {
       ...DEFAULT_FOOTER_SETTINGS,
       enabled: true,
-      businessName: "MISHKAT CAFÉ",
-      instagram: "mishkat.cafe",
+      businessName: "CRISPY",
+      instagram: "",
       showPageNumber: true,
     },
     qrSettings: { ...DEFAULT_QR_SETTINGS, enabled: true },
@@ -110,7 +110,7 @@ export function createSmokeMenuExport(): { pages: MenuPage[]; template: PdfMenuT
     { id: "h7", name: "موكا", price: 18 },
   ], 50);
 
-  const broken = "https://firebasestorage.googleapis.com/v0/b/mshkah.firebasestorage.app/o/products%2Fmissing-broken.jpg?alt=media&token=dead";
+  const broken = "https://firebasestorage.googleapis.com/v0/b/crispy-d0bf7.firebasestorage.app/o/products%2Fmissing-broken.jpg?alt=media&token=dead";
 
   const coffee = cat("coffee", "القهوة", [
     { id: "c1", name: "إسبريسو قصير", price: 10, image: broken },

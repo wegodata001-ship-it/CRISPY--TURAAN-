@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /** Shared admin design tokens — single source for cards, buttons, inputs */
 export const adminCard = cn(
   "rounded-2xl border border-beige-dark/15 bg-warm-white p-5 shadow-soft",
-  "dark:border-white/10 dark:bg-[#1a1412]/80"
+  "dark:border-white/10 dark:bg-[#1f1f1f]/90"
 );
 
 export const adminCardHover = cn(
@@ -14,7 +14,7 @@ export const adminCardHover = cn(
 export const adminKpiCard = cn(
   "rounded-2xl border border-beige-dark/15 bg-warm-white p-4 md:p-5 shadow-soft",
   "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-elevated",
-  "dark:border-white/10 dark:bg-[#1a1412]/80"
+  "dark:border-white/10 dark:bg-[#1f1f1f]/90"
 );
 
 export const adminPageTitle = "font-display text-2xl font-bold text-dark-brown md:text-3xl dark:text-warm-white";

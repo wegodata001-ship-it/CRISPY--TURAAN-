@@ -8,24 +8,25 @@ import {
 } from "@/lib/site-url";
 
 describe("public site URL", () => {
-  it("defaults to the live mshkah storefront", () => {
+  it("uses the configured public site URL only", () => {
     expect(getPublicSiteUrl()).toBe(PRODUCTION_SITE_URL);
-    expect(getPublicOrderUrl()).toBe("https://mshkah.vercel.app/");
+    expect(getPublicOrderUrl()).toBe(PRODUCTION_SITE_URL ? `${PRODUCTION_SITE_URL}/` : "/");
   });
 
   it("rejects localhost, LAN IPs, and Vercel preview hosts", () => {
     expect(isPublicCustomerUrl("http://localhost:3000")).toBe(false);
     expect(isPublicCustomerUrl("http://127.0.0.1:3000")).toBe(false);
     expect(isPublicCustomerUrl("http://192.168.1.20:3000")).toBe(false);
-    expect(isPublicCustomerUrl("https://mshkah-git-feat-xyz.vercel.app")).toBe(false);
-    expect(isPublicCustomerUrl("https://mshkah.vercel.app/")).toBe(true);
+    expect(isPublicCustomerUrl("https://crispy-git-feat-xyz.vercel.app")).toBe(false);
+    expect(isPublicCustomerUrl("https://example.com/")).toBe(true);
   });
 
-  it("encodes the production homepage even when given a local origin", () => {
-    expect(resolveQrTargetUrl("http://localhost:3000")).toBe("https://mshkah.vercel.app/");
-    expect(resolveQrTargetUrl("http://127.0.0.1:3000/admin/menu-builder")).toBe("https://mshkah.vercel.app/");
-    expect(resolveQrTargetUrl("https://project-abc-git-branch.vercel.app")).toBe("https://mshkah.vercel.app/");
-    expect(resolveQrTargetUrl("not a url")).toBe("https://mshkah.vercel.app/");
-    expect(resolveQrTargetUrl("https://mshkah.vercel.app/")).toBe("https://mshkah.vercel.app/");
+  it("does not encode localhost or preview hosts as the public order URL", () => {
+    const fallback = getPublicOrderUrl();
+    expect(resolveQrTargetUrl("http://localhost:3000")).toBe(fallback);
+    expect(resolveQrTargetUrl("http://127.0.0.1:3000/admin/menu-builder")).toBe(fallback);
+    expect(resolveQrTargetUrl("https://project-abc-git-branch.vercel.app")).toBe(fallback);
+    expect(resolveQrTargetUrl("not a url")).toBe(fallback);
+    expect(resolveQrTargetUrl("https://example.com/")).toBe("https://example.com/");
   });
 });

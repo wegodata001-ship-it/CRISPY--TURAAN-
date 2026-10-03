@@ -51,12 +51,12 @@ function SubChip({
         "h-9 px-3.5 text-sm",
         "md:h-8 md:px-3 md:text-sm",
         selected
-          ? "bg-turquoise/15 text-dark-brown ring-1 ring-turquoise"
-          : "border border-beige-dark/25 bg-white text-coffee/75 hover:border-turquoise/35"
+          ? "bg-gold text-dark-brown"
+          : "border border-beige-dark bg-white text-dark-brown hover:border-gold"
       )}
     >
       <span dir={localized.dir} className="min-w-0 truncate">{localized.name}</span>
-      <span className={cn("shrink-0 text-xs", selected ? "text-turquoise" : "text-coffee/40")}>
+      <span className={cn("shrink-0 text-xs", selected ? "text-dark-brown/70" : "text-coffee-light")}>
         · {count}
       </span>
     </motion.button>

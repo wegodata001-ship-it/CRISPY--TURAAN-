@@ -280,7 +280,7 @@ export function kitchenTicketHtml(order: Order): string {
   return `
     <style>${TICKET_STYLES}</style>
     <article class="ticket" dir="rtl">
-      <p class="brand">MISHKAT CAFÉ</p>
+      <p class="brand">CRISPY</p>
       <h1 class="order-no">#${escapeHtml(order.orderNumber)}</h1>
       <p class="meta">${escapeHtml(formatTicketDate(order.createdAt))}</p>
       ${

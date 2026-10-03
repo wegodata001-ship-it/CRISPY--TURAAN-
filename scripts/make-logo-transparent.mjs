@@ -1,93 +1,109 @@
-import sharp from "sharp";
-import { existsSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { copyFileSync, existsSync, writeFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const input = join(root, "public", "logo.png");
-const output = join(root, "public", "logo-transparent.png");
+const liveLogo = join(root, "public", "logo.png");
+const sourceBackup = join(root, "public", "logo-source.png");
+const outputs = [liveLogo, join(root, "public", "logo-transparent.png")];
 
-if (!existsSync(input)) {
+if (!existsSync(liveLogo)) {
   console.error("Missing public/logo.png");
   process.exit(1);
 }
 
-const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-const { width, height } = info;
-
-function colorDistance(r1, g1, b1, r2, g2, b2) {
-  return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
+if (!existsSync(sourceBackup)) {
+  copyFileSync(liveLogo, sourceBackup);
 }
 
-/** Sample background from corners */
-const samples = [
+const image = await loadImage(sourceBackup);
+const { width, height } = image;
+const canvas = createCanvas(width, height);
+const ctx = canvas.getContext("2d");
+ctx.clearRect(0, 0, width, height);
+ctx.drawImage(image, 0, 0);
+const imageData = ctx.getImageData(0, 0, width, height);
+const { data } = imageData;
+
+function colorDistance(r1, g1, b1, r2, g2, b2) {
+  return Math.hypot(r1 - r2, g1 - g2, b1 - b2);
+}
+
+const corners = [
   [0, 0],
   [width - 1, 0],
   [0, height - 1],
   [width - 1, height - 1],
-  [1, 1],
-  [width - 2, height - 2],
 ].map(([x, y]) => {
   const i = (y * width + x) * 4;
   return [data[i], data[i + 1], data[i + 2]];
 });
-const bgR = Math.round(samples.reduce((s, c) => s + c[0], 0) / samples.length);
-const bgG = Math.round(samples.reduce((s, c) => s + c[1], 0) / samples.length);
-const bgB = Math.round(samples.reduce((s, c) => s + c[2], 0) / samples.length);
 
-const tolerance = 38;
+const bgR = Math.round(corners.reduce((sum, color) => sum + color[0], 0) / corners.length);
+const bgG = Math.round(corners.reduce((sum, color) => sum + color[1], 0) / corners.length);
+const bgB = Math.round(corners.reduce((sum, color) => sum + color[2], 0) / corners.length);
+
+const tolerance = 36;
 const visited = new Uint8Array(width * height);
-const queue = [];
+const stack = [];
 
-for (let x = 0; x < width; x++) {
-  queue.push([x, 0], [x, height - 1]);
+for (let x = 0; x < width; x += 1) {
+  stack.push(x, 0, x, height - 1);
 }
-for (let y = 0; y < height; y++) {
-  queue.push([0, y], [width - 1, y]);
-}
-
-function idx(x, y) {
-  return y * width + x;
+for (let y = 0; y < height; y += 1) {
+  stack.push(0, y, width - 1, y);
 }
 
-while (queue.length) {
-  const [x, y] = queue.pop();
-  const p = idx(x, y);
-  if (x < 0 || y < 0 || x >= width || y >= height || visited[p]) continue;
+while (stack.length) {
+  const y = stack.pop();
+  const x = stack.pop();
+  if (x < 0 || y < 0 || x >= width || y >= height) continue;
+  const p = y * width + x;
+  if (visited[p]) continue;
   visited[p] = 1;
   const i = p * 4;
-  const r = data[i];
-  const g = data[i + 1];
-  const b = data[i + 2];
-  if (colorDistance(r, g, b, bgR, bgG, bgB) <= tolerance) {
+  if (colorDistance(data[i], data[i + 1], data[i + 2], bgR, bgG, bgB) <= tolerance) {
     data[i + 3] = 0;
-    queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
   }
 }
 
-/** Soften anti-alias fringe near transparency */
-for (let y = 1; y < height - 1; y++) {
-  for (let x = 1; x < width - 1; x++) {
-    const p = idx(x, y);
-    const i = p * 4;
+for (let y = 1; y < height - 1; y += 1) {
+  for (let x = 1; x < width - 1; x += 1) {
+    const i = (y * width + x) * 4;
     if (data[i + 3] === 0) continue;
-    const neighbors = [
-      visited[idx(x + 1, y)],
-      visited[idx(x - 1, y)],
-      visited[idx(x, y + 1)],
-      visited[idx(x, y - 1)],
-    ];
-    const transparentNeighbors = neighbors.filter(Boolean).length;
-    if (transparentNeighbors >= 2 && colorDistance(data[i], data[i + 1], data[i + 2], bgR, bgG, bgB) <= tolerance + 20) {
-      data[i + 3] = 0;
+    const nearClear =
+      data[i + 4 + 3] === 0 ||
+      data[i - 4 + 3] === 0 ||
+      data[i + width * 4 + 3] === 0 ||
+      data[i - width * 4 + 3] === 0;
+    if (!nearClear) continue;
+    const distance = colorDistance(data[i], data[i + 1], data[i + 2], bgR, bgG, bgB);
+    if (distance <= tolerance + 18) {
+      data[i + 3] = Math.max(0, Math.round(255 * (distance / (tolerance + 18))));
     }
   }
 }
 
-await sharp(data, {
-  raw: { width, height, channels: 4 },
-})
-  .png()
-  .toFile(output);
+ctx.putImageData(imageData, 0, 0);
+const png = canvas.toBuffer("image/png");
+for (const output of outputs) writeFileSync(output, png);
 
-console.log(`Created ${output} (${width}x${height}) bg=(${bgR},${bgG},${bgB})`);
+let transparent = 0;
+let opaque = 0;
+for (let i = 3; i < data.length; i += 4) {
+  if (data[i] === 0) transparent += 1;
+  else opaque += 1;
+}
+
+console.log(
+  JSON.stringify({
+    width,
+    height,
+    bg: [bgR, bgG, bgB],
+    transparent,
+    opaque,
+    outputs,
+  })
+);

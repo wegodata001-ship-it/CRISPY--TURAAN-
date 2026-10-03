@@ -48,7 +48,7 @@ export function getPdfPageIds(pages: MenuPage[]): string[] {
 }
 
 export function menuPdfFilename(date = new Date()): string {
-  return `mishkat-menu-${date.toISOString().slice(0, 10)}.pdf`;
+  return `crispy-menu-${date.toISOString().slice(0, 10)}.pdf`;
 }
 
 function PdfExportRoot({ page, template }: { page: MenuPage; template: PdfMenuTemplate }) {

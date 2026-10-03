@@ -16,7 +16,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const host = (await headers()).get("host");
   if (isPortalHost(host) || isMenuHost(host)) {
     return {
-      name: isMenuHost(host) ? "MISHKAT Menu" : "Portal",
+      name: isMenuHost(host) ? "CRISPY Menu" : "Portal",
       short_name: isMenuHost(host) ? "Menu" : "Portal",
       description: isMenuHost(host) ? "Digital menu" : "Admin portal",
       start_url: "/",

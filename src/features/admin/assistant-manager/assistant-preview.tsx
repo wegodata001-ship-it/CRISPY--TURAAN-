@@ -21,7 +21,7 @@ export function AssistantManagerPreview({ config }: { config: AssistantConfig })
         <div className="flex items-center gap-3">
           <AssistantAvatar size="md" />
           <div>
-            <p className="font-display font-bold">MISHKAT CAFÉ</p>
+            <p className="font-display font-bold">CRISPY</p>
             <p className="text-xs text-coffee/50">העוזר החכם</p>
           </div>
         </div>

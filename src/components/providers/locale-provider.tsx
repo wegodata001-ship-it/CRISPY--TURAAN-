@@ -44,9 +44,9 @@ function readStoredLocale(): Locale {
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
   const [strings, setStrings] = useState<Record<Locale, TranslationMap>>({
-    he: {},
-    ar: {},
-    en: {},
+    he: { ...UI_TRANSLATIONS_SEED.he, ...ADMIN_TRANSLATIONS.he },
+    ar: { ...UI_TRANSLATIONS_SEED.ar, ...ADMIN_TRANSLATIONS.ar },
+    en: { ...UI_TRANSLATIONS_SEED.en, ...ADMIN_TRANSLATIONS.en },
   });
   const [loading, setLoading] = useState(true);
 

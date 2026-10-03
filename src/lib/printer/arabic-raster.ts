@@ -33,7 +33,7 @@ export async function buildArabicRasterTestPayload(): Promise<Buffer> {
   }
 
   const lines = [
-    "مشكا",
+    "CRISPY",
     "اختبار الطابعة",
     "",
     "طلب رقم 123",

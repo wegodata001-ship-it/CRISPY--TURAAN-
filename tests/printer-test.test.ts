@@ -8,7 +8,7 @@ describe("printer test isolation", () => {
   it("builds ESC/POS ASCII payload with init and cut", () => {
     const buf = buildAsciiTestPayload(new Date("2026-08-22T12:00:00Z"));
     expect(buf.includes(escInit())).toBe(true);
-    expect(buf.includes(Buffer.from("MISHKAH PRINTER TEST", "ascii"))).toBe(true);
+    expect(buf.includes(Buffer.from("CRISPY PRINTER TEST", "ascii"))).toBe(true);
     expect(buf.includes(escCut("full"))).toBe(true);
   });
 

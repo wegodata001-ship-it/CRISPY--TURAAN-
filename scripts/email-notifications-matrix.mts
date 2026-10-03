@@ -1,5 +1,5 @@
 /**
- * Live Brevo notification matrix for MISHKAH CAFE.
+ * Live Brevo notification matrix for CRISPY.
  * Usage: npm run email:matrix
  * Never prints secrets.
  */
@@ -24,12 +24,12 @@ async function main() {
     notifyOrderCancelled,
     notifyCriticalOrderFailure,
   } = await import("../src/lib/email/notifications");
-  const { sendMishkahTestEmail } = await import("../src/lib/email/send");
+  const { sendBusinessTestEmail } = await import("../src/lib/email/send");
   const { fingerprintChanges } = await import("../src/lib/email/significant-diff");
 
   const ready = assertBrevoReady();
   const cfg = getBrevoConfig();
-  console.log("=== MISHKAH EMAIL NOTIFICATIONS MATRIX ===");
+  console.log("=== CRISPY EMAIL NOTIFICATIONS MATRIX ===");
   console.log(`Sender: ${cfg.senderName} <${cfg.senderEmail}>`);
   console.log(`Reply-To: ${cfg.replyTo}`);
   console.log(`Business recipient: ${getBusinessAlertRecipients().join(", ")}`);
@@ -43,7 +43,7 @@ async function main() {
   }
 
   // Auth / sender probe via test email to business inbox only
-  const test = await sendMishkahTestEmail(getBusinessAlertRecipients()[0]);
+  const test = await sendBusinessTestEmail(getBusinessAlertRecipients()[0]);
   rows.push({
     name: "BREVO_AUTH",
     pass: test.ok,
@@ -215,7 +215,7 @@ async function main() {
   rows.push({
     name: "PORTAL_LINK",
     pass:
-      link.startsWith("https://portal.mishkatcafe.dev") &&
+      link.includes("/orders") &&
       !link.includes("/admin"),
     detail: link,
   });

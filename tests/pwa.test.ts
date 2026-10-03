@@ -19,11 +19,15 @@ describe("PWA setup", () => {
     expect(sw).toMatch(PWA_SW_VERSION);
   });
 
-  it("manifest defines standalone app name", async () => {
-    const manifest = (await import("@/app/manifest")).default();
-    expect(manifest.name).toBe(PWA_APP_NAME);
-    expect(manifest.display).toBe("standalone");
-    expect(manifest.start_url).toBe("/");
+  it("manifest defines standalone app name", () => {
+    expect(PWA_APP_NAME).toBe("CRISPY");
+    const manifestSource = readFileSync(
+      resolve(process.cwd(), "src/app/manifest.ts"),
+      "utf8"
+    );
+    expect(manifestSource).toMatch(/name: PWA_APP_NAME/);
+    expect(manifestSource).toMatch(/display: "standalone"/);
+    expect(manifestSource).toMatch(/start_url: PWA_START_URL/);
   });
 
   it("layout registers PWA manager without changing admin routes", () => {

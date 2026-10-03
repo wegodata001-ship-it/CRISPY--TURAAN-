@@ -49,7 +49,7 @@ const FALLBACK_SETTINGS: AppSettings = {
   address: "",
   hours: "",
   currency: "ILS",
-  theme: { primary: "#3D2B24", accent: "#007A80", background: "#F8F3ED" },
+  theme: { primary: "#D71920", accent: "#F6B800", background: "#FFF4E2" },
   seo: { title: BRAND.name, description: BRAND.taglineAlt },
   social: { instagram: "", facebook: "", whatsapp: "" },
   mapsUrl: "",

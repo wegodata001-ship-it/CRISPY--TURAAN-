@@ -45,14 +45,13 @@ export function requiredEnv(name: string): string {
 }
 
 export function apiBase(): string {
-  return (process.env.PRINT_AGENT_API_URL?.trim() || "https://mishkatcafe.dev").replace(
-    /\/$/,
-    ""
-  );
+  const value = process.env.PRINT_AGENT_API_URL?.trim();
+  if (!value) throw new Error("PRINT_AGENT_API_URL is not configured");
+  return value.replace(/\/$/, "");
 }
 
 export function getPrinterHost(): string {
-  return process.env.PRINTER_IP?.trim() || "192.168.1.87";
+  return process.env.PRINTER_IP?.trim() || "";
 }
 
 export function getPrinterPort(): number {

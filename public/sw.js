@@ -1,5 +1,5 @@
-/* MSHKAH PWA service worker — static assets only; dynamic data stays network-first. */
-const SW_VERSION = "mshkah-pwa-1";
+/* CRISPY PWA service worker — static assets only; dynamic data stays network-first. */
+const SW_VERSION = "crispy-pwa-1";
 const STATIC_CACHE = `${SW_VERSION}-static`;
 const PAGES_CACHE = `${SW_VERSION}-pages`;
 

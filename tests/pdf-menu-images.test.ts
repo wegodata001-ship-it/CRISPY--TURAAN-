@@ -7,7 +7,7 @@ import {
 } from "@/lib/pdf-menu/menu-image";
 
 const FIREBASE =
-  "https://firebasestorage.googleapis.com/v0/b/mshkah.firebasestorage.app/o/products%2Fnew-1786.jpg?alt=media&token=abc";
+  "https://firebasestorage.googleapis.com/v0/b/crispy-d0bf7.firebasestorage.app/o/products%2Fnew-1786.jpg?alt=media&token=abc";
 
 describe("menu image URLs", () => {
   it("keeps a valid Firebase download URL as stored", () => {

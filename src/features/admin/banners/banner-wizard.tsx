@@ -182,8 +182,11 @@ export function BannerWizard({
                   label={t("admin.banners.desktopUpload")}
                   value={draft.imageUrl}
                   onChange={(url) => set("imageUrl", url)}
-                  onUpload={(file, onProgress) =>
-                    uploadBannerImage(file, `${uploadId.current}-desktop`, onProgress)
+                  onUpload={(file, onProgress, options) =>
+                    uploadBannerImage(file, `${uploadId.current}-desktop`, {
+                      onProgress,
+                      signal: options?.signal,
+                    })
                   }
                 />
                 {draft.imageUrl && (
@@ -228,8 +231,11 @@ export function BannerWizard({
                   label={t("admin.banners.customMobileImage")}
                   value={draft.mobileImageUrl || ""}
                   onChange={(url) => set("mobileImageUrl", url)}
-                  onUpload={(file, onProgress) =>
-                    uploadBannerImage(file, `${uploadId.current}-mobile`, onProgress)
+                  onUpload={(file, onProgress, options) =>
+                    uploadBannerImage(file, `${uploadId.current}-mobile`, {
+                      onProgress,
+                      signal: options?.signal,
+                    })
                   }
                 />
                 {(draft.mobileImageUrl || draft.imageUrl) && (

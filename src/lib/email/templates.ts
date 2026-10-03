@@ -1,4 +1,4 @@
-import { BRAND_COLORS } from "@/lib/brand";
+import { BRAND, BRAND_COLORS } from "@/lib/brand";
 import { getPublicSiteUrl } from "@/lib/email/config";
 import type { OrderChange } from "@/lib/email/significant-diff";
 
@@ -40,7 +40,7 @@ export function emailShell(opts: {
   bodyHtml: string;
 }): string {
   const siteUrl = getPublicSiteUrl();
-  const logoUrl = `${siteUrl}/logo-transparent.png`;
+  const logoUrl = `${siteUrl}${BRAND.logo}`;
   const badge = opts.badge ? BADGE[opts.badge] : null;
   const preheader = opts.preheader
     ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(opts.preheader)}</div>`
@@ -61,8 +61,8 @@ export function emailShell(opts: {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:${COLORS.warmWhite};border-radius:16px;overflow:hidden;border:1px solid ${COLORS.border};">
           <tr>
             <td style="background:${COLORS.primary};padding:22px 24px;text-align:center;">
-              <img src="${logoUrl}" alt="MISHKAH CAFE" width="72" height="63" style="display:inline-block;border:0;outline:none;max-width:72px;height:auto;" />
-              <div style="margin-top:10px;font-size:20px;font-weight:700;letter-spacing:0.04em;color:${COLORS.warmWhite};">MISHKAH CAFE</div>
+              <img src="${logoUrl}" alt="${BRAND.name}" width="72" height="81" style="display:inline-block;background:transparent;border:0;outline:none;max-width:72px;height:auto;" />
+              <div style="margin-top:10px;font-size:20px;font-weight:700;letter-spacing:0.04em;color:${COLORS.warmWhite};">${BRAND.name}</div>
               ${
                 badge
                   ? `<div style="margin-top:12px;display:inline-block;padding:6px 14px;border-radius:999px;background:${badge.bg};color:${badge.color};font-size:12px;font-weight:700;">${escapeHtml(badge.label)}</div>`
@@ -77,8 +77,8 @@ export function emailShell(opts: {
           </tr>
           <tr>
             <td style="padding:18px 24px;background:${COLORS.cream};border-top:1px solid ${COLORS.border};text-align:center;">
-              <div style="font-size:13px;font-weight:700;color:${COLORS.primary};">MISHKAH CAFE</div>
-              <div style="margin-top:4px;font-size:12px;color:${COLORS.muted};">Coffee • Crêpes • Desserts</div>
+              <div style="font-size:13px;font-weight:700;color:${COLORS.primary};">${BRAND.name}</div>
+              <div style="margin-top:4px;font-size:12px;color:${COLORS.muted};">${BRAND.tagline}</div>
             </td>
           </tr>
         </table>
@@ -99,13 +99,13 @@ function ctaButton(url: string, label: string): string {
 }
 
 export function renderTestEmailHtml(): { subject: string; html: string; text: string } {
-  const subject = "MISHKAH CAFE — בדיקת מערכת המיילים";
+  const subject = `${BRAND.name} — בדיקת מערכת המיילים`;
   const html = emailShell({
     title: subject,
     badge: "test",
     preheader: "מערכת המיילים מחוברת בהצלחה",
     bodyHtml: `
-      <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:${COLORS.primary};text-align:center;">MISHKAH CAFE</h1>
+      <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:${COLORS.primary};text-align:center;">${BRAND.name}</h1>
       <p style="margin:0 0 10px;font-size:16px;line-height:1.6;text-align:center;color:${COLORS.primary};">
         מערכת המיילים מחוברת בהצלחה.
       </p>
@@ -117,7 +117,7 @@ export function renderTestEmailHtml(): { subject: string; html: string; text: st
   return {
     subject,
     html,
-    text: "MISHKAH CAFE\n\nמערכת המיילים מחוברת בהצלחה.\nזהו מייל בדיקה שנשלח באמצעות Brevo.",
+    text: `${BRAND.name}\n\nמערכת המיילים מחוברת בהצלחה.\nזהו מייל בדיקה שנשלח באמצעות Brevo.`,
   };
 }
 
@@ -264,7 +264,7 @@ export function renderNewOrderEmail(payload: OrderEmailBase): {
   html: string;
   text: string;
 } {
-  const subject = `הזמנה חדשה #${payload.orderNumber} | MISHKAH CAFE`;
+  const subject = `הזמנה חדשה #${payload.orderNumber} | ${BRAND.name}`;
   const html = emailShell({
     title: subject,
     badge: "new",
@@ -285,14 +285,14 @@ export function renderNewOrderEmail(payload: OrderEmailBase): {
   return {
     subject,
     html,
-    text: `MISHKAH CAFE\nהזמנה חדשה #${payload.orderNumber}\nלקוח: ${payload.customerName}\nסה״כ: ${formatIls(payload.total)}\n${payload.viewUrl}`,
+    text: `${BRAND.name}\nהזמנה חדשה #${payload.orderNumber}\nלקוח: ${payload.customerName}\nסה״כ: ${formatIls(payload.total)}\n${payload.viewUrl}`,
   };
 }
 
 export function renderOrderUpdatedEmail(
   payload: OrderEmailBase & { changes: OrderChange[] }
 ): { subject: string; html: string; text: string } {
-  const subject = `הזמנה #${payload.orderNumber} עודכנה | MISHKAH CAFE`;
+  const subject = `הזמנה #${payload.orderNumber} עודכנה | ${BRAND.name}`;
   const changesHtml = payload.changes
     .map(
       (c) => `
@@ -327,14 +327,14 @@ export function renderOrderUpdatedEmail(
   return {
     subject,
     html,
-    text: `MISHKAH CAFE\nהזמנה #${payload.orderNumber} עודכנה\n${payload.changes.map((c) => `${c.label}: ${c.before} → ${c.after}`).join("\n")}`,
+    text: `${BRAND.name}\nהזמנה #${payload.orderNumber} עודכנה\n${payload.changes.map((c) => `${c.label}: ${c.before} → ${c.after}`).join("\n")}`,
   };
 }
 
 export function renderOrderCancelledEmail(
   payload: OrderEmailBase & { cancelReason?: string }
 ): { subject: string; html: string; text: string } {
-  const subject = `הזמנה #${payload.orderNumber} בוטלה | MISHKAH CAFE`;
+  const subject = `הזמנה #${payload.orderNumber} בוטלה | ${BRAND.name}`;
   const reasonRow = payload.cancelReason
     ? `<div><strong>סיבת ביטול:</strong> ${escapeHtml(payload.cancelReason)}</div>`
     : "";
@@ -357,7 +357,7 @@ export function renderOrderCancelledEmail(
   return {
     subject,
     html,
-    text: `MISHKAH CAFE\nהזמנה #${payload.orderNumber} בוטלה\n${payload.cancelReason ?? ""}\n${payload.viewUrl}`,
+    text: `${BRAND.name}\nהזמנה #${payload.orderNumber} בוטלה\n${payload.cancelReason ?? ""}\n${payload.viewUrl}`,
   };
 }
 
@@ -366,7 +366,7 @@ export function renderCriticalCheckoutFailureEmail(payload: {
   code?: string;
   occurredAt: string;
 }): { subject: string; html: string; text: string } {
-  const subject = "תקלה בתהליך הזמנה | MISHKAH CAFE";
+  const subject = `תקלה בתהליך הזמנה | ${BRAND.name}`;
   const { date, time } = formatDateHe(payload.occurredAt);
   const html = emailShell({
     title: subject,
@@ -387,6 +387,6 @@ export function renderCriticalCheckoutFailureEmail(payload: {
   return {
     subject,
     html,
-    text: `MISHKAH CAFE\nתקלה בתהליך הזמנה\n${payload.code ?? ""}\n${payload.message}`,
+    text: `${BRAND.name}\nתקלה בתהליך הזמנה\n${payload.code ?? ""}\n${payload.message}`,
   };
 }

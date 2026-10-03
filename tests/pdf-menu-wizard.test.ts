@@ -67,7 +67,7 @@ const products: Product[] = [
 ];
 
 const settings: AppSettings = {
-  storeName: "MISHKAT CAFÉ",
+  storeName: "CRISPY",
   logoUrl: "/logo-transparent.png",
   storeImageUrl: "",
   showProductThumbnails: true,

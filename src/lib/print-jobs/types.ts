@@ -8,8 +8,8 @@ export const PRINT_LOCALES = ["ar", "he", "en"] as const;
 export type PrintLocale = (typeof PRINT_LOCALES)[number];
 
 export const DEFAULT_PRINT_LOCALE: PrintLocale = "ar";
-export const PRINT_STORE_ID = "mishkah";
-export const PRINTER_DISPLAY_NAME = "MISHKAH Kitchen Printer";
+export const PRINT_STORE_ID = "crispy";
+export const PRINTER_DISPLAY_NAME = "CRISPY Kitchen Printer";
 
 export const MAX_PRINT_ATTEMPTS = 3;
 /** After attempt 1 fails wait 10s; after attempt 2 fails wait 30s; then FAILED. */

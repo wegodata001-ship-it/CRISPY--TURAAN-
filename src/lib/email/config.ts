@@ -1,5 +1,5 @@
 /**
- * Server-side email configuration for MISHKAH CAFE.
+ * Server-side email configuration for CRISPY.
  * Never import this module from client components.
  */
 
@@ -18,15 +18,15 @@ export function getBrevoConfig() {
   return {
     apiKey: env("BREVO_API_KEY"),
     baseUrl: env("BREVO_BASE_URL", "https://api.brevo.com/v3").replace(/\/$/, ""),
-    senderName: env("BREVO_SENDER_NAME", "MISHKAH CAFE"),
-    senderEmail: env("BREVO_SENDER_EMAIL", "email@mishkatcafe.dev"),
-    replyTo: env("BREVO_REPLY_TO", "mishkahcaffe@gmail.com"),
+    senderName: env("BREVO_SENDER_NAME", "CRISPY"),
+    senderEmail: env("BREVO_SENDER_EMAIL"),
+    replyTo: env("BREVO_REPLY_TO"),
   };
 }
 
-export function getMishkahNotificationEmails() {
-  const notification = env("MISHKAH_NOTIFICATION_EMAIL", "mishkahcaffe@gmail.com");
-  const admin = env("MISHKAH_ADMIN_EMAIL", "abulieltasneem23@gmail.com");
+export function getNotificationEmails() {
+  const notification = env("MISHKAH_NOTIFICATION_EMAIL");
+  const admin = env("MISHKAH_ADMIN_EMAIL");
   const recipients = [notification, admin].filter(Boolean);
   return {
     notification,
@@ -38,18 +38,20 @@ export function getMishkahNotificationEmails() {
 
 /** Business order alerts — primary café inbox */
 export function getBusinessAlertRecipients(): string[] {
-  const { notification } = getMishkahNotificationEmails();
+  const { notification } = getNotificationEmails();
   return notification ? [notification] : [];
 }
 
 export function getPublicSiteUrl(): string {
-  return env("NEXT_PUBLIC_SITE_URL", "https://mishkatcafe.dev").replace(/\/$/, "");
+  return env("NEXT_PUBLIC_SITE_URL").replace(/\/$/, "");
 }
 
 export function getPortalAdminOrderUrl(orderId: string): string {
   const portal =
     env("NEXT_PUBLIC_PORTAL_URL") ||
-    `https://${env("NEXT_PUBLIC_PORTAL_HOST", "portal.mishkatcafe.dev")}`;
+    (env("NEXT_PUBLIC_PORTAL_HOST")
+      ? `https://${env("NEXT_PUBLIC_PORTAL_HOST")}`
+      : "");
   const base = `${portal.replace(/\/$/, "")}/orders`;
   return orderId ? `${base}?order=${encodeURIComponent(orderId)}` : base;
 }

@@ -111,14 +111,18 @@ export function SettingsAdmin() {
               label={t("admin.settings.logo")}
               value={settings.logoUrl}
               onChange={(url) => setSettings({ ...settings, logoUrl: url })}
-              onUpload={(file, onProgress) => uploadSettingsImage(file, "logo", onProgress)}
+              onUpload={(file, onProgress, options) =>
+                uploadSettingsImage(file, "logo", { onProgress, signal: options?.signal })
+              }
               onDelete={deleteImageByUrl}
             />
             <ImageUpload
               label={t("admin.settings.storeImage")}
               value={settings.storeImageUrl}
               onChange={(url) => setSettings({ ...settings, storeImageUrl: url })}
-              onUpload={(file, onProgress) => uploadSettingsImage(file, "store", onProgress)}
+              onUpload={(file, onProgress, options) =>
+                uploadSettingsImage(file, "store", { onProgress, signal: options?.signal })
+              }
               onDelete={deleteImageByUrl}
             />
             <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-beige-dark/20 px-4 py-3 dark:border-white/10">

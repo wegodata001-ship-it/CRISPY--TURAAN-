@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, ArrowRight } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useHideCustomerChrome } from "@/hooks/useAdminPath";
 import { useCart } from "@/features/cart/cart-context";
@@ -24,36 +23,22 @@ export function MobileCartBar() {
           initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
-          className="fixed bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)] left-0 right-0 z-[90] px-4 lg:hidden"
+          className="fixed bottom-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.4rem)] left-0 right-0 z-[90] px-3 lg:hidden"
         >
-          <div className="mx-auto flex max-w-lg items-center gap-3 rounded-2xl bg-dark-brown px-4 py-3 shadow-elevated">
-            <button
-              type="button"
-              onClick={openCart}
-              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-turquoise/20"
-              aria-label={t("cart.openCart")}
-            >
-              <ShoppingBag className="h-5 w-5 text-warm-white" strokeWidth={1.75} />
-              <span className="absolute -top-1 -end-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-turquoise px-1 text-[10px] font-bold text-warm-white">
-                {itemCount}
+          <button
+            type="button"
+            onClick={openCart}
+            className="mx-auto flex w-full max-w-lg flex-col items-center rounded-[18px] bg-[#D71920] px-4 py-3 text-white shadow-elevated"
+          >
+            <span className="flex w-full items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2 text-sm font-bold">
+                <ShoppingBag className="h-5 w-5 shrink-0" strokeWidth={2} />
+                {itemCount} {t("catalog.productsCount")}
               </span>
-            </button>
-            <button
-              type="button"
-              onClick={openCart}
-              className="min-w-0 flex-1 text-start"
-            >
-              <p className="text-xs text-warm-white/70">{t("cart.title")}</p>
-              <p className="text-price text-lg text-warm-white">{formatPrice(total)}</p>
-            </button>
-            <Link
-              href="/checkout"
-              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-turquoise px-4 py-2.5 text-sm font-semibold text-warm-white transition-transform hover:scale-[1.02]"
-            >
-              {t("cart.checkout")}
-              <ArrowRight className="h-4 w-4 rtl:rotate-180" strokeWidth={1.75} />
-            </Link>
-          </div>
+              <span className="shrink-0 text-xl font-bold tabular-nums">{formatPrice(total)}</span>
+            </span>
+            <span className="mt-0.5 text-sm font-semibold text-white/90">{t("cart.viewOrder")}</span>
+          </button>
         </motion.div>
       )}
     </AnimatePresence>

@@ -97,7 +97,7 @@ export function buildProductExcelRows(
 export async function buildProductExcelWorkbook(rows: ProductExcelRow[]): Promise<ArrayBuffer> {
   const ExcelJS = (await import("exceljs")).default;
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "MISHKAT";
+  workbook.creator = "CRISPY";
   const sheet = workbook.addWorksheet(PRODUCT_EXCEL_SHEET_NAME, {
     views: [{ rightToLeft: true, state: "frozen", ySplit: 1 }],
   });

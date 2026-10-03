@@ -21,21 +21,21 @@ import { formatDate, formatPrice, cn } from "@/lib/utils";
 import type { Order, OrderStatus } from "@/types";
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
-  pending: "border-amber-300 bg-amber-50 text-amber-800",
-  confirmed: "border-sky-300 bg-sky-50 text-sky-800",
-  preparing: "border-violet-300 bg-violet-50 text-violet-800",
+  pending: "border-amber-300 bg-amber-50 text-amber-900",
+  confirmed: "border-amber-300 bg-gold/20 text-dark-brown",
+  preparing: "border-orange-300 bg-orange-50 text-orange-800",
   ready: "border-emerald-300 bg-emerald-50 text-emerald-800",
-  delivered: "border-stone-300 bg-stone-100 text-stone-700",
+  delivered: "border-beige-dark bg-cream text-dark-brown",
   cancelled: "border-red-300 bg-red-50 text-red-700",
 };
 
 const STATUS_BORDER: Record<OrderStatus, string> = {
-  pending: "border-s-amber-500",
-  confirmed: "border-s-sky-500",
-  preparing: "border-s-violet-500",
-  ready: "border-s-emerald-500",
-  delivered: "border-s-stone-500",
-  cancelled: "border-s-red-500",
+  pending: "border-s-gold",
+  confirmed: "border-s-gold",
+  preparing: "border-s-orange-500",
+  ready: "border-s-[#2E9B55]",
+  delivered: "border-s-dark-brown",
+  cancelled: "border-s-turquoise",
 };
 
 function OrderItems({
@@ -77,7 +77,7 @@ function OrderItems({
             </p>
           ))}
           {item.kitchenNotes?.map((note) => (
-            <p key={note} className="ps-4 text-xs font-medium text-violet-700">
+            <p key={note} className="ps-4 text-xs font-medium text-orange-800">
               • {note}
             </p>
           ))}
@@ -156,9 +156,13 @@ export function OrderCard({
             />
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-coffee/55">
-            <span className="font-medium text-coffee/75">{order.customerName}</span>
             <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-            <span className={cn("inline-flex items-center gap-1", urgent && "font-bold text-amber-700")}>
+            <span className="font-medium text-coffee/80">{order.customerName}</span>
+            {order.customerPhone && <span dir="ltr">{order.customerPhone}</span>}
+            <span>
+              {order.items.reduce((sum, item) => sum + item.quantity, 0)} {t("catalog.productsCount")}
+            </span>
+            <span className={cn("inline-flex items-center gap-1", urgent && "font-bold text-amber-800")}>
               <Clock className="h-3.5 w-3.5" />
               {age < 1
                 ? t("admin.orders.justNow")

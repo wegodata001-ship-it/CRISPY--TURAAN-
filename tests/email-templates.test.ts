@@ -10,10 +10,10 @@ import { computeSignificantOrderChanges } from "@/lib/email/significant-diff";
 import type { Order } from "@/types";
 
 describe("email templates", () => {
-  it("renders MISHKAH branding without WEGO", () => {
+  it("renders CRISPY branding without WEGO", () => {
     const testMail = renderTestEmailHtml();
-    expect(testMail.subject).toContain("MISHKAH CAFE");
-    expect(testMail.html).toContain("MISHKAH CAFE");
+    expect(testMail.subject).toContain("CRISPY");
+    expect(testMail.html).toContain("CRISPY");
     expect(testMail.html.toLowerCase()).not.toContain("wego");
     expect(testMail.text.toLowerCase()).not.toContain("wego");
   });
@@ -38,12 +38,12 @@ describe("email templates", () => {
       orderType: "pickup",
       status: "pending",
       notes: "בלי קרח",
-      viewUrl: "https://portal.mishkatcafe.dev/orders?order=abc",
+      viewUrl: "https://portal.example/orders?order=abc",
     });
 
-    expect(mail.subject).toBe("הזמנה חדשה #MC-2026-TEST | MISHKAH CAFE");
+    expect(mail.subject).toBe("הזמנה חדשה #MC-2026-TEST | CRISPY");
     expect(mail.html).toContain("פתיחת ההזמנה");
-    expect(mail.html).toContain("portal.mishkatcafe.dev");
+    expect(mail.html).toContain("portal.example");
     expect(mail.html).not.toContain("/admin");
     expect(mail.html.toLowerCase()).not.toContain("wego");
   });
@@ -56,7 +56,7 @@ describe("email templates", () => {
       customerName: "A",
       items: [{ productName: "X", quantity: 1, price: 10 }],
       total: 10,
-      viewUrl: "https://portal.mishkatcafe.dev/orders?order=abc",
+      viewUrl: "https://portal.example/orders?order=abc",
     };
     const updated = renderOrderUpdatedEmail({
       ...base,
@@ -99,7 +99,9 @@ describe("significant diff", () => {
 describe("portal url", () => {
   it("uses portal host without /admin", () => {
     const url = getPortalAdminOrderUrl("xyz");
-    expect(url).toContain("portal.mishkatcafe.dev");
+    expect(url).toMatch(/\/orders\?order=xyz$/);
+    expect(url).not.toContain("mishkat");
+    expect(url).not.toContain("mishkah");
     expect(url).not.toContain("/admin");
   });
 });

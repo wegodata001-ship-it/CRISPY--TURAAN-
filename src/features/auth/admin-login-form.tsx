@@ -12,7 +12,6 @@ import { BRAND } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { StoreImage } from "@/components/brand/store-image";
 import { useT } from "@/components/providers/locale-provider";
 
 export function AdminLoginForm() {
@@ -69,18 +68,18 @@ export function AdminLoginForm() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="relative hidden w-1/2 lg:block">
-        <StoreImage priority imageClassName="object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-br from-dark-brown/80 via-dark-brown/50 to-turquoise/30" />
-        <div className="absolute inset-0 flex flex-col justify-end p-12">
+      <div className="relative hidden w-1/2 items-center justify-center bg-crispy-black lg:flex">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(215,25,32,0.35),transparent_45%),radial-gradient(circle_at_80%_80%,rgba(246,184,0,0.2),transparent_40%)]" />
+        <div className="relative flex flex-col items-center px-12 text-center">
+          <Logo size="xl" href={null} priority className="h-28 w-auto" />
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="font-display text-4xl font-bold text-warm-white"
+            className="mt-6 font-display text-4xl font-bold text-warm-white"
           >
             {BRAND.name}
           </motion.h1>
-          <p className="mt-2 text-warm-white/80">{t("admin.signInHint")}</p>
+          <p className="mt-2 text-gold">{t("brand.tagline")}</p>
         </div>
       </div>
 
@@ -90,15 +89,14 @@ export function AdminLoginForm() {
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-md"
         >
-          <div className="mb-8 flex flex-col items-center lg:items-start">
-            <Logo size="lg" href={null} className="h-14 w-auto" />
-            <h2 className="mt-4 font-display text-2xl font-bold text-dark-brown">
-              {t("admin.welcome")}
-            </h2>
-            <p className="text-sm text-coffee/60">{t("admin.signInHint")}</p>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl bg-warm-white p-6 shadow-elevated">
+            <div className="flex flex-col items-center text-center lg:items-start lg:text-start">
+              <Logo size="lg" href={null} priority className="h-14 w-auto" />
+              <h2 className="mt-4 font-display text-2xl font-bold text-dark-brown">
+                {t("admin.welcome")}
+              </h2>
+              <p className="text-sm text-coffee/60">{t("admin.signInHint")}</p>
+            </div>
             <div>
               <Label htmlFor="email">{t("admin.email")}</Label>
               <Input
@@ -106,7 +104,7 @@ export function AdminLoginForm() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@mishkat.cafe"
+                placeholder="admin@example.com"
                 className="mt-1.5"
                 required
               />
@@ -126,7 +124,7 @@ export function AdminLoginForm() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-coffee/40"
+                  className="absolute top-1/2 end-3 -translate-y-1/2 text-coffee/40"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>

@@ -5,9 +5,15 @@ import { useHideCustomerChrome } from "@/hooks/useAdminPath";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppLoadingScreen } from "@/components/brand/app-loading-screen";
 
+function shouldSkipSplash() {
+  if (typeof window === "undefined") return false;
+  const path = window.location.pathname;
+  return path.startsWith("/admin") || path.startsWith("/menu-display");
+}
+
 export function BrandSplash() {
   const hideChrome = useHideCustomerChrome();
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(() => !shouldSkipSplash());
 
   useEffect(() => {
     if (hideChrome) {
@@ -27,7 +33,7 @@ export function BrandSplash() {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed inset-0 z-[90] bg-cream"
+          className="fixed inset-0 z-[90]"
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
@@ -35,7 +41,7 @@ export function BrandSplash() {
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             className="h-full"
           >
-            <AppLoadingScreen className="relative inset-auto z-auto" />
+            <AppLoadingScreen />
           </motion.div>
         </motion.div>
       )}

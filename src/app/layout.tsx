@@ -79,7 +79,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#F8F3ED",
+  themeColor: "#D71920",
 };
 
 export const metadata: Metadata = {
@@ -106,7 +106,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: BRAND.name,
     description: BRAND.taglineAlt,
-    images: [{ url: BRAND.logo, width: 1059, height: 931, alt: BRAND.name }],
+    images: [{ url: BRAND.logo, width: 1182, height: 1330, alt: BRAND.name }],
     type: "website",
   },
   twitter: {
@@ -131,12 +131,13 @@ export default function RootLayout({
     >
       <head>
         <LocaleHtmlScript />
+        <link rel="preload" as="image" href={BRAND.logo} type="image/png" />
       </head>
       <body className="flex min-h-dvh flex-col overflow-x-hidden bg-cream pb-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom,0px)+12px)] has-[[data-admin]]:pb-0 has-[[data-menu-display]]:pb-0 md:pb-0">
-        <BrandSplash />
         <ThemeProvider>
           <AccessibilityProvider>
             <LocaleProvider>
+              <BrandSplash />
               <FirebaseProvider>
                 <AuthProvider>
                   <CartProvider>

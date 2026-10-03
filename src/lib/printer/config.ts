@@ -1,7 +1,7 @@
 /** Local thermal printer config — LAN only, never call from Vercel. */
 
 export function getPrinterHost(): string {
-  return process.env.PRINTER_IP?.trim() || "192.168.1.87";
+  return process.env.PRINTER_IP?.trim() || "";
 }
 
 export function getPrinterPort(): number {

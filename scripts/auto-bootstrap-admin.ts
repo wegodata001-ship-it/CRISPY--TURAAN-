@@ -19,12 +19,19 @@ import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "firebase/fir
 const ROOT = resolve(".");
 const RULES = resolve(ROOT, "firestore.rules");
 const RULES_BACKUP = resolve(ROOT, "firestore.rules.backup");
-const PROJECT = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "mshkah";
+const PROJECT = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
-const EMAIL = process.env.ADMIN_BOOTSTRAP_EMAIL ?? "admin@mishkat.cafe";
-const PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD ?? "MishkatAdmin2026!";
-const DISPLAY_NAME = process.env.ADMIN_BOOTSTRAP_NAME ?? "MISHKAT Admin";
+const EMAIL = process.env.ADMIN_BOOTSTRAP_EMAIL;
+const PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+const DISPLAY_NAME = process.env.ADMIN_BOOTSTRAP_NAME ?? "CRISPY Admin";
+
+if (!PROJECT) throw new Error("Configuration Error: NEXT_PUBLIC_FIREBASE_PROJECT_ID is required");
+if (!EMAIL || !PASSWORD) {
+  throw new Error(
+    "Configuration Error: set ADMIN_BOOTSTRAP_EMAIL and ADMIN_BOOTSTRAP_PASSWORD in .env.local"
+  );
+}
 
 const OPEN_RULES = `rules_version = '2';
 

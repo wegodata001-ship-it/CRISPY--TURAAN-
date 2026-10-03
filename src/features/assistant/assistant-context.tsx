@@ -311,7 +311,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         });
         appendReply(response);
       } catch (err) {
-        console.error("[MISHKAT_ASSISTANT]", err);
+        console.error("[CRISPY_ASSISTANT]", err);
         const fallback = clientFallback(undefined, trimmed, locale, products, categories, config, settings);
         appendReply(fallback);
       } finally {
@@ -339,7 +339,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         });
         appendReply(response);
       } catch (err) {
-        console.error("[MISHKAT_ASSISTANT]", err);
+        console.error("[CRISPY_ASSISTANT]", err);
         const fallback = clientFallback(actionId, "", locale, products, categories, config, settings);
         appendReply(fallback);
       } finally {

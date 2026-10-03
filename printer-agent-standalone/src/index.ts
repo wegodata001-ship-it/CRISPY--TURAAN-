@@ -1,6 +1,6 @@
 /**
- * MISHKAH standalone kitchen print agent.
- * Café PC only. Talks to https://mishkatcafe.dev print APIs and LAN 192.168.1.87:9100.
+ * CRISPY standalone kitchen print agent.
+ * Restaurant PC only. API URL and printer IP come from env — not configured by default.
  * No Firebase Admin. No website source.
  */
 import { hostname as osHostname } from "node:os";
@@ -31,7 +31,7 @@ type ClaimResponse = {
 };
 
 function agentId(): string {
-  return process.env.PRINT_AGENT_ID?.trim() || `mishkah-${osHostname()}`;
+  return process.env.PRINT_AGENT_ID?.trim() || `crispy-${osHostname()}`;
 }
 
 function agentHeaders(): HeadersInit {

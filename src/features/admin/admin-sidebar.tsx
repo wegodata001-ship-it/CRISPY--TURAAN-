@@ -38,14 +38,14 @@ function NavItemLink({
       className={cn(
         "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
         isActive
-          ? "bg-coffee text-warm-white shadow-soft dark:bg-turquoise dark:text-warm-white"
-          : "text-coffee/70 hover:bg-beige/60 hover:text-dark-brown dark:text-warm-white/70 dark:hover:bg-white/10 dark:hover:text-warm-white"
+          ? "bg-turquoise text-warm-white shadow-soft"
+          : "text-white/75 hover:bg-white/10 hover:text-white"
       )}
     >
       {isActive && (
         <motion.span
           layoutId="admin-nav-active"
-          className="absolute inset-0 rounded-xl bg-coffee dark:bg-turquoise"
+          className="absolute inset-0 rounded-xl bg-turquoise"
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
           style={{ zIndex: -1 }}
         />
@@ -78,7 +78,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
         return (
           <div key={group.labelKey}>
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-coffee/40 dark:text-warm-white/40">
+            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-gold/80">
               {t(group.labelKey)}
             </p>
             <nav className="space-y-0.5">
@@ -107,8 +107,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 /**
- * Desktop sidebar — part of CSS Grid column, NOT fixed overlay.
- * Sticky within column, 100vh, internal scroll when nav is long.
+ * Desktop sidebar — fixed to the viewport (start edge = right in RTL).
+ * Only the inner nav list scrolls when the menu is taller than the screen.
  */
 export function AdminSidebar() {
   const t = useT();
@@ -122,8 +122,8 @@ export function AdminSidebar() {
     <aside
       className={cn(
         ADMIN_LAYOUT.sidebarVisible,
-        "sticky top-0 h-screen shrink-0 flex-col",
-        "border-e border-beige-dark/20 bg-warm-white dark:border-white/10 dark:bg-[#1a1412]"
+        "fixed start-0 top-0 z-40 h-dvh flex-col",
+        "border-e border-white/10 bg-crispy-black"
       )}
       style={{ width: ADMIN_SIDEBAR_WIDTH_PX }}
       aria-label={t("admin.subtitle")}
@@ -133,15 +133,15 @@ export function AdminSidebar() {
         <div className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <NavLinks />
         </div>
-        <div className="shrink-0 border-t border-beige-dark/20 pt-4 dark:border-white/10">
+        <div className="shrink-0 border-t border-white/10 pt-4">
           <Link
             href={storeHref}
-            className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-coffee/60 transition-colors hover:bg-beige/40 dark:text-warm-white/60 dark:hover:bg-white/10"
+            className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
           >
             <Store className="h-4 w-4" />
             {t("admin.backToStore")}
           </Link>
-          <p className="mt-2 px-3 text-[10px] text-coffee/40 dark:text-warm-white/40">{BRAND.name}</p>
+          <p className="mt-2 px-3 text-[10px] text-gold">{BRAND.name}</p>
         </div>
       </div>
     </aside>
@@ -178,7 +178,7 @@ export function AdminMobileDrawer({
             exit={{ x: offScreen }}
             transition={{ type: "spring", damping: 28, stiffness: 320 }}
             className={cn(
-              "fixed inset-y-0 start-0 z-50 flex flex-col bg-warm-white p-5 shadow-elevated dark:bg-[#1a1412]",
+              "fixed inset-y-0 start-0 z-50 flex flex-col bg-crispy-black p-5 shadow-elevated text-white",
               ADMIN_LAYOUT.drawerOnly
             )}
             style={{ width: ADMIN_SIDEBAR_WIDTH_PX }}

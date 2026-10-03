@@ -10,7 +10,7 @@ export type SendEmailResult =
   | { ok: true; messageId?: string; statusCode: number }
   | { ok: false; error: string; statusCode?: number; code?: string };
 
-export type MishkahEmailKind =
+export type BusinessEmailKind =
   | "test"
   | "new_order"
   | "order_updated"

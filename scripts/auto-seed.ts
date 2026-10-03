@@ -12,7 +12,8 @@ import { resolve } from "path";
 const ROOT = resolve(".");
 const RULES = resolve(ROOT, "firestore.rules");
 const RULES_BACKUP = resolve(ROOT, "firestore.rules.backup");
-const PROJECT = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "mshkah";
+const PROJECT = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+if (!PROJECT) throw new Error("Configuration Error: NEXT_PUBLIC_FIREBASE_PROJECT_ID is required");
 
 const SEED_RULES = `rules_version = '2';
 

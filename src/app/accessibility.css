@@ -1,8 +1,8 @@
-/* MISHKAT CAFÉ — Accessibility Center (CSS Variables + html classes) */
+/* CRISPY — Accessibility Center (CSS Variables + html classes) */
 
 :root {
-  --a11y-focus-color: #007a80;
-  --a11y-focus-ring: rgba(0, 122, 128, 0.45);
+  --a11y-focus-color: #d71920;
+  --a11y-focus-ring: rgba(215, 25, 32, 0.45);
 }
 
 /* ── Text scale (rem-based on html) ── */
@@ -58,8 +58,8 @@ html.a11y-high-contrast {
   --color-coffee-light: #1a1a1a;
   --color-beige: #f0f0f0;
   --color-beige-dark: #cccccc;
-  --color-turquoise: #005f63;
-  --color-gold: #8b6914;
+  --color-turquoise: #a90f16;
+  --color-gold: #c49200;
 }
 
 html.a11y-high-contrast.dark {
@@ -69,7 +69,7 @@ html.a11y-high-contrast.dark {
   --color-coffee: #ffffff;
   --color-beige: #1a1a1a;
   --color-beige-dark: #333333;
-  --color-turquoise: #4dd0d7;
+  --color-turquoise: #ff6b6b;
 }
 
 html.a11y-high-contrast body {
