@@ -10,7 +10,7 @@
   --crispy-red-dark: #a90f16;
   --crispy-yellow: #f6b800;
   --crispy-black: #171717;
-  --crispy-cream: #fff5e6;
+  --crispy-cream: #fff4e2;
   --crispy-white: #ffffff;
   --crispy-border: #eadbc8;
   --crispy-muted: #70665d;
@@ -18,7 +18,7 @@
 }
 
 @theme {
-  --color-cream: #fff5e6;
+  --color-cream: #fff4e2;
   --color-warm-white: #ffffff;
   --color-dark-brown: #171717;
   --color-coffee: #171717;

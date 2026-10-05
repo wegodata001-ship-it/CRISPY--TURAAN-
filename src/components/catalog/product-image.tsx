@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
-import { ImageIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { hasRealProductImage, normalizeImageUrl } from "@/lib/menu/placeholders";
@@ -25,16 +24,29 @@ function isFirebaseUrl(url: string): boolean {
   );
 }
 
-function ProductImagePlaceholder({ className }: { className?: string }) {
+function ProductImagePlaceholder({
+  className,
+  compact,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   return (
     <div
       className={cn(
-        "absolute inset-0 flex items-center justify-center bg-gradient-to-br from-beige/60 via-cream to-beige/40",
+        "absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#FFF4E2] via-[#FFE8C7] to-[#F6B800]/25",
         className
       )}
       aria-hidden
     >
-      <ImageIcon className="h-8 w-8 text-coffee/20" strokeWidth={1.5} />
+      <span
+        className={cn(
+          "font-display font-bold tracking-[0.18em] text-[#D71920]/80",
+          compact ? "text-[10px]" : "text-2xl"
+        )}
+      >
+        CRISPY
+      </span>
     </div>
   );
 }
@@ -65,7 +77,7 @@ export function ProductImage({
   }, []);
 
   if (!src || failed) {
-    return <ProductImagePlaceholder className={className} />;
+    return <ProductImagePlaceholder className={className} compact={compact || thumbnail} />;
   }
 
   const resolvedSizes =

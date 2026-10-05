@@ -29,9 +29,12 @@ function CategoryHeading({ category }: { category: Category | undefined }) {
   const localized = useLocalizedCategory(category ?? null);
   if (!category) return null;
   return (
-    <h2 className="mb-3 font-display text-lg font-bold text-dark-brown" dir={localized.dir}>
-      {localized.name}
-    </h2>
+    <div className="mb-4">
+      <h2 className="font-display text-2xl font-bold text-[#171717]" dir={localized.dir}>
+        {localized.name}
+      </h2>
+      <div className="mt-2 h-px w-16 bg-[#F6B800]" />
+    </div>
   );
 }
 
@@ -144,9 +147,12 @@ export function CatalogView() {
         <SiteHeader />
         {isHome && <HeroBanner />}
 
-        <div className="mx-auto max-w-[1180px] px-4 md:px-6">
-          <div className="grid gap-6 pb-28 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:pb-12">
-            <div className="min-w-0">
+        <div className="mx-auto max-w-[1280px] px-4 md:px-6">
+          <div
+            dir="ltr"
+            className="grid gap-6 pb-36 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:pb-12"
+          >
+            <div className="min-w-0" dir={dir}>
               <div className="relative mt-4">
                 <Search
                   className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee-light"
@@ -159,12 +165,12 @@ export function CatalogView() {
                   onChange={(event) => setSearchQuery(event.target.value)}
                   aria-label={t("header.search")}
                   dir={dir}
-                  className="h-12 rounded-2xl border-beige-dark bg-warm-white ps-10 text-base shadow-soft"
+                  className="h-12 w-full rounded-2xl border-beige-dark bg-warm-white ps-10 text-base shadow-soft"
                 />
               </div>
 
               {!isSearchMode && (
-                <div className="sticky top-[72px] z-30 -mx-4 mt-3 bg-cream/95 px-4 py-2 backdrop-blur-md md:top-[80px]">
+                <div className="sticky top-[64px] z-30 -mx-4 mt-3 bg-cream/95 px-4 py-2 backdrop-blur-md md:top-[72px]">
                   <MenuCategoryStrip
                     selectedId={selectedCategoryId}
                     onSelect={handleCategorySelect}
@@ -179,13 +185,15 @@ export function CatalogView() {
 
               {showBestsellers && (
                 <section className="mt-5">
-                  <h2 className="mb-3 font-display text-lg font-bold text-dark-brown">
-                    {t("catalog.hotSellers")}
-                  </h2>
+                  <div className="mb-4">
+                    <h2 className="font-display text-2xl font-bold text-[#171717]">
+                      {t("catalog.hotSellers")}
+                    </h2>
+                    <div className="mt-2 h-px w-16 bg-[#F6B800]" />
+                  </div>
                   <ProductGrid
                     products={bestsellers}
                     loading={false}
-                    variant="featured"
                     onProductClick={setSelectedProduct}
                   />
                 </section>
@@ -228,7 +236,9 @@ export function CatalogView() {
               </div>
             </div>
 
-            <CartSidebar className="hidden lg:block" />
+            <div dir={dir}>
+              <CartSidebar className="hidden lg:block" />
+            </div>
           </div>
         </div>
 

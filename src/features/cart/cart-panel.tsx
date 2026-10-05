@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatPrice } from "@/lib/utils";
-import { Logo } from "@/components/brand/logo";
+import { cn, formatPrice } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
@@ -139,7 +138,7 @@ export function CartPanel({ onCheckout, className }: CartPanelProps) {
   } | null>(null);
 
   return (
-    <div className={className}>
+    <div className={cn("flex min-h-0 flex-col", className)}>
       <div className="shrink-0 border-b border-beige-dark/20 pb-4">
         <h2 className="font-display text-xl font-bold text-dark-brown">{t("cart.title")}</h2>
         {itemCount > 0 && (
@@ -155,11 +154,13 @@ export function CartPanel({ onCheckout, className }: CartPanelProps) {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center py-10 text-center"
+              className="flex flex-col items-center px-2 py-6 text-center"
             >
-              <Logo size="md" href={null} className="h-12 w-auto opacity-80" />
-              <p className="mt-3 text-sm font-semibold">{t("cart.empty")}</p>
-              <p className="mt-1 text-xs text-coffee-light">{t("cart.emptyHint")}</p>
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF4E2] text-[#D71920]">
+                <ShoppingBag className="h-7 w-7" strokeWidth={1.75} />
+              </div>
+              <p className="mt-3 text-sm font-bold text-[#171717]">{t("cart.empty")}</p>
+              <p className="mt-1 text-xs leading-relaxed text-[#70665D]">{t("cart.emptyHint")}</p>
             </motion.div>
           ) : (
             <div className="flex flex-col gap-3">

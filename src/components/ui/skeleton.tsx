@@ -18,28 +18,27 @@ function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>)
 
 function ProductCardSkeleton() {
   return (
-    <div className="grid grid-cols-[72px_1fr_60px] items-center gap-3 py-4">
-      <div className="flex flex-col items-center gap-2">
-        <Skeleton className="h-5 w-14" />
-        <Skeleton className="h-9 w-9 rounded-full" />
+    <div className="overflow-hidden rounded-2xl bg-warm-white ring-1 ring-beige-dark/20">
+      <Skeleton className="h-[180px] w-full rounded-none sm:h-[200px] md:h-[240px]" />
+      <div className="space-y-3 p-4">
+        <Skeleton className="h-5 w-3/4" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3" />
+        <div className="flex items-center justify-between pt-1">
+          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-11 w-11 rounded-full" />
+        </div>
       </div>
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-3 w-full" />
-      </div>
-      <Skeleton className="h-[60px] w-[60px] rounded-xl" />
     </div>
   );
 }
 
-function ProductGridSkeleton({ count = 3 }: { count?: number }) {
+function ProductGridSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className="overflow-hidden rounded-2xl bg-warm-white ring-1 ring-beige-dark/10">
-      <div className="divide-y divide-beige-dark/12 px-3 sm:px-4">
-        {Array.from({ length: count }).map((_, i) => (
-          <ProductCardSkeleton key={i} />
-        ))}
-      </div>
+    <div className="grid justify-items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))] md:gap-5">
+      {Array.from({ length: count }).map((_, i) => (
+        <ProductCardSkeleton key={i} />
+      ))}
     </div>
   );
 }

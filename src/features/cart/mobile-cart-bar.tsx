@@ -33,11 +33,13 @@ export function MobileCartBar() {
             <span className="flex w-full items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2 text-sm font-bold">
                 <ShoppingBag className="h-5 w-5 shrink-0" strokeWidth={2} />
-                {itemCount} {t("catalog.productsCount")}
+                {t("cart.viewOrder")}
               </span>
               <span className="shrink-0 text-xl font-bold tabular-nums">{formatPrice(total)}</span>
             </span>
-            <span className="mt-0.5 text-sm font-semibold text-white/90">{t("cart.viewOrder")}</span>
+            <span className="mt-0.5 text-sm font-semibold text-white/90">
+              {itemCount} {t("catalog.productsCount")}
+            </span>
           </button>
         </motion.div>
       )}

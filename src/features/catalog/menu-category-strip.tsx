@@ -15,6 +15,10 @@ import {
   Croissant,
   Cake,
   IceCream,
+  Beef,
+  Drumstick,
+  CupSoda,
+  Popcorn,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocalizedCategory } from "@/hooks/useLocalizedContent";
@@ -27,7 +31,7 @@ import type { Category } from "@/types";
 
 const iconMap: Record<string, LucideIcon> = {
   coffee: Coffee,
-  "cup-soda": GlassWater,
+  "cup-soda": CupSoda,
   "glass-water": GlassWater,
   citrus: Citrus,
   milk: Milk,
@@ -39,6 +43,12 @@ const iconMap: Record<string, LucideIcon> = {
   croissant: Croissant,
   cake: Cake,
   "ice-cream": IceCream,
+  drumstick: Drumstick,
+  chicken: Drumstick,
+  hamburger: Beef,
+  burger: Beef,
+  fries: Popcorn,
+  popcorn: Popcorn,
 };
 
 function CategoryPill({
@@ -68,8 +78,8 @@ function CategoryPill({
       className={cn(
         "inline-flex h-11 flex-none shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition-colors",
         selected
-          ? "bg-gold text-dark-brown shadow-soft"
-          : "border border-beige-dark bg-warm-white text-dark-brown hover:border-gold"
+          ? "bg-[#F6B800] font-bold text-[#171717] shadow-soft"
+          : "border border-beige-dark bg-warm-white font-semibold text-[#171717] hover:border-[#F6B800]"
       )}
     >
       <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />

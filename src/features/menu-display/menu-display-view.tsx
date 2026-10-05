@@ -100,11 +100,11 @@ function MenuDisplayCard({
         }
       }}
       className={cn(
-        "flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-warm-white text-start shadow-soft ring-1 ring-beige-dark/15 transition-shadow hover:shadow-md dark:bg-[#1a1412] dark:ring-white/10",
+        "flex h-full w-full max-w-none cursor-pointer flex-col overflow-hidden rounded-2xl bg-warm-white text-start shadow-soft ring-1 ring-beige-dark/15 transition-shadow hover:shadow-md min-[480px]:max-w-[420px] dark:bg-[#1a1412] dark:ring-white/10",
         !product.available && "opacity-60"
       )}
     >
-      <div className="relative aspect-[4/3] w-full bg-beige/40 dark:bg-white/5">
+      <div className="relative h-[180px] w-full bg-[#FFF4E2] sm:h-[200px] md:h-[240px] dark:bg-white/5">
         <ProductImage
           image={product.image}
           categoryId={product.categoryId}
@@ -123,7 +123,7 @@ function MenuDisplayCard({
           {localized.name}
         </h3>
         {localized.description?.trim() ? (
-          <p className="line-clamp-2 text-sm leading-relaxed text-coffee/70 dark:text-warm-white/65">
+          <p className="line-clamp-3 text-sm leading-relaxed text-coffee/70 dark:text-warm-white/65">
             {localized.description}
           </p>
         ) : null}
@@ -223,7 +223,7 @@ export function MenuDisplayView() {
 
       <main className="mx-auto max-w-[1600px] px-4 py-5 md:px-6 md:py-8">
         {loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+          <div className="grid justify-items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))] md:gap-5">
             {Array.from({ length: 10 }).map((_, i) => (
               <div
                 key={i}
@@ -236,7 +236,7 @@ export function MenuDisplayView() {
             {t("catalog.noProducts", "אין מוצרים להצגה")}
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+          <div className="grid justify-items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))] md:gap-5">
             {visibleProducts.map((product, index) => (
               <MenuDisplayCard
                 key={product.id}

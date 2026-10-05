@@ -5,18 +5,20 @@ import { ProductGridSkeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/providers/locale-provider";
 import type { Product } from "@/types";
 
+export const PRODUCT_GRID_CLASS =
+  "grid justify-items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))] md:gap-5";
+
 interface ProductGridProps {
   products: Product[];
   loading: boolean;
   onProductClick?: (product: Product) => void;
-  variant?: "row" | "featured";
+  variant?: "row" | "featured" | "card";
 }
 
 export function ProductGrid({
   products,
   loading,
   onProductClick,
-  variant = "row",
 }: ProductGridProps) {
   const t = useT();
 
@@ -32,30 +34,14 @@ export function ProductGrid({
     );
   }
 
-  if (variant === "featured") {
-    return (
-      <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {products.map((product, index) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            index={index}
-            variant="featured"
-            onClick={onProductClick ? () => onProductClick(product) : undefined}
-          />
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-3">
+    <div className={PRODUCT_GRID_CLASS}>
       {products.map((product, index) => (
         <ProductCard
           key={product.id}
           product={product}
           index={index}
-          variant="row"
+          variant="card"
           onClick={onProductClick ? () => onProductClick(product) : undefined}
         />
       ))}

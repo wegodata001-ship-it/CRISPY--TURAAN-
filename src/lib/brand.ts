@@ -21,7 +21,7 @@ export const BRAND_COLORS = {
   secondary: "#F6B800",
   accent: "#D71920",
   accentLight: "#A90F16",
-  cream: "#FFF5E6",
+  cream: "#FFF4E2",
   warmWhite: "#FFFFFF",
   black: "#171717",
   muted: "#6B625A",

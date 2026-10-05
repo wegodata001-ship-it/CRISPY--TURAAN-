@@ -66,7 +66,7 @@ function MenuProductDetailsBody({ product }: { product: Product }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden bg-beige/40 dark:bg-white/5 sm:aspect-[2/1]">
+      <div className="relative h-[220px] w-full shrink-0 overflow-hidden bg-[#FFF4E2] dark:bg-white/5 sm:h-[280px]">
         <ProductImage
           image={product.image}
           categoryId={product.categoryId}

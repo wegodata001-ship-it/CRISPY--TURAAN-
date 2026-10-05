@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Minus, Plus, X, ImageIcon } from "lucide-react";
+import { Minus, Plus, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -68,7 +68,7 @@ function ProductDetailContent({
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-warm-white">
-        <div className="relative aspect-[16/10] max-h-[240px] w-full shrink-0 overflow-hidden bg-cream sm:max-h-[280px]">
+        <div className="relative h-[220px] w-full shrink-0 overflow-hidden bg-[#FFF4E2] sm:h-[280px]">
           {imageSrc ? (
             <Image
               src={imageSrc}
@@ -80,8 +80,10 @@ function ProductDetailContent({
               priority
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <ImageIcon className="h-12 w-12 text-coffee/20" strokeWidth={1.5} />
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#FFF4E2] via-[#FFE8C7] to-[#F6B800]/25">
+              <span className="font-display text-2xl font-bold tracking-[0.18em] text-[#D71920]/80">
+                CRISPY
+              </span>
             </div>
           )}
         </div>
@@ -144,7 +146,7 @@ function ProductDetailContent({
           <Button
             variant="turquoise"
             size="lg"
-            className="h-14 w-full rounded-2xl text-base font-bold"
+            className="h-14 w-full rounded-2xl bg-[#D71920] text-base font-bold hover:bg-[#B51218]"
             onClick={handleAdd}
             disabled={!product.available || configLoading}
           >
@@ -192,7 +194,7 @@ export function ProductDetailDrawer({
       type="button"
       onClick={() => onOpenChange(false)}
       aria-label={t("common.close")}
-      className="absolute top-3 end-3 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-warm-white/95 shadow-soft"
+      className="absolute top-3 end-3 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-[#171717]/80 text-white shadow-soft"
     >
       <X className="h-4 w-4" strokeWidth={1.75} />
     </button>
@@ -232,7 +234,7 @@ export function ProductDetailDrawer({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          "flex max-h-[min(860px,calc(100dvh-32px))] w-[min(520px,calc(100vw-32px))] max-w-[520px] gap-0 overflow-hidden p-0 [&>button]:hidden"
+          "flex max-h-[min(900px,calc(100dvh-32px))] w-[min(640px,calc(100vw-32px))] max-w-[640px] gap-0 overflow-hidden p-0 [&>button]:hidden"
         )}
       >
         {closeButton}

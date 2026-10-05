@@ -33,7 +33,7 @@ export function SiteHeader() {
       role="banner"
       className="sticky top-0 z-40 border-b border-beige-dark/20 bg-cream/95 backdrop-blur-md"
     >
-      <div className="mx-auto grid h-[72px] max-w-[1180px] grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-1 px-3 md:h-[80px] md:px-6">
+      <div className="mx-auto grid h-[64px] max-w-[1280px] grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-1 px-3 md:h-[72px] md:px-6">
         <div className="flex justify-start">
           <button
             type="button"
@@ -46,7 +46,7 @@ export function SiteHeader() {
         </div>
 
         <div className="flex justify-center">
-          <Logo size="md" href="/" priority className="h-12 w-auto md:h-14" />
+          <Logo size="sm" href="/" priority className="h-8 w-auto md:h-9" />
         </div>
 
         <div className="flex items-center justify-end gap-0.5">
