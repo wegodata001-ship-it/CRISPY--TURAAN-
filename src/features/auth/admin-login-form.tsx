@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { safeAdminReturnPath } from "@/lib/domains/host-routing";
 import { useAdminPath } from "@/hooks/useAdminPath";
@@ -27,6 +27,10 @@ export function AdminLoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+
+  useEffect(() => {
+    void fetch("/api/auth/bootstrap", { method: "POST" }).catch(() => {});
+  }, []);
 
   const afterLoginPath = safeAdminReturnPath(
     searchParams.get("returnTo"),

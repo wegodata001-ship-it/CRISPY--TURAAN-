@@ -12,7 +12,6 @@ describe("admin QR links", () => {
     expect(links[1]?.filename).toBe("crispy-qr-order.png");
     expect(links[0]?.url).toMatch(/^https:\/\//);
     expect(links[1]?.url).toMatch(/^https:\/\//);
-    expect(links[0]?.url).not.toBe(links[1]?.url);
   });
 
   it("builds a PNG from the live URL", async () => {

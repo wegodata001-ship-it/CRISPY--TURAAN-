@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   adminPath,
+  isMenuAllowedApiPath,
+  isMenuBlockedApiPath,
   isMenuHost,
   isOrderingPath,
   isPortalHost,
@@ -16,14 +18,25 @@ import type { Category, Product } from "@/types";
 describe("host-routing", () => {
   it("detects portal host", () => {
     expect(isPortalHost("portal.example")).toBe(true);
+    expect(isPortalHost("portal.almostafachicken.com")).toBe(true);
     expect(isPortalHost("shop.example")).toBe(false);
     expect(isPortalHost("localhost:3000")).toBe(false);
   });
 
   it("detects menu host", () => {
     expect(isMenuHost("menu.example")).toBe(true);
+    expect(isMenuHost("menu.almostafachicken.com")).toBe(true);
     expect(isMenuHost("shop.example")).toBe(false);
     expect(isMenuHost("portal.example")).toBe(false);
+  });
+
+  it("allows only media proxy API on the menu host", () => {
+    expect(isMenuAllowedApiPath("/api/media/proxy")).toBe(true);
+    expect(isMenuBlockedApiPath("/api/orders")).toBe(true);
+    expect(isMenuBlockedApiPath("/api/admin/users")).toBe(true);
+    expect(isMenuBlockedApiPath("/api/auth/bootstrap")).toBe(true);
+    expect(isMenuBlockedApiPath("/api/seed")).toBe(true);
+    expect(isMenuBlockedApiPath("/api/media/proxy")).toBe(false);
   });
 
   it("blocks /admin on public and menu hosts", () => {

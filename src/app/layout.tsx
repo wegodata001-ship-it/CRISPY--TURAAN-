@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
+import { getSurfaceMetadata } from "@/lib/domains/surface-metadata";
 import {
   Inter,
   Playfair_Display,
@@ -24,8 +26,9 @@ import { MobileCartBar } from "@/features/cart/mobile-cart-bar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { PwaManager } from "@/components/pwa/pwa-manager";
 import { BrandSplash } from "@/components/brand/brand-splash";
+import { HostSurfaceProvider } from "@/components/providers/host-surface-provider";
+import { isMenuHost, isPortalHost } from "@/lib/domains/host-routing";
 import { BRAND } from "@/lib/brand";
-import { PWA_APP_NAME, PWA_ICONS } from "@/lib/pwa/config";
 import "./globals.css";
 
 const inter = Inter({
@@ -82,51 +85,25 @@ export const viewport: Viewport = {
   themeColor: "#D71920",
 };
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-  title: BRAND.name,
-  description: `${BRAND.taglineAlt} — ${BRAND.tagline}`,
-  applicationName: PWA_APP_NAME,
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: PWA_APP_NAME,
-  },
-  formatDetection: {
-    telephone: false,
-  },
-  icons: {
-    icon: [
-      { url: PWA_ICONS.icon192, sizes: "192x192", type: "image/png" },
-      { url: PWA_ICONS.icon512, sizes: "512x512", type: "image/png" },
-      { url: BRAND.logo, type: "image/png" },
-    ],
-    apple: [{ url: PWA_ICONS.appleTouch, sizes: "180x180", type: "image/png" }],
-  },
-  openGraph: {
-    title: BRAND.name,
-    description: BRAND.taglineAlt,
-    images: [{ url: BRAND.logo, width: 1182, height: 1330, alt: BRAND.name }],
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: BRAND.name,
-    description: BRAND.taglineAlt,
-    images: [BRAND.logo],
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const host = (await headers()).get("host");
+  return getSurfaceMetadata(host);
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const host = (await headers()).get("host");
+  const surface = isPortalHost(host) ? "portal" : isMenuHost(host) ? "menu" : "public";
+
   return (
     <html
       lang="ar"
       dir="rtl"
       suppressHydrationWarning
+      data-surface={surface}
       className={`${inter.variable} ${playfair.variable} ${heebo.variable} ${assistant.variable} ${cairo.variable} ${tajawal.variable} ${atkinson.variable}`}
     >
       <head>
@@ -134,30 +111,32 @@ export default function RootLayout({
         <link rel="preload" as="image" href={BRAND.logo} type="image/png" />
       </head>
       <body className="flex min-h-dvh flex-col overflow-x-hidden bg-cream pb-[calc(var(--mobile-bottom-nav-height)+env(safe-area-inset-bottom,0px)+12px)] has-[[data-admin]]:pb-0 has-[[data-menu-display]]:pb-0 md:pb-0">
-        <ThemeProvider>
-          <AccessibilityProvider>
-            <LocaleProvider>
-              <BrandSplash />
-              <FirebaseProvider>
-                <AuthProvider>
-                  <CartProvider>
-                    <main id="main-content" className="min-w-0 flex-1" tabIndex={-1}>
-                      {children}
-                    </main>
-                    <ClientSiteFooter />
-                    <FloatingCartButton />
-                    <MobileCartBar />
-                    <CartDrawer />
-                    <BottomNav />
-                    <PwaManager />
-                    <AccessibilityCenter />
-                    <AssistantWidget />
-                  </CartProvider>
-                </AuthProvider>
-              </FirebaseProvider>
-            </LocaleProvider>
-          </AccessibilityProvider>
-        </ThemeProvider>
+        <HostSurfaceProvider surface={surface}>
+          <ThemeProvider>
+            <AccessibilityProvider>
+              <LocaleProvider>
+                <BrandSplash />
+                <FirebaseProvider>
+                  <AuthProvider>
+                    <CartProvider>
+                      <main id="main-content" className="min-w-0 flex-1" tabIndex={-1}>
+                        {children}
+                      </main>
+                      <ClientSiteFooter />
+                      <FloatingCartButton />
+                      <MobileCartBar />
+                      <CartDrawer />
+                      <BottomNav />
+                      <PwaManager />
+                      <AccessibilityCenter />
+                      <AssistantWidget />
+                    </CartProvider>
+                  </AuthProvider>
+                </FirebaseProvider>
+              </LocaleProvider>
+            </AccessibilityProvider>
+          </ThemeProvider>
+        </HostSurfaceProvider>
       </body>
     </html>
   );

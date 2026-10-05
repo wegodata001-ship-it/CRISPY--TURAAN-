@@ -29,9 +29,15 @@ function redirectHome(request: NextRequest) {
   return NextResponse.redirect(target);
 }
 
+const PUBLIC_FILE_PATHS = new Set(["/robots.txt", "/sitemap.xml"]);
+
 export function middleware(request: NextRequest) {
   const host = request.headers.get("host");
   const pathname = request.nextUrl.pathname;
+
+  if (PUBLIC_FILE_PATHS.has(pathname)) {
+    return NextResponse.next();
+  }
 
   // --- Digital menu host (VIEW ONLY) ---
   if (isMenuHost(host)) {
@@ -42,7 +48,7 @@ export function middleware(request: NextRequest) {
     if (pathname.startsWith("/api")) {
       if (isMenuBlockedApiPath(pathname)) {
         return NextResponse.json(
-          { ok: false, error: "Ordering is disabled on the menu display domain" },
+          { ok: false, error: "This endpoint is not available on the menu domain" },
           { status: 403 }
         );
       }

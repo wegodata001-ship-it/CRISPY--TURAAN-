@@ -62,8 +62,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/auth/bootstrap", { method: "POST" }).catch(() => {});
-
     const auth = getFirebaseAuth();
     const authTimeout = window.setTimeout(() => {
       console.error("[AuthProvider] authentication state timed out");

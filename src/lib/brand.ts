@@ -9,6 +9,7 @@ export const BRAND = {
   storeFallback: "/logo.png",
   name: "CRISPY",
   nameShort: "CRISPY",
+  publicName: "Almostafa Chicken",
   tagline: "קריספי & שניצל",
   taglineAlt: "חם. קריספי. בדיוק כמו שצריך.",
   welcome: "Welcome to",

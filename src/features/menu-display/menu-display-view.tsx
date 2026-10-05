@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { Search } from "lucide-react";
 import { AppLogo } from "@/components/brand/app-logo";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { BRAND } from "@/lib/brand";
 import { formatPrice, cn } from "@/lib/utils";
 import { useProducts, useCategories } from "@/hooks/useProducts";
+import { useSettings } from "@/hooks/useSettings";
 import { useT, useLocale } from "@/components/providers/locale-provider";
 import {
   useLocalizedCategory,
@@ -22,6 +24,22 @@ import {
   getRootCategories,
 } from "@/lib/menu/category-tree";
 import type { Category, Product } from "@/types";
+
+function productMatchesQuery(product: Product, query: string): boolean {
+  if (!query) return true;
+  const haystack = [
+    product.name_he,
+    product.name_ar,
+    product.name_en,
+    product.description_he,
+    product.description_ar,
+    product.description_en,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(query);
+}
 
 function CategoryTabButton({
   active,
@@ -96,12 +114,12 @@ function MenuDisplayCard({
         />
         {!product.available && (
           <span className="absolute start-3 top-3 rounded-full bg-dark-brown/80 px-2.5 py-1 text-[11px] font-medium text-warm-white">
-            {t("catalog.unavailable", "לא זמין")}
+            {t("menuDisplay.soldOut", "אזל זמנית")}
           </span>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1.5 p-4 md:p-5">
-        <h3 className="font-display text-lg font-bold leading-snug text-dark-brown md:text-xl dark:text-warm-white">
+        <h3 className="break-words font-display text-lg font-bold leading-snug text-dark-brown md:text-xl dark:text-warm-white">
           {localized.name}
         </h3>
         {localized.description?.trim() ? (
@@ -121,16 +139,27 @@ function MenuDisplayCard({
 export function MenuDisplayView() {
   const t = useT();
   const { dir } = useLocale();
+  const { settings } = useSettings();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [search, setSearch] = useState("");
   const { categories, loading: catsLoading } = useCategories();
   const { products, loading: productsLoading } = useProducts({ active: true });
 
   const rootCategories = useMemo(() => getRootCategories(categories), [categories]);
+  const query = search.trim().toLowerCase();
   const visibleProducts = useMemo(
-    () => filterMenuDisplayProducts(products, selectedCategoryId, categories),
-    [products, selectedCategoryId, categories]
+    () =>
+      filterMenuDisplayProducts(products, selectedCategoryId, categories).filter((product) =>
+        productMatchesQuery(product, query)
+      ),
+    [products, selectedCategoryId, categories, query]
   );
+  const storeTitle = BRAND.publicName;
+  const phone = settings?.phone?.trim();
+  const address = settings?.address?.trim();
+  const hours = settings?.hours?.trim();
+  const whatsapp = settings?.social?.whatsapp?.trim();
 
   const loading = catsLoading || productsLoading;
 
@@ -138,16 +167,16 @@ export function MenuDisplayView() {
     <CatalogModifierPreviewProvider>
     <div
       dir={dir}
-      className="min-h-dvh bg-gradient-to-b from-cream via-[#F5EDE3] to-cream text-dark-brown dark:from-[#120e0c] dark:via-[#16110f] dark:to-[#120e0c]"
+      className="min-h-dvh overflow-x-hidden bg-gradient-to-b from-cream via-[#F5EDE3] to-cream text-dark-brown dark:from-[#120e0c] dark:via-[#16110f] dark:to-[#120e0c]"
       data-menu-display
     >
       <header className="sticky top-0 z-30 border-b border-beige-dark/20 bg-cream/90 backdrop-blur-xl dark:border-white/10 dark:bg-[#120e0c]/90">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 md:px-6 md:py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <AppLogo size="md" href={null} className="h-11 w-auto md:h-14" priority />
+            <AppLogo size="md" href={null} className="h-11 w-auto shrink-0 md:h-14" priority />
             <div className="min-w-0">
-              <p className="truncate font-display text-lg font-bold tracking-wide md:text-2xl">
-                {BRAND.name}
+              <p className="truncate font-display text-[17px] font-bold leading-tight tracking-wide md:text-2xl">
+                {storeTitle}
               </p>
               <p className="truncate text-xs text-coffee/55 md:text-sm dark:text-warm-white/50">
                 {t("menuDisplay.subtitle", "תפריט דיגיטלי")}
@@ -157,7 +186,17 @@ export function MenuDisplayView() {
           <LanguageSwitcher compact />
         </div>
 
-        <div className="mx-auto max-w-[1600px] px-4 pb-3 md:px-6 md:pb-4">
+        <div className="mx-auto max-w-[1600px] space-y-3 px-4 pb-3 md:px-6 md:pb-4">
+          <label className="relative block">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee/40" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("menuDisplay.search", "חיפוש בתפריט")}
+              className="h-11 w-full rounded-full bg-warm-white pe-4 ps-10 text-base text-dark-brown shadow-soft ring-1 ring-beige-dark/20 placeholder:text-coffee/40 focus:outline-none focus:ring-2 focus:ring-crispy-red/40 dark:bg-white/5 dark:text-warm-white dark:ring-white/10"
+            />
+          </label>
           <HorizontalScroller
             activeKey={selectedCategoryId ?? "__all__"}
             aria-label={t("menuDisplay.categories", "קטגוריות")}
@@ -197,7 +236,7 @@ export function MenuDisplayView() {
             {t("catalog.noProducts", "אין מוצרים להצגה")}
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
+          <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-5">
             {visibleProducts.map((product, index) => (
               <MenuDisplayCard
                 key={product.id}
@@ -209,6 +248,35 @@ export function MenuDisplayView() {
           </div>
         )}
       </main>
+
+      {(phone || address || hours || whatsapp) && (
+        <footer className="mx-auto max-w-[1600px] px-4 pb-8 pt-2 text-sm text-coffee/70 md:px-6 dark:text-warm-white/60">
+          <p className="font-semibold text-dark-brown dark:text-warm-white">
+            {t("menuDisplay.contact", "יצירת קשר")}
+          </p>
+          <div className="mt-1 space-y-1 break-words">
+            {phone ? (
+              <p>
+                <a href={`tel:${phone}`} className="underline-offset-2 hover:underline">
+                  {phone}
+                </a>
+              </p>
+            ) : null}
+            {whatsapp ? (
+              <p>
+                <a
+                  href={whatsapp.startsWith("http") ? whatsapp : `https://wa.me/${whatsapp.replace(/\D/g, "")}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  WhatsApp
+                </a>
+              </p>
+            ) : null}
+            {address ? <p>{address}</p> : null}
+            {hours ? <p>{hours}</p> : null}
+          </div>
+        </footer>
+      )}
 
       <MenuProductDetailsModal
         product={selectedProduct}

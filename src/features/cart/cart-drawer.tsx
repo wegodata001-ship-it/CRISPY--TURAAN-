@@ -7,12 +7,16 @@ import { useCart } from "@/features/cart/cart-context";
 import { useLocale, useT } from "@/components/providers/locale-provider";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
+import { useIsViewOnlyMenu } from "@/hooks/useAdminPath";
 
 export function CartDrawer() {
   const t = useT();
+  const viewOnly = useIsViewOnlyMenu();
   const { isOpen, closeCart } = useCart();
   const isMobile = useIsMobile(1024);
   const { dir } = useLocale();
+
+  if (viewOnly) return null;
 
   if (isMobile) {
     return (

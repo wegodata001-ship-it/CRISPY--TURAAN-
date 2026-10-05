@@ -284,9 +284,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const clearCart = useCallback(() => dispatch({ type: "CLEAR_CART" }), []);
-  const openCart = useCallback(() => dispatch({ type: "OPEN_CART" }), []);
+  const openCart = useCallback(() => {
+    if (
+      typeof window !== "undefined" &&
+      isViewOnlyMenuSurface(window.location.hostname, window.location.pathname)
+    ) {
+      return;
+    }
+    dispatch({ type: "OPEN_CART" });
+  }, []);
   const closeCart = useCallback(() => dispatch({ type: "CLOSE_CART" }), []);
-  const toggleCart = useCallback(() => dispatch({ type: "TOGGLE_CART" }), []);
+  const toggleCart = useCallback(() => {
+    if (
+      typeof window !== "undefined" &&
+      isViewOnlyMenuSurface(window.location.hostname, window.location.pathname)
+    ) {
+      return;
+    }
+    dispatch({ type: "TOGGLE_CART" });
+  }, []);
 
   const applyCoupon = useCallback((code: string) => {
     const normalized = code.trim().toUpperCase();

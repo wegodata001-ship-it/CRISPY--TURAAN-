@@ -60,6 +60,7 @@ function ModifierGroupSection({ group }: { group: ModifierPreviewGroup }) {
 }
 
 function MenuProductDetailsBody({ product }: { product: Product }) {
+  const t = useT();
   const localized = useLocalizedProduct(product);
   const groups = useProductModifierPreview(product.id);
 
@@ -74,11 +75,16 @@ function MenuProductDetailsBody({ product }: { product: Product }) {
           sizes="(max-width:768px) 100vw, 640px"
           priority
         />
+        {!product.available && (
+          <span className="absolute start-3 top-3 rounded-full bg-dark-brown/80 px-2.5 py-1 text-[11px] font-medium text-warm-white">
+            {t("menuDisplay.soldOut", "אזל זמנית")}
+          </span>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
         <div className="space-y-2" dir={localized.dir}>
-          <h2 className="font-display text-2xl font-bold leading-snug text-dark-brown dark:text-warm-white">
+          <h2 className="break-words font-display text-2xl font-bold leading-snug text-dark-brown dark:text-warm-white">
             {localized.name}
           </h2>
           {localized.description?.trim() ? (

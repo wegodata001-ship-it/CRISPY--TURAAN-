@@ -34,8 +34,11 @@ export const ORDERING_PATH_PREFIXES = [
   "/admin",
 ] as const;
 
-/** Order-related API prefixes blocked on menu host */
+/** Order-related API prefixes blocked on menu host (kept for callers; allowlist is authoritative) */
 export const MENU_BLOCKED_API_PREFIXES = ["/api/orders", "/api/seed"] as const;
+
+/** Only these APIs may run on the public menu host */
+export const MENU_ALLOWED_API_PREFIXES = ["/api/media/proxy"] as const;
 
 export function normalizeHostname(host: string | null | undefined): string {
   return (host ?? "").toLowerCase().split(":")[0] ?? "";
@@ -83,7 +86,14 @@ export function isOrderingPath(pathname: string): boolean {
   );
 }
 
+export function isMenuAllowedApiPath(pathname: string): boolean {
+  return MENU_ALLOWED_API_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
 export function isMenuBlockedApiPath(pathname: string): boolean {
+  if (pathname.startsWith("/api") && !isMenuAllowedApiPath(pathname)) return true;
   return MENU_BLOCKED_API_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
