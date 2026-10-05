@@ -16,7 +16,8 @@ import {
   type AdminNavItem,
 } from "./admin-nav-config";
 import { ADMIN_LAYOUT, ADMIN_SIDEBAR_WIDTH_PX } from "./admin-layout-config";
-import { toInternalAdminPath, publicStoreHref } from "@/lib/domains/host-routing";
+import { toInternalAdminPath } from "@/lib/domains/host-routing";
+import { getOrderUrl } from "@/lib/public-urls";
 import { useAdminPath, useAdminSurface } from "@/hooks/useAdminPath";
 
 function NavItemLink({
@@ -113,10 +114,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 export function AdminSidebar() {
   const t = useT();
   const adminPath = useAdminPath();
-  const storeHref =
-    typeof window !== "undefined"
-      ? publicStoreHref(window.location.hostname)
-      : "/";
+  const storeHref = getOrderUrl();
 
   return (
     <aside

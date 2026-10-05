@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { BRAND } from "@/lib/brand";
 import { PWA_APP_NAME, PWA_ICONS } from "@/lib/pwa/config";
 import { getMenuOrigin, getPortalOrigin, isMenuHost, isPortalHost } from "@/lib/domains/host-routing";
+import { getOrderUrl } from "@/lib/public-urls";
 
 function metadataBaseUrl(host: string | null): URL {
   if (isPortalHost(host)) return new URL(getPortalOrigin());
   if (isMenuHost(host)) return new URL(getMenuOrigin());
-  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  return new URL(site || "http://localhost:3000");
+  return new URL(getOrderUrl());
 }
 
 const sharedIcons: Metadata["icons"] = {

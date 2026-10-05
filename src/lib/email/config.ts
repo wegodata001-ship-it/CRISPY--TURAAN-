@@ -3,6 +3,8 @@
  * Never import this module from client components.
  */
 
+import { adminAbsoluteUrl } from "@/lib/public-urls";
+
 export type MailProvider = "BREVO" | "NONE";
 
 function env(name: string, fallback = ""): string {
@@ -43,16 +45,11 @@ export function getBusinessAlertRecipients(): string[] {
 }
 
 export function getPublicSiteUrl(): string {
-  return env("NEXT_PUBLIC_SITE_URL").replace(/\/$/, "");
+  return env("NEXT_PUBLIC_ORDER_URL") || env("NEXT_PUBLIC_SITE_URL").replace(/\/$/, "");
 }
 
 export function getPortalAdminOrderUrl(orderId: string): string {
-  const portal =
-    env("NEXT_PUBLIC_PORTAL_URL") ||
-    (env("NEXT_PUBLIC_PORTAL_HOST")
-      ? `https://${env("NEXT_PUBLIC_PORTAL_HOST")}`
-      : "");
-  const base = `${portal.replace(/\/$/, "")}/orders`;
+  const base = adminAbsoluteUrl("/orders");
   return orderId ? `${base}?order=${encodeURIComponent(orderId)}` : base;
 }
 

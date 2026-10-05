@@ -1,4 +1,4 @@
-import { getMenuOrigin, getPublicStoreOrigin } from "@/lib/domains/host-routing";
+import { getMenuUrl, getOrderUrl } from "@/lib/public-urls";
 
 export type AdminQrLinkId = "menu" | "order";
 
@@ -9,38 +9,19 @@ export type AdminQrLink = {
   filename: string;
 };
 
-function normalizePublicUrl(raw: string, fallback: string): string {
-  const value = raw.trim();
-  if (!value) return fallback.replace(/\/+$/, "");
-  try {
-    const parsed = new URL(value.includes("://") ? value : `https://${value}`);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return fallback.replace(/\/+$/, "");
-    }
-    const path = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
-    return `${parsed.protocol}//${parsed.host}${path}`;
-  } catch {
-    return fallback.replace(/\/+$/, "");
-  }
-}
-
-function readQrLink(envName: string, fallback: string): string {
-  return normalizePublicUrl(process.env[envName] ?? "", fallback);
-}
-
-/** Single source for Admin QR cards. Override with NEXT_PUBLIC_QR_LINK_1 / _2. */
+/** Single source for Admin QR cards. Preview, copy, open, and download share `url`. */
 export function getAdminQrLinks(): AdminQrLink[] {
   return [
     {
       id: "menu",
       nameKey: "admin.qr.menuName",
-      url: readQrLink("NEXT_PUBLIC_QR_LINK_1", getMenuOrigin()),
+      url: getMenuUrl(),
       filename: "crispy-qr-menu.png",
     },
     {
       id: "order",
       nameKey: "admin.qr.orderName",
-      url: readQrLink("NEXT_PUBLIC_QR_LINK_2", getPublicStoreOrigin()),
+      url: getOrderUrl(),
       filename: "crispy-qr-order.png",
     },
   ];

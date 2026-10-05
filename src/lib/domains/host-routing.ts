@@ -1,16 +1,27 @@
 /**
  * Hostname-based routing for customer site vs admin portal vs menu display.
  * Internal Next.js routes stay under /admin/* — portal URLs are rewritten in middleware.
+ * Public/QR URLs live in `@/lib/public-urls` — never derive them from window.location.
  */
+
+import {
+  adminAbsoluteUrl,
+  getAdminOrigin,
+  getMenuOrigin as getConfiguredMenuOrigin,
+  getMenuUrl,
+  getOrderUrl,
+} from "@/lib/public-urls";
 
 export const PUBLIC_HOST =
   process.env.NEXT_PUBLIC_PUBLIC_HOST?.trim().toLowerCase() || "localhost";
 
 export const PORTAL_HOST =
-  process.env.NEXT_PUBLIC_PORTAL_HOST?.trim().toLowerCase() || "portal.localhost";
+  process.env.NEXT_PUBLIC_PORTAL_HOST?.trim().toLowerCase() ||
+  "portal.crispy-turaan.vercel.app";
 
 export const MENU_HOST =
-  process.env.NEXT_PUBLIC_MENU_HOST?.trim().toLowerCase() || "menu.localhost";
+  process.env.NEXT_PUBLIC_MENU_HOST?.trim().toLowerCase() ||
+  "menu.almostafachicken.com";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
@@ -151,33 +162,27 @@ export function adminPathFromHost(
 }
 
 export function getPublicStoreOrigin(): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
-  if (configured && !configured.includes("localhost") && !configured.includes("127.0.0.1")) {
-    return configured;
-  }
-  return `https://${PUBLIC_HOST}`;
+  return getOrderUrl();
 }
 
 export function getPortalOrigin(): string {
-  const configured = process.env.NEXT_PUBLIC_PORTAL_URL?.trim().replace(/\/$/, "");
-  if (configured) return configured;
-  return `https://${PORTAL_HOST}`;
+  return getAdminOrigin();
 }
 
 export function getMenuOrigin(): string {
-  const configured = process.env.NEXT_PUBLIC_MENU_URL?.trim().replace(/\/$/, "");
-  if (configured) return configured;
-  return `https://${MENU_HOST}`;
+  return getConfiguredMenuOrigin();
 }
 
 export function portalUrl(path = ""): string {
-  const normalized = path.startsWith("/") ? path : path ? `/${path}` : "";
-  return `${getPortalOrigin()}${normalized}`;
+  return adminAbsoluteUrl(path);
 }
 
-export function publicStoreHref(host: string | null | undefined): string {
-  if (isPortalHost(host) || isMenuHost(host)) return getPublicStoreOrigin();
-  return "/";
+export function publicStoreHref(_host?: string | null): string {
+  return getOrderUrl();
+}
+
+export function getDigitalMenuHref(): string {
+  return getMenuUrl();
 }
 
 export function shouldHideCustomerChrome(
