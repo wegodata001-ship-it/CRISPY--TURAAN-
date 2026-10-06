@@ -15,6 +15,7 @@ import {
   FileText,
   Printer,
   QrCode,
+  Calculator,
 } from "lucide-react";
 import { adminPath, toInternalAdminPath } from "@/lib/domains/host-routing";
 import type { AdminSurface } from "@/lib/domains/host-routing";
@@ -43,6 +44,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     labelKey: "admin.nav.group.catalog",
     items: [
       { segment: "products", labelKey: "admin.products", icon: Package },
+      { segment: "costing", labelKey: "admin.costing", icon: Calculator },
       { segment: "categories", labelKey: "admin.categories", icon: Tags },
       { segment: "modifier-groups", labelKey: "admin.modifierManagement", icon: Layers },
       { segment: "product-builder", labelKey: "admin.productAssignments", icon: Link2 },
@@ -87,6 +89,7 @@ export function getAdminNavInternalPath(segment: AdminNavSegment): string {
 export const ADMIN_PAGE_TITLES: Record<string, string> = {
   "/admin": "admin.dashboard",
   "/admin/products": "admin.products",
+  "/admin/costing": "admin.costing",
   "/admin/categories": "admin.categories",
   "/admin/modifier-groups": "admin.modifiers.title",
   "/admin/product-builder": "admin.productAssignments",

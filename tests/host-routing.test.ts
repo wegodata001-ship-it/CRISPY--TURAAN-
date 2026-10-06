@@ -62,6 +62,8 @@ describe("host-routing", () => {
   it("builds surface-aware admin hrefs", () => {
     expect(adminPath("products", "portal")).toBe("/products");
     expect(adminPath("products", "dev")).toBe("/admin/products");
+    expect(adminPath("costing", "dev")).toBe("/admin/costing");
+    expect(adminPath("costing", "portal")).toBe("/costing");
     expect(adminPath("login", "portal")).toBe("/login");
     expect(adminPath("", "portal")).toBe("/");
   });

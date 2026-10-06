@@ -119,6 +119,17 @@ export {
 } from "./settingsService";
 
 export {
+  subscribeToIngredients,
+  subscribeToRecipes,
+  subscribeToCostingSettings,
+  createIngredient,
+  updateIngredient,
+  deleteIngredient,
+  saveProductRecipe,
+  saveCostingSettings,
+} from "./costingService";
+
+export {
   testFirebaseConnection,
   runFirestoreWriteTest,
   isConnectionHealthy,

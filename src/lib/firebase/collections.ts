@@ -22,6 +22,10 @@ export const COLLECTIONS = {
   pdfMenuPages: "pdfMenuPages",
   printJobs: "printJobs",
   printAgentHeartbeats: "printAgentHeartbeats",
+  ingredients: "ingredients",
+  ingredientPriceHistory: "ingredientPriceHistory",
+  productRecipes: "productRecipes",
+  costingSettings: "costingSettings",
 } as const;
 
 export const DEFAULT_STORE_ID = "crispy";
