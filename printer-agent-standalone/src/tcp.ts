@@ -17,20 +17,30 @@ export interface PrinterTarget {
   port: number;
 }
 
+let bindLocalAddress: string | undefined;
+
+export function setPrinterLocalAddress(addr?: string) {
+  bindLocalAddress = addr?.trim() || undefined;
+}
+
 export async function withPrinterSocket(
   options: {
     host?: string;
     port?: number;
     timeoutMs?: number;
     data?: Buffer;
+    localAddress?: string;
   } = {}
 ): Promise<{ host: string; port: number; bytesSent: number }> {
   const host = options.host ?? getPrinterHost();
   const port = options.port ?? getPrinterPort();
   const timeoutMs = options.timeoutMs ?? getPrinterTimeoutMs();
   const data = options.data;
+  const localAddress = options.localAddress ?? bindLocalAddress;
 
-  log.info(`[Printer] Connecting to ${host}:${port}`);
+  log.info(
+    `[Printer] Connecting to ${host}:${port}${localAddress ? ` via Ethernet ${localAddress}` : ""}`
+  );
 
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
@@ -47,7 +57,7 @@ export async function withPrinterSocket(
         log.error(`[Printer] Connection failed`, error.message);
         reject(error);
       } else {
-        log.info(`[Printer] Socket closed`);
+        log.info(`[Printer] Socket closed after write flush (physical paper not verified)`);
         resolve({ host, port, bytesSent });
       }
     };
@@ -62,7 +72,8 @@ export async function withPrinterSocket(
       finish(new PrinterConnectionError(err.message || "Could not connect to printer", code));
     });
 
-    socket.connect(port, host, () => {
+    socket.setNoDelay(true);
+    socket.connect({ port, host, localAddress }, () => {
       log.info(`[Printer] Connected`);
       if (!data || data.length === 0) {
         socket.end(() => finish());
@@ -75,7 +86,7 @@ export async function withPrinterSocket(
           return;
         }
         bytesSent = data.length;
-        log.info(`[Printer] Data sent`);
+        log.info(`[Printer] Receipt payload flushed to socket`);
         socket.end(() => finish());
       });
     });

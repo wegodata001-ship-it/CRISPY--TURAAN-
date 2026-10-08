@@ -17,6 +17,13 @@ export async function POST(request: NextRequest) {
       printerConnectionStatus?: "connected" | "disconnected" | "unknown";
       printerIp?: string;
       printerPort?: number;
+      ethernetAvailable?: boolean;
+      ethernetIp?: string | null;
+      wifiSameSubnet?: boolean;
+      printerMac?: string | null;
+      tcp9100?: "PASS" | "FAIL" | "UNKNOWN";
+      routeConflict?: boolean;
+      networkWarning?: string | null;
     };
     const agentId = body.agentId?.trim();
     if (!agentId) {
@@ -30,6 +37,13 @@ export async function POST(request: NextRequest) {
       printerConnectionStatus: body.printerConnectionStatus ?? "unknown",
       printerIp: body.printerIp,
       printerPort: body.printerPort,
+      ethernetAvailable: body.ethernetAvailable,
+      ethernetIp: body.ethernetIp,
+      wifiSameSubnet: body.wifiSameSubnet,
+      printerMac: body.printerMac,
+      tcp9100: body.tcp9100,
+      routeConflict: body.routeConflict,
+      networkWarning: body.networkWarning,
     });
 
     console.info("[PrintAgent] heartbeat", agentId);

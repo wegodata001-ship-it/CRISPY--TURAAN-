@@ -15,6 +15,13 @@ export async function upsertAgentHeartbeat(input: {
   printerConnectionStatus: PrintAgentHeartbeat["printerConnectionStatus"];
   printerIp?: string;
   printerPort?: number;
+  ethernetAvailable?: boolean;
+  ethernetIp?: string | null;
+  wifiSameSubnet?: boolean;
+  printerMac?: string | null;
+  tcp9100?: PrintAgentHeartbeat["tcp9100"];
+  routeConflict?: boolean;
+  networkWarning?: string | null;
 }): Promise<void> {
   const id = input.agentId.trim() || "default";
   await heartbeatsCol()
@@ -28,6 +35,13 @@ export async function upsertAgentHeartbeat(input: {
         printerConnectionStatus: input.printerConnectionStatus,
         printerIp: input.printerIp ?? null,
         printerPort: input.printerPort ?? null,
+        ethernetAvailable: input.ethernetAvailable ?? null,
+        ethernetIp: input.ethernetIp ?? null,
+        wifiSameSubnet: input.wifiSameSubnet ?? null,
+        printerMac: input.printerMac ?? null,
+        tcp9100: input.tcp9100 ?? null,
+        routeConflict: input.routeConflict ?? null,
+        networkWarning: input.networkWarning?.slice(0, 300) ?? null,
       },
       { merge: true }
     );
@@ -49,6 +63,16 @@ export function mapHeartbeat(
         : "unknown",
     printerIp: typeof data.printerIp === "string" ? data.printerIp : null,
     printerPort: typeof data.printerPort === "number" ? data.printerPort : null,
+    ethernetAvailable: typeof data.ethernetAvailable === "boolean" ? data.ethernetAvailable : null,
+    ethernetIp: typeof data.ethernetIp === "string" ? data.ethernetIp : null,
+    wifiSameSubnet: typeof data.wifiSameSubnet === "boolean" ? data.wifiSameSubnet : null,
+    printerMac: typeof data.printerMac === "string" ? data.printerMac : null,
+    tcp9100:
+      data.tcp9100 === "PASS" || data.tcp9100 === "FAIL" || data.tcp9100 === "UNKNOWN"
+        ? data.tcp9100
+        : null,
+    routeConflict: typeof data.routeConflict === "boolean" ? data.routeConflict : null,
+    networkWarning: typeof data.networkWarning === "string" ? data.networkWarning : null,
   };
 }
 

@@ -13,6 +13,8 @@ const COPY: Record<
     cash: string;
     card: string;
     pickup: string;
+    delivery: string;
+    reprint: string;
     paymentUnknown: string;
   }
 > = {
@@ -23,6 +25,8 @@ const COPY: Record<
     cash: "نقداً",
     card: "بطاقة",
     pickup: "استلام ذاتي",
+    delivery: "توصيل",
+    reprint: "إعادة طباعة",
     paymentUnknown: "غير محدد",
   },
   he: {
@@ -32,6 +36,8 @@ const COPY: Record<
     cash: "מזומן",
     card: "כרטיס",
     pickup: "איסוף עצמי",
+    delivery: "משלוח",
+    reprint: "הדפסה מחדש",
     paymentUnknown: "לא צוין",
   },
   en: {
@@ -41,6 +47,8 @@ const COPY: Record<
     cash: "Cash",
     card: "Card",
     pickup: "Pickup",
+    delivery: "Delivery",
+    reprint: "REPRINT",
     paymentUnknown: "Unspecified",
   },
 };
@@ -122,8 +130,11 @@ function mapItem(item: OrderItem | FirestoreOrderItem): ReceiptItemLine {
     const qty = mod.quantity > 1 ? `${mod.quantity} × ` : "";
     const group = mod.groupName?.trim();
     const name = mod.optionName?.trim() || "";
+    const priced = typeof mod.priceDelta === "number" && mod.priceDelta > 0
+      ? ` (+${formatMoney(mod.priceDelta)})`
+      : "";
     const label = group && name && !name.includes(group) ? `${group}: ${qty}${name}` : `${qty}${name}`;
-    return { label: label.trim() };
+    return { label: `${label.trim()}${priced}`.trim() };
   });
 
   const extras = [
@@ -134,6 +145,7 @@ function mapItem(item: OrderItem | FirestoreOrderItem): ReceiptItemLine {
   return {
     quantity: item.quantity,
     name: item.productName,
+    unitPrice: item.price,
     lineTotal: calculateLineTotal(item.price, item.quantity),
     modifiers,
     notes: extras.length ? extras.join(" · ") : undefined,
@@ -149,9 +161,12 @@ type OrderLike = {
   total: number;
   subtotal?: number;
   discount?: number;
+  delivery?: number;
   paymentMethod?: string;
   locale?: string;
   createdAt: string;
+  orderType?: "pickup" | "delivery";
+  deliveryAddress?: string;
 };
 
 export function buildReceiptModelFromOrder(
@@ -162,7 +177,13 @@ export function buildReceiptModelFromOrder(
   const copy = COPY[locale];
   const { date, time } = formatReceiptDateParts(order.createdAt, locale);
   const discount = order.discount && order.discount > 0 ? order.discount : undefined;
-  const subtotal = discount && order.subtotal && order.subtotal > 0 ? order.subtotal : undefined;
+  const orderType = order.orderType === "delivery" ? "delivery" : "pickup";
+  const deliveryFee =
+    orderType === "delivery" && order.delivery && order.delivery > 0 ? order.delivery : undefined;
+  const address =
+    orderType === "delivery" ? order.deliveryAddress?.trim() || undefined : undefined;
+  const showTotals = Boolean(discount || deliveryFee);
+  const subtotal = showTotals && order.subtotal && order.subtotal > 0 ? order.subtotal : undefined;
 
   return {
     locale,
@@ -178,9 +199,13 @@ export function buildReceiptModelFromOrder(
     notes: customerNotes(order.notes, order.customerPhone),
     subtotal,
     discount,
+    deliveryFee,
     total: order.total,
     paymentLabel: paymentMethodLabel(order.paymentMethod, locale),
     pickupLabel: copy.pickup,
+    fulfillmentLabel: orderType === "delivery" ? copy.delivery : copy.pickup,
+    orderType,
+    address,
     createdTime: time,
   };
 }
@@ -203,6 +228,9 @@ export function buildReceiptModelFromFirestoreOrder(
       paymentMethod: data.paymentMethod,
       locale: data.locale,
       createdAt: createdAtIso,
+      orderType: data.orderType,
+      deliveryAddress: data.deliveryAddress,
+      delivery: data.delivery,
     },
     localeOverride
   );
@@ -233,8 +261,13 @@ export function receiptUiLabels(locale: PrintLocale) {
       date: "תאריך",
       time: "שעה",
       testBanner: "הדפסת בדיקה",
+      reprintBanner: "הדפסה מחדש",
       discount: "הנחה",
       subtotal: "ביניים",
+      deliveryFee: "דמי משלוח",
+      address: "כתובת",
+      orderType: "סוג הזמנה",
+      unitPrice: "מחיר",
     };
   }
   if (locale === "en") {
@@ -249,8 +282,13 @@ export function receiptUiLabels(locale: PrintLocale) {
       date: "Date",
       time: "Time",
       testBanner: "TEST PRINT",
+      reprintBanner: "REPRINT",
       discount: "Discount",
       subtotal: "Subtotal",
+      deliveryFee: "Delivery fee",
+      address: "Address",
+      orderType: "Order type",
+      unitPrice: "Price",
     };
   }
   return {
@@ -264,7 +302,12 @@ export function receiptUiLabels(locale: PrintLocale) {
     date: "التاريخ",
     time: "الوقت",
     testBanner: "طباعة تجريبية",
+    reprintBanner: "إعادة طباعة",
     discount: "خصم",
     subtotal: "المجموع الفرعي",
+    deliveryFee: "رسوم التوصيل",
+    address: "العنوان",
+    orderType: "نوع الطلب",
+    unitPrice: "السعر",
   };
 }

@@ -117,6 +117,10 @@ export async function renderReceiptRaster(
     ops.push(text(labels.testBanner, FONT.banner, { bold: true, align: "center" }));
     ops.push(gap(SECTION_GAP_SMALL));
   }
+  if (model.isReprint) {
+    ops.push(text(labels.reprintBanner, FONT.banner, { bold: true, align: "center" }));
+    ops.push(gap(SECTION_GAP_SMALL));
+  }
 
   ops.push(rule(true));
   ops.push(gap(SECTION_GAP_SMALL));
@@ -154,6 +158,12 @@ export async function renderReceiptRaster(
       })
     );
   }
+  if (model.address) {
+    ops.push(gap(SECTION_GAP_SMALL));
+    ops.push(text(`${labels.address}:`, FONT.sectionLabel, { bold: true, align: "start" }));
+    ops.push(gap(6));
+    ops.push(text(model.address, FONT.customerName, { bold: true, align: "start" }));
+  }
 
   ops.push(gap(SECTION_GAP_MEDIUM));
   ops.push(rule());
@@ -181,6 +191,16 @@ export async function renderReceiptRaster(
     if (item.notes) {
       ops.push(gap(SECTION_GAP_SMALL));
       ops.push(text(`  ${item.notes}`, FONT.itemNote, { bold: true, align: "start" }));
+    }
+
+    if (item.unitPrice != null) {
+      ops.push(gap(6));
+      ops.push(
+        text(`${labels.unitPrice}: ${formatMoney(item.unitPrice)}`, FONT.modifier, {
+          align: "start",
+          dir: "ltr",
+        })
+      );
     }
 
     ops.push(gap(SECTION_GAP_SMALL));
@@ -222,6 +242,11 @@ export async function renderReceiptRaster(
   if (model.discount != null) {
     ops.push(text(`${labels.discount}: ${formatMoney(model.discount)}`, FONT.subtotal, { align: "start" }));
   }
+  if (model.deliveryFee != null) {
+    ops.push(
+      text(`${labels.deliveryFee}: ${formatMoney(model.deliveryFee)}`, FONT.subtotal, { align: "start" })
+    );
+  }
 
   ops.push(gap(SECTION_GAP_LARGE));
   ops.push(text(`${labels.total}:`, FONT.totalLabel, { bold: true, align: "center" }));
@@ -243,21 +268,33 @@ export async function renderReceiptRaster(
   ops.push(gap(SECTION_GAP_MEDIUM));
   ops.push(rule(true));
 
+  const fulfillment = model.fulfillmentLabel || model.pickupLabel;
   ops.push(gap(SECTION_GAP_MEDIUM));
-  ops.push(text(model.pickupLabel, FONT.pickupPrimary, { bold: true, align: "center" }));
-  ops.push(gap(SECTION_GAP_SMALL));
-  if (model.locale === "ar") {
-    ops.push(text("PICKUP ONLY", FONT.pickupSecondary, { align: "center", dir: "ltr" }));
-    ops.push(text("איסוף עצמי", FONT.pickupSecondary, { align: "center" }));
-  } else if (model.locale === "he") {
-    ops.push(text("PICKUP ONLY", FONT.pickupSecondary, { align: "center", dir: "ltr" }));
-    ops.push(text("استلام ذاتي", FONT.pickupSecondary, { align: "center" }));
-  } else {
-    ops.push(text("استلام ذاتي", FONT.pickupSecondary, { align: "center" }));
-    ops.push(text("איסוף עצמי", FONT.pickupSecondary, { align: "center" }));
+  ops.push(text(`${labels.orderType}:`, FONT.sectionLabel, { bold: true, align: "center" }));
+  ops.push(gap(6));
+  ops.push(text(fulfillment, FONT.pickupPrimary, { bold: true, align: "center" }));
+  if (model.orderType !== "delivery") {
+    ops.push(gap(SECTION_GAP_SMALL));
+    if (model.locale === "ar") {
+      ops.push(text("PICKUP ONLY", FONT.pickupSecondary, { align: "center", dir: "ltr" }));
+      ops.push(text("איסוף עצמי", FONT.pickupSecondary, { align: "center" }));
+    } else if (model.locale === "he") {
+      ops.push(text("PICKUP ONLY", FONT.pickupSecondary, { align: "center", dir: "ltr" }));
+      ops.push(text("استلام ذاتي", FONT.pickupSecondary, { align: "center" }));
+    } else {
+      ops.push(text("استلام ذاتي", FONT.pickupSecondary, { align: "center" }));
+      ops.push(text("איסוף עצמי", FONT.pickupSecondary, { align: "center" }));
+    }
   }
   ops.push(gap(SECTION_GAP_MEDIUM));
   ops.push(rule(true));
+
+  if (model.orderNumber) {
+    ops.push(gap(SECTION_GAP_SMALL));
+    ops.push(
+      text(model.orderNumber, FONT.orderNumber, { bold: true, align: "center", dir: "ltr" })
+    );
+  }
 
   if (model.createdTime) {
     ops.push(gap(SECTION_GAP_SMALL));

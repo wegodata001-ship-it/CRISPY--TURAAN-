@@ -10,6 +10,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "package:win": "node scripts/package-windows.mjs",
+    "install:crispy": "node scripts/install-crispy-printer.mjs",
     "start": "node dist/agent.cjs",
     "verify": "node dist/agent.cjs --verify"
   },

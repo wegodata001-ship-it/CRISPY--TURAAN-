@@ -2,6 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 export function agentHome(): string {
+  if (process.env.CRISPY_PRINTER_HOME?.trim()) {
+    return process.env.CRISPY_PRINTER_HOME.trim();
+  }
   if (process.env.MISHKAH_PRINTER_HOME?.trim()) {
     return process.env.MISHKAH_PRINTER_HOME.trim();
   }

@@ -17,8 +17,13 @@ export function receiptUiLabels(locale: PrintLocale) {
       date: "תאריך",
       time: "שעה",
       testBanner: "הדפסת בדיקה",
+      reprintBanner: "הדפסה מחדש",
       discount: "הנחה",
       subtotal: "ביניים",
+      deliveryFee: "דמי משלוח",
+      address: "כתובת",
+      orderType: "סוג הזמנה",
+      unitPrice: "מחיר",
     };
   }
   if (locale === "en") {
@@ -33,8 +38,13 @@ export function receiptUiLabels(locale: PrintLocale) {
       date: "Date",
       time: "Time",
       testBanner: "TEST PRINT",
+      reprintBanner: "REPRINT",
       discount: "Discount",
       subtotal: "Subtotal",
+      deliveryFee: "Delivery fee",
+      address: "Address",
+      orderType: "Order type",
+      unitPrice: "Price",
     };
   }
   return {
@@ -48,7 +58,12 @@ export function receiptUiLabels(locale: PrintLocale) {
     date: "التاريخ",
     time: "الوقت",
     testBanner: "طباعة تجريبية",
+    reprintBanner: "إعادة طباعة",
     discount: "خصم",
     subtotal: "المجموع الفرعي",
+    deliveryFee: "رسوم التوصيل",
+    address: "العنوان",
+    orderType: "نوع الطلب",
+    unitPrice: "السعر",
   };
 }

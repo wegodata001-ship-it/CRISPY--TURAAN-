@@ -9,7 +9,6 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import Link from "next/link";
 import { useAuthFetch } from "@/lib/auth/auth-fetch";
 import { useT } from "@/components/providers/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,7 @@ import type { PrintJob, PrintLocale } from "@/lib/print-jobs/types";
 type StatusPayload = {
   ok?: boolean;
   error?: string;
-  printer?: { name: string; ip: string | null; port: number | null; connection?: string };
+  printer?: { name: string; id?: string; ip: string | null; port: number | null; connection?: string };
   agent?: {
     online: boolean;
     status: string;
@@ -28,6 +27,18 @@ type StatusPayload = {
     hostname: string | null;
     version: string | null;
     printerConnectionStatus: string;
+    ethernetAvailable?: boolean | null;
+    ethernetIp?: string | null;
+    wifiSameSubnet?: boolean | null;
+    printerMac?: string | null;
+    tcp9100?: string | null;
+    routeConflict?: boolean | null;
+    networkWarning?: string | null;
+  };
+  signals?: {
+    agentOffline?: boolean;
+    printerConnectionFailed?: boolean;
+    printJobFailed?: boolean;
   };
   lastSuccessfulPrintAt?: string | null;
   counts?: { pending: number; printing: number; printed: number; failed: number };
@@ -51,6 +62,7 @@ export function PrinterAdmin() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [errorJobId, setErrorJobId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -131,7 +143,7 @@ export function PrinterAdmin() {
         <div className="mb-4 flex items-center gap-2 text-coffee">
           <Printer className="h-5 w-5 text-turquoise" strokeWidth={1.75} />
           <h2 className="text-base font-semibold">
-            {data?.printer?.name || t("admin.printer.name", "CRISPY Kitchen Printer")}
+            {data?.printer?.name || t("admin.printer.name", "CRISPY MAIN")}
           </h2>
         </div>
 
@@ -155,7 +167,7 @@ export function PrinterAdmin() {
             </dd>
           </div>
           <div>
-            <dt className="text-coffee/50">{t("admin.printer.linkStatus", "Status")}</dt>
+            <dt className="text-coffee/50">{t("admin.printer.tcp", "TCP 9100")}</dt>
             <dd
               className={cn(
                 "mt-1 inline-flex items-center gap-1.5 font-semibold",
@@ -168,9 +180,11 @@ export function PrinterAdmin() {
                   printerConnected ? "bg-turquoise" : "bg-red-500"
                 )}
               />
-              {printerConnected
-                ? t("admin.printer.connected", "מחוברת")
-                : t("admin.printer.disconnected", "לא מחוברת")}
+              {data?.agent?.tcp9100 === "PASS"
+                ? t("admin.printer.tcpPass", "PASS")
+                : data?.agent?.tcp9100 === "FAIL"
+                  ? t("admin.printer.tcpFail", "FAIL")
+                  : t("admin.printer.tcpUnknown", "UNKNOWN")}
             </dd>
           </div>
           <div>
@@ -217,7 +231,69 @@ export function PrinterAdmin() {
               {data?.agent?.hostname || "—"}
             </dd>
           </div>
+          <div>
+            <dt className="text-coffee/50">{t("admin.printer.ethernet", "Ethernet")}</dt>
+            <dd className="font-medium text-dark-brown" dir="ltr">
+              {data?.agent?.ethernetAvailable == null
+                ? "—"
+                : data.agent.ethernetAvailable
+                  ? `YES ${data.agent.ethernetIp || ""}`.trim()
+                  : "NO"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-coffee/50">{t("admin.printer.mac", "Printer MAC")}</dt>
+            <dd className="font-mono text-dark-brown" dir="ltr">
+              {data?.agent?.printerMac || "—"}
+            </dd>
+          </div>
         </dl>
+
+        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+          <div
+            className={cn(
+              "rounded-xl border px-3 py-2 font-semibold",
+              data?.signals?.agentOffline ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-800"
+            )}
+          >
+            {data?.signals?.agentOffline
+              ? t("admin.printer.agentOffline", "AGENT OFFLINE")
+              : t("admin.printer.agentOnline", "AGENT ONLINE")}
+          </div>
+          <div
+            className={cn(
+              "rounded-xl border px-3 py-2 font-semibold",
+              data?.signals?.printerConnectionFailed
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-beige-dark/20 bg-beige/40 text-dark-brown"
+            )}
+          >
+            {data?.signals?.printerConnectionFailed
+              ? t("admin.printer.printerFailed", "PRINTER CONNECTION FAILED")
+              : t("admin.printer.printerOk", "PRINTER TCP")}
+          </div>
+          <div
+            className={cn(
+              "rounded-xl border px-3 py-2 font-semibold",
+              data?.signals?.printJobFailed
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-beige-dark/20 bg-beige/40 text-dark-brown"
+            )}
+          >
+            {data?.signals?.printJobFailed
+              ? t("admin.printer.jobFailed", "PRINT JOB FAILED")
+              : t("admin.printer.jobOk", "NO FAILED JOBS")}
+          </div>
+        </div>
+        {data?.agent?.networkWarning && (
+          <p className="mt-3 text-sm font-medium text-amber-800">{data.agent.networkWarning}</p>
+        )}
+        <p className="mt-2 text-xs text-coffee/55">
+          {t(
+            "admin.printer.sentNotPaper",
+            "PRINTED = הסוכן שלח את הקבלה ל-TCP. זה לא אימות שנייר יצא פיזית."
+          )}
+        </p>
 
         {(error || notice) && (
           <p className={cn("mt-4 text-sm", error ? "text-red-600" : "text-turquoise")}>
@@ -228,21 +304,21 @@ export function PrinterAdmin() {
         <div className="mt-5 flex flex-wrap gap-2">
           <Button
             type="button"
-            variant="outline"
             disabled={Boolean(busy)}
-            onClick={() => void run("probe", "/api/printer/status")}
+            onClick={() => void run("test-ar", "/api/admin/printer/test-print", { locale: "ar" })}
           >
-            {busy === "probe" ? (
+            {busy === "test-ar" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Wifi className="h-4 w-4" />
+              <Printer className="h-4 w-4" />
             )}
-            {t("admin.printer.checkConnection", "בדיקת חיבור")}
+            {t("admin.printer.testPrint", "הדפסת בדיקה")}
           </Button>
-          {(["ar", "he", "en"] as PrintLocale[]).map((locale) => (
+          {(["he", "en"] as PrintLocale[]).map((locale) => (
             <Button
               key={locale}
               type="button"
+              variant="outline"
               disabled={Boolean(busy)}
               onClick={() => void run(`test-${locale}`, "/api/admin/printer/test-print", { locale })}
             >
@@ -251,7 +327,7 @@ export function PrinterAdmin() {
               ) : (
                 <Printer className="h-4 w-4" />
               )}
-              {t("admin.printer.testPrint", "Print test order")} ({locale.toUpperCase()})
+              {t("admin.printer.testPrint", "הדפסת בדיקה")} ({locale.toUpperCase()})
             </Button>
           ))}
           <Button
@@ -280,20 +356,15 @@ export function PrinterAdmin() {
             ) : (
               <RotateCcw className="h-4 w-4" />
             )}
-            {t("admin.printer.retryFailed", "Retry Failed")}
+            {t("admin.printer.retryFailed", "נסה שוב")}
           </Button>
         </div>
 
         <p className="mt-4 text-xs leading-relaxed text-coffee/60">
           {t(
             "admin.printer.hintAgent",
-            "המדפסת מחוברת רק דרך הסוכן המקומי במחשב המסעדה. הפעילו npm run print-agent על המחשב המקומי."
+            "הדפסה רק דרך C:\\CRISPY-PRINTER על מחשב המסעדה. Vercel לא פותח TCP לרשת המקומית."
           )}
-        </p>
-        <p className="mt-1 text-xs text-coffee/55">
-          <Link href="/admin/printer-test" className="underline underline-offset-2">
-            {t("admin.printer.lanTests", "בדיקות LAN ישירות (localhost בלבד)")}
-          </Link>
         </p>
       </div>
 
@@ -355,7 +426,7 @@ export function PrinterAdmin() {
                             })
                           }
                         >
-                          {t("admin.printer.retry", "Retry")}
+                          {t("admin.printer.retry", "נסה שוב")}
                         </Button>
                       )}
                       {job.orderId && job.type !== "TEST" && (
@@ -371,7 +442,17 @@ export function PrinterAdmin() {
                             })
                           }
                         >
-                          {t("admin.printer.reprint", "Reprint")}
+                          {t("admin.printer.reprint", "הדפס מחדש")}
+                        </Button>
+                      )}
+                      {(job.lastError || job.cutterError) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setErrorJobId(errorJobId === job.id ? null : job.id)}
+                        >
+                          {t("admin.printer.viewError", "צפה בשגיאה")}
                         </Button>
                       )}
                     </td>
@@ -381,17 +462,12 @@ export function PrinterAdmin() {
             </tbody>
           </table>
         </div>
-        {(data?.jobs ?? []).some((job) => job.lastError) && (
-          <ul className="mt-3 space-y-1 text-xs text-red-700">
-            {(data?.jobs ?? [])
-              .filter((job) => job.lastError)
-              .slice(0, 5)
-              .map((job) => (
-                <li key={`${job.id}-err`}>
-                  {job.id}: {job.lastError}
-                </li>
-              ))}
-          </ul>
+        {errorJobId && (
+          <p className="mt-3 text-sm text-red-700">
+            {(data?.jobs ?? []).find((job) => job.id === errorJobId)?.lastError ||
+              (data?.jobs ?? []).find((job) => job.id === errorJobId)?.cutterError ||
+              t("admin.printer.noErrorDetail", "אין פירוט שגיאה")}
+          </p>
         )}
       </div>
     </div>

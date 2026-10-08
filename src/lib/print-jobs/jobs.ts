@@ -72,6 +72,9 @@ export function mapPrintJob(id: string, data: FirebaseFirestore.DocumentData): P
     locale: parsePrintLocale(data.locale),
     printerIp: typeof data.printerIp === "string" ? data.printerIp : null,
     printerPort: typeof data.printerPort === "number" ? data.printerPort : null,
+    requestedBy: typeof data.requestedBy === "string" ? data.requestedBy : null,
+    requestedAt: toIso(data.requestedAt),
+    cutterError: typeof data.cutterError === "string" ? data.cutterError : null,
   };
 }
 
@@ -132,7 +135,8 @@ export async function enqueueNewOrderPrintJob(orderId: string): Promise<EnqueueR
 
 export async function enqueueReprintJob(
   orderId: string,
-  locale?: PrintLocale
+  locale?: PrintLocale,
+  requestedBy?: string
 ): Promise<EnqueueResult> {
   if (!orderId.trim()) return { status: "skipped", reason: "missing_orderId" };
 
@@ -156,7 +160,9 @@ export async function enqueueReprintJob(
     nextRetryAt: null,
     uniqueKey: null,
     locale: locale ?? parsePrintLocale(order.locale),
-  } satisfies FirestorePrintJob);
+    requestedBy: requestedBy?.trim() || null,
+    requestedAt: FieldValue.serverTimestamp(),
+  });
 
   return { status: "created", jobId: ref.id };
 }

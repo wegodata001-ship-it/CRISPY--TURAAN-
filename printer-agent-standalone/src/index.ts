@@ -17,7 +17,13 @@ import {
 } from "./env";
 import { log } from "./logger";
 import { concatBuffers, escBeep, escCut, escFeedLines } from "./escpos";
-import { PrinterConnectionError, probePrinterConnection, sendRawToPrinter } from "./tcp";
+import { PrinterConnectionError, probePrinterConnection, sendRawToPrinter, setPrinterLocalAddress } from "./tcp";
+import {
+  collectNetworkDiagnostics,
+  formatStartupDiagnostics,
+  preferredLocalAddress,
+  type NetworkDiagnostics,
+} from "./network-diagnostics";
 import { buildReceiptPrintPayload } from "./receipt-raster";
 import type { PrintJob, ReceiptModel } from "./types";
 
@@ -48,7 +54,15 @@ async function agentFetch(path: string, init?: RequestInit): Promise<Response> {
   });
 }
 
-async function sendHeartbeat(printerStatus: "connected" | "disconnected" | "unknown") {
+function currentDiagnostics(): NetworkDiagnostics {
+  return collectNetworkDiagnostics(getPrinterHost() || "192.168.1.87");
+}
+
+async function sendHeartbeat(
+  printerStatus: "connected" | "disconnected" | "unknown",
+  tcp: "PASS" | "FAIL" | "UNKNOWN" = "UNKNOWN"
+) {
+  const diag = currentDiagnostics();
   log.info("Heartbeat sending");
   const res = await agentFetch("/api/print-agent/heartbeat", {
     method: "POST",
@@ -59,6 +73,13 @@ async function sendHeartbeat(printerStatus: "connected" | "disconnected" | "unkn
       printerConnectionStatus: printerStatus,
       printerIp: getPrinterHost(),
       printerPort: getPrinterPort(),
+      ethernetAvailable: diag.ethernetAvailable,
+      ethernetIp: diag.ethernetIp,
+      wifiSameSubnet: diag.wifiSameSubnet,
+      printerMac: diag.printerMac,
+      tcp9100: tcp,
+      routeConflict: diag.routeConflict,
+      networkWarning: diag.warning,
     }),
   });
   if (!res.ok) {
@@ -85,7 +106,7 @@ async function sendBytes(data: Buffer): Promise<void> {
   try {
     const result = await sendRawToPrinter(data);
     log.info(`Printer sent ${result.bytesSent} bytes`);
-    log.info("Print completed");
+    log.info("Receipt payload flushed to printer socket (physical paper not verified)");
   } catch (error) {
     const code = error instanceof PrinterConnectionError ? error.code : undefined;
     if (code === "ETIMEDOUT") log.error("Printer timeout");
@@ -207,8 +228,10 @@ async function verifyOnce(): Promise<number> {
   try {
     await probePrinterConnection();
     log.info(`Printer TCP: PASS ${host}:${port}`);
+    for (const line of formatStartupDiagnostics(currentDiagnostics(), "PASS")) log.info(line);
   } catch (error) {
     log.error(`Printer TCP: FAIL ${host}:${port}`, error instanceof Error ? error.message : error);
+    for (const line of formatStartupDiagnostics(currentDiagnostics(), "FAIL")) log.info(line);
     code = 1;
   }
 
@@ -219,8 +242,11 @@ async function main() {
   const home = loadAgentEnv();
   const verify = process.argv.includes("--verify");
 
-  log.info("[MISHKAH Print Agent]", VERSION);
+  log.info("[CRISPY Print Agent]", VERSION);
   log.info("Home", home);
+
+  const startupDiag = currentDiagnostics();
+  setPrinterLocalAddress(preferredLocalAddress(startupDiag));
 
   if (process.env.PRINT_AGENT_ENABLED !== "true") {
     log.info("PRINT_AGENT_ENABLED is not true. Exiting.");
@@ -245,7 +271,10 @@ async function main() {
   log.info("Backend URL", backend);
   log.info(`Printer ${host}:${port}`);
   log.info(`Poll ${pollMs}ms · heartbeat ${heartbeatMs}ms`);
-  log.info("Waiting for print jobs...");
+  for (const line of formatStartupDiagnostics(startupDiag, "UNKNOWN")) {
+    log.info(line);
+  }
+  log.info("TCP connect is not physical paper proof. Waiting for print jobs...");
 
   let backendDown = false;
   let printerDown = false;
@@ -275,17 +304,19 @@ async function main() {
 
   const beat = async () => {
     try {
+      const live = currentDiagnostics();
+      setPrinterLocalAddress(preferredLocalAddress(live));
       const status = await probePrinter();
       if (status === "disconnected") {
         if (!printerDown) {
-          log.error("Printer/network outage — will retry TCP");
+          log.error("PRINTER CONNECTION FAILED — TCP 9100");
           printerDown = true;
         }
       } else if (printerDown) {
-        log.info("Printer reconnected: PASS");
+        log.info("Printer TCP reconnected: PASS");
         printerDown = false;
       }
-      await sendHeartbeat(status);
+      await sendHeartbeat(status, status === "connected" ? "PASS" : "FAIL");
       if (backendDown) {
         log.info("Backend reconnected: PASS");
         backendDown = false;
@@ -295,7 +326,7 @@ async function main() {
         log.error("Heartbeat/network outage — will retry", error instanceof Error ? error.message : error);
         backendDown = true;
       }
-      await sendHeartbeat("unknown").catch(() => undefined);
+      await sendHeartbeat("unknown", "UNKNOWN").catch(() => undefined);
     }
   };
 

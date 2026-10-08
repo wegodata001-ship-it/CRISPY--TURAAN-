@@ -9,7 +9,8 @@ export type PrintLocale = (typeof PRINT_LOCALES)[number];
 
 export const DEFAULT_PRINT_LOCALE: PrintLocale = "ar";
 export const PRINT_STORE_ID = "crispy";
-export const PRINTER_DISPLAY_NAME = "CRISPY Kitchen Printer";
+export const PRINTER_DISPLAY_NAME = "CRISPY MAIN";
+export const PRINTER_ID = "CRISPY_MAIN";
 
 export const MAX_PRINT_ATTEMPTS = 3;
 /** After attempt 1 fails wait 10s; after attempt 2 fails wait 30s; then FAILED. */
@@ -34,6 +35,9 @@ export interface PrintJob {
   locale: PrintLocale;
   printerIp?: string | null;
   printerPort?: number | null;
+  requestedBy?: string | null;
+  requestedAt?: string | null;
+  cutterError?: string | null;
 }
 
 export interface PrintAgentHeartbeat {
@@ -44,6 +48,13 @@ export interface PrintAgentHeartbeat {
   printerConnectionStatus: "connected" | "disconnected" | "unknown";
   printerIp?: string | null;
   printerPort?: number | null;
+  ethernetAvailable?: boolean | null;
+  ethernetIp?: string | null;
+  wifiSameSubnet?: boolean | null;
+  printerMac?: string | null;
+  tcp9100?: "PASS" | "FAIL" | "UNKNOWN" | null;
+  routeConflict?: boolean | null;
+  networkWarning?: string | null;
 }
 
 export interface ReceiptModifierLine {
@@ -54,6 +65,7 @@ export interface ReceiptItemLine {
   quantity: number;
   name: string;
   lineTotal: number;
+  unitPrice?: number;
   modifiers: ReceiptModifierLine[];
   notes?: string;
 }
@@ -72,9 +84,14 @@ export interface ReceiptModel {
   notes?: string;
   subtotal?: number;
   discount?: number;
+  deliveryFee?: number;
   total: number;
   paymentLabel: string;
   pickupLabel: string;
+  fulfillmentLabel?: string;
+  orderType?: "pickup" | "delivery";
+  address?: string;
   createdTime?: string;
   isTest?: boolean;
+  isReprint?: boolean;
 }

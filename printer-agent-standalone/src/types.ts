@@ -29,6 +29,7 @@ export interface ReceiptItemLine {
   quantity: number;
   name: string;
   lineTotal: number;
+  unitPrice?: number;
   modifiers: ReceiptModifierLine[];
   notes?: string;
 }
@@ -47,9 +48,14 @@ export interface ReceiptModel {
   notes?: string;
   subtotal?: number;
   discount?: number;
+  deliveryFee?: number;
   total: number;
   paymentLabel: string;
   pickupLabel: string;
+  fulfillmentLabel?: string;
+  orderType?: "pickup" | "delivery";
+  address?: string;
   createdTime?: string;
   isTest?: boolean;
+  isReprint?: boolean;
 }

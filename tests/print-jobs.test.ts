@@ -99,6 +99,25 @@ describe("receipt model", () => {
     expect(JSON.stringify(receipt)).not.toMatch(/delivery|משלוח|توصيل|shipping/i);
     expect(receipt.notes).toBe("بدون سكر");
     expect(receipt.orderNumber).toBe("#MC-2026-1234");
+    expect(receipt.orderType).toBe("pickup");
+    expect(receipt.deliveryFee).toBeUndefined();
+    expect(receipt.address).toBeUndefined();
+    expect(receipt.items[0]?.unitPrice).toBe(14);
+  });
+
+  it("includes delivery address and fee only for delivery orders", () => {
+    const receipt = buildReceiptModelFromOrder({
+      ...sampleOrder,
+      orderType: "delivery",
+      deliveryAddress: "شارع يافا 10",
+      delivery: 12,
+      total: 56,
+    });
+    expect(receipt.orderType).toBe("delivery");
+    expect(receipt.fulfillmentLabel).toBe("توصيل");
+    expect(receipt.address).toMatch(/يافا/);
+    expect(receipt.deliveryFee).toBe(12);
+    expect(receipt.total).toBe(56);
   });
 
   it("uses Hebrew / English pickup and payment labels", () => {
@@ -145,6 +164,7 @@ describe("cloud print APIs stay off the LAN printer", () => {
       "src/app/api/print-agent/jobs/claim/route.ts",
       "src/app/api/admin/printer/status/route.ts",
       "src/app/api/admin/printer/test-print/route.ts",
+      "src/app/api/admin/printer/reprint/route.ts",
       "src/app/api/orders/notify-new/route.ts",
       "src/services/orderService.ts",
     ];
@@ -152,5 +172,12 @@ describe("cloud print APIs stay off the LAN printer", () => {
       const src = readFileSync(resolve(process.cwd(), file), "utf8");
       expect(src).not.toMatch(/sendRawToPrinter|withPrinterSocket|PRINTER_IP/);
     }
+  });
+
+  it("admin printer page queues jobs instead of opening LAN TCP", () => {
+    const src = readFileSync(resolve(process.cwd(), "src/features/admin/printer-admin.tsx"), "utf8");
+    expect(src).toMatch(/\/api\/admin\/printer\/test-print/);
+    expect(src).toMatch(/\/api\/admin\/printer\/reprint/);
+    expect(src).not.toMatch(/\/api\/printer\/status/);
   });
 });

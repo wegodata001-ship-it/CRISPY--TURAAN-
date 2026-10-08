@@ -16,7 +16,11 @@ export async function POST(request: NextRequest) {
     if (!orderId) {
       return NextResponse.json({ ok: false, error: "orderId required" }, { status: 400 });
     }
-    const result = await enqueueReprintJob(orderId, body.locale ? parsePrintLocale(body.locale) : undefined);
+    const result = await enqueueReprintJob(
+      orderId,
+      body.locale ? parsePrintLocale(body.locale) : undefined,
+      auth.email || auth.uid
+    );
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     return NextResponse.json(

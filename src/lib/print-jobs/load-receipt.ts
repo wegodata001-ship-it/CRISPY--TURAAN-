@@ -4,6 +4,7 @@ import { timestampToIso } from "@/lib/email/order-email-payload";
 import { parsePrintLocale } from "@/lib/print-jobs/ids";
 import {
   buildReceiptModelFromFirestoreOrder,
+  receiptCopy,
 } from "@/lib/print-jobs/receipt-model";
 import { buildTestReceiptModel } from "@/lib/print-jobs/test-receipt";
 import type { PrintJob, PrintLocale, ReceiptModel } from "@/lib/print-jobs/types";
@@ -24,9 +25,17 @@ export async function loadReceiptForJob(
     throw new Error("order_not_found");
   }
   const data = snap.data() as FirestoreOrder;
-  return buildReceiptModelFromFirestoreOrder(
+  const model = buildReceiptModelFromFirestoreOrder(
     data,
     timestampToIso(data.createdAt),
     locale ?? parsePrintLocale(data.locale)
   );
+  if (job.type === "REPRINT") {
+    return {
+      ...model,
+      isReprint: true,
+      headline: receiptCopy(model.locale).reprint,
+    };
+  }
+  return model;
 }
