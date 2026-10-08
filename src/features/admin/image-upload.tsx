@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
 import { compressProductImage } from "@/lib/images/compress-image";
+import { uploadErrorMessage } from "@/lib/storage/errors";
 import type { UploadImageOptions } from "@/services/storageService";
 
 interface ImageUploadProps {
@@ -91,17 +92,15 @@ export function ImageUpload({
         onChange(result.data);
         setProgress(100);
         clearLocalPreview();
-      } else if (result.error === "storage/canceled") {
-        setError(null);
-      } else if (result.error?.includes("not enabled") || result.error?.includes("Get Started")) {
-        setError(t("admin.upload.storageNotReady"));
-      } else if (result.error) {
-        setError(result.error);
+      } else {
+        clearLocalPreview();
+        setError(uploadErrorMessage(result.error, t));
       }
     } catch (err) {
       if (controller.signal.aborted) return;
       setUploading(false);
-      setError(err instanceof Error ? err.message : t("admin.upload.failed"));
+      clearLocalPreview();
+      setError(uploadErrorMessage(err instanceof Error ? err.message : undefined, t) || t("admin.upload.failed"));
     }
   };
 
@@ -110,7 +109,7 @@ export function ImageUpload({
     abortRef.current = null;
     setUploading(false);
     setProgress(0);
-    if (!value) clearLocalPreview();
+    clearLocalPreview();
   };
 
   const handleRemove = async () => {

@@ -46,6 +46,7 @@ export function getCategoryPlaceholder(categoryId: string): string {
 export function isAllowedProductImageUrl(url: string): boolean {
   const normalized = normalizeImageUrl(url);
   if (!normalized) return false;
+  if (/^data:|^blob:/i.test(normalized) || /base64,/i.test(normalized)) return false;
   if (/unsplash\.com|images\.unsplash\.com/i.test(normalized)) return false;
   if (normalized.startsWith("/")) return true;
   if (normalized.includes("firebasestorage.googleapis.com")) return true;

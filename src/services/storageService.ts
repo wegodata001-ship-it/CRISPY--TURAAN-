@@ -7,9 +7,17 @@ import {
 } from "firebase/storage";
 import { getFirebaseStorage } from "@/lib/firebase";
 import { STORAGE_PATHS } from "@/lib/firebase/collections";
-import { type ServiceResult, success, failure } from "@/lib/errors";
+import { ServiceError, type ServiceResult, success, failure } from "@/lib/errors";
+import { storageErrorTranslationKey } from "@/lib/storage/errors";
 
 const STALL_MS = 25_000;
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+const ALLOWED_CONTENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 
 export type UploadImageOptions = {
   onProgress?: (percent: number) => void;
@@ -23,16 +31,17 @@ function asOptions(
   return value ?? {};
 }
 
-function firebaseStorageMessage(error: unknown): string {
-  const code =
-    typeof error === "object" && error && "code" in error
-      ? String((error as { code?: string }).code)
-      : "";
-  const message = error instanceof Error ? error.message : "Upload failed";
-  console.error("[Storage] upload failed", { code, message, error });
-  if (code === "storage/canceled") return "storage/canceled";
-  if (code) return `${code}: ${message}`;
-  return message;
+function failUpload(error: unknown): ServiceResult<string> {
+  return failure(error, storageErrorTranslationKey(error));
+}
+
+function assertUploadableFile(file: File) {
+  if (!ALLOWED_CONTENT_TYPES.has(file.type)) {
+    throw new ServiceError("admin.upload.invalidType", "storage/invalid-format");
+  }
+  if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
+    throw new ServiceError("admin.upload.tooLarge", "storage/invalid-format");
+  }
 }
 
 export function storagePathFromUrl(url: string): string | null {
@@ -45,18 +54,31 @@ export function storagePathFromUrl(url: string): string | null {
   }
 }
 
+/**
+ * Best-effort probe. A 404 means Storage was never enabled.
+ * CORS / network failures must not block the SDK upload — the SDK error is authoritative.
+ */
 async function assertStorageBucketExists() {
   const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
   if (!bucket) {
-    throw new Error("storage/unknown: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET is missing");
+    throw new ServiceError("admin.upload.storageNotReady", "storage/unconfigured");
   }
-  const res = await fetch(
-    `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?maxResults=1`
-  );
-  if (res.status === 404) {
-    throw new Error(
-      "storage/unknown: Firebase Storage is not enabled. Open Firebase Console → Storage → Get Started, then try again."
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(
+      `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?maxResults=1`,
+      { method: "GET", signal: controller.signal }
     );
+    if (res.status === 404) {
+      throw new ServiceError("admin.upload.storageNotReady", "storage/bucket-not-found");
+    }
+  } catch (error) {
+    if (error instanceof ServiceError) throw error;
+    // CORS, timeout, or offline — continue and let the Storage SDK report the real error.
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -71,11 +93,12 @@ export async function uploadImageWithProgress(
   }
 
   try {
+    assertUploadableFile(file);
     await assertStorageBucketExists();
     const storage = getFirebaseStorage();
     const storageRef = ref(storage, path);
     const task: UploadTask = uploadBytesResumable(storageRef, file, {
-      contentType: file.type || "image/jpeg",
+      contentType: file.type,
     });
 
     return await new Promise((resolve) => {
@@ -110,7 +133,7 @@ export async function uploadImageWithProgress(
         finish(
           failure(
             new Error("storage/retry-limit-exceeded"),
-            "storage/retry-limit-exceeded: no progress"
+            "admin.upload.stalled"
           )
         );
       }, 2000);
@@ -127,24 +150,24 @@ export async function uploadImageWithProgress(
           const total = snapshot.totalBytes || file.size || 1;
           onProgress?.(Math.min(100, Math.round((snapshot.bytesTransferred / total) * 100)));
         },
-        (error) => finish(failure(error, firebaseStorageMessage(error))),
+        (error) => finish(failUpload(error)),
         async () => {
           try {
             onProgress?.(100);
             const url = await getDownloadURL(task.snapshot.ref);
-            if (!url) {
-              finish(failure(new Error("storage/object-not-found"), "storage/object-not-found"));
+            if (!url || url.startsWith("data:") || url.startsWith("blob:")) {
+              finish(failUpload(new Error("storage/object-not-found")));
               return;
             }
             finish(success(url));
           } catch (error) {
-            finish(failure(error, firebaseStorageMessage(error)));
+            finish(failUpload(error));
           }
         }
       );
     });
   } catch (error) {
-    return failure(error, firebaseStorageMessage(error));
+    return failUpload(error);
   }
 }
 
@@ -224,7 +247,7 @@ export async function deleteImageByUrl(
     await deleteObject(ref(storage, path));
     return success(undefined);
   } catch (error) {
-    return failure(error, "Failed to delete image");
+    return failure(error, storageErrorTranslationKey(error));
   }
 }
 
@@ -234,7 +257,7 @@ export async function deleteImage(path: string): Promise<ServiceResult<void>> {
     await deleteObject(ref(storage, path));
     return success(undefined);
   } catch (error) {
-    return failure(error, "Failed to delete image");
+    return failure(error, storageErrorTranslationKey(error));
   }
 }
 

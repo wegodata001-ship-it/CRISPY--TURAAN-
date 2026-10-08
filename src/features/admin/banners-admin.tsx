@@ -27,6 +27,7 @@ import {
 } from "@/lib/banners/manager";
 import { formatDate, cn } from "@/lib/utils";
 import { isAllowedProductImageUrl } from "@/lib/menu/placeholders";
+import { uploadErrorMessage } from "@/lib/storage/errors";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
 import { AdminEmptyState } from "./components/admin-empty-state";
@@ -109,7 +110,7 @@ export function BannersAdmin() {
     const result = editing ? await updateBanner(editing.id, patch!) : await createBanner(draft);
     setSaving(false);
     if (!result.success) {
-      setError(result.error);
+      setError(uploadErrorMessage(result.error, t) || t("admin.banners.saveFailed"));
       return;
     }
     pushToast(t("admin.banners.saveSuccess"));

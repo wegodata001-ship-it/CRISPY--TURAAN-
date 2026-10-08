@@ -113,9 +113,19 @@ export async function reorderBanners(
   }
 }
 
+function rejectEmbeddedImage(url: string | undefined) {
+  if (!url) return;
+  const value = url.trim().toLowerCase();
+  if (value.startsWith("data:") || value.startsWith("blob:") || value.includes("base64,")) {
+    throw new Error("admin.upload.invalidType");
+  }
+}
+
 export async function createBanner(input: BannerInput): Promise<ServiceResult<BannerSlide>> {
   try {
     const parsed = bannerSchema.parse(input);
+    rejectEmbeddedImage(parsed.imageUrl);
+    rejectEmbeddedImage(parsed.mobileImageUrl);
     if (parsed.imageUrl) parsed.imageUrl = normalizeImageUrl(parsed.imageUrl) ?? parsed.imageUrl;
     if (parsed.mobileImageUrl) parsed.mobileImageUrl = normalizeImageUrl(parsed.mobileImageUrl) ?? parsed.mobileImageUrl;
     const db = getDb();
@@ -132,6 +142,8 @@ export async function updateBanner(
   input: Partial<BannerInput>
 ): Promise<ServiceResult<void>> {
   try {
+    rejectEmbeddedImage(input.imageUrl);
+    rejectEmbeddedImage(input.mobileImageUrl);
     if (input.imageUrl) input.imageUrl = normalizeImageUrl(input.imageUrl) ?? input.imageUrl;
     if (input.mobileImageUrl) input.mobileImageUrl = normalizeImageUrl(input.mobileImageUrl) ?? input.mobileImageUrl;
     const db = getDb();

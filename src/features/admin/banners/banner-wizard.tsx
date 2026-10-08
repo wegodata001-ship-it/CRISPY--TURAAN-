@@ -85,6 +85,7 @@ export function BannerWizard({
   const [language, setLanguage] = useState<(typeof LANGUAGES)[number]>("he");
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const [publishMode, setPublishMode] = useState<"now" | "inactive" | "scheduled">("now");
+  const [useDesktopForMobile, setUseDesktopForMobile] = useState(true);
   const [draft, setDraft] = useState<BannerInput>(() => emptyBannerDraft(nextSortOrder));
   const initialRef = useRef<BannerInput>(emptyBannerDraft(nextSortOrder));
   const uploadId = useRef(`banner-${Date.now()}`);
@@ -97,6 +98,7 @@ export function BannerWizard({
     setStep(0);
     setLanguage("he");
     setPreviewDevice("desktop");
+    setUseDesktopForMobile(!next.mobileImageUrl);
     setPublishMode(
       !next.active ? "inactive" : next.startDate || next.endDate ? "scheduled" : "now"
     );
@@ -143,7 +145,7 @@ export function BannerWizard({
       active: publishMode !== "inactive",
       startDate: publishMode === "scheduled" ? draft.startDate : "",
       endDate: publishMode === "scheduled" ? draft.endDate : "",
-      mobileImageUrl: draft.mobileImageUrl || "",
+      mobileImageUrl: useDesktopForMobile ? "" : draft.mobileImageUrl || "",
     };
   };
 
@@ -220,8 +222,9 @@ export function BannerWizard({
                 <label className="flex min-h-11 items-center gap-3 rounded-xl border border-beige-dark/20 px-3">
                   <input
                     type="checkbox"
-                    checked={!draft.mobileImageUrl}
+                    checked={useDesktopForMobile}
                     onChange={(event) => {
+                      setUseDesktopForMobile(event.target.checked);
                       if (event.target.checked) set("mobileImageUrl", "");
                     }}
                   />
@@ -229,8 +232,11 @@ export function BannerWizard({
                 </label>
                 <ImageUpload
                   label={t("admin.banners.customMobileImage")}
-                  value={draft.mobileImageUrl || ""}
-                  onChange={(url) => set("mobileImageUrl", url)}
+                  value={useDesktopForMobile ? "" : draft.mobileImageUrl || ""}
+                  onChange={(url) => {
+                    set("mobileImageUrl", url);
+                    if (url) setUseDesktopForMobile(false);
+                  }}
                   onUpload={(file, onProgress, options) =>
                     uploadBannerImage(file, `${uploadId.current}-mobile`, {
                       onProgress,

@@ -31,7 +31,10 @@ export function getDb(): Firestore {
 
 export function getFirebaseStorage(): FirebaseStorage {
   if (!storage) {
-    storage = getStorage(getFirebaseApp());
+    const bucket = getFirebaseConfig().storageBucket?.trim();
+    storage = bucket
+      ? getStorage(getFirebaseApp(), `gs://${bucket}`)
+      : getStorage(getFirebaseApp());
   }
   return storage;
 }

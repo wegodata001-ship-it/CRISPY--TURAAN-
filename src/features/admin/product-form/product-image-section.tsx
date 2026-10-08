@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/components/providers/locale-provider";
 import { compressProductImage } from "@/lib/images/compress-image";
 import { isAllowedProductImageUrl } from "@/lib/menu/placeholders";
+import { uploadErrorMessage } from "@/lib/storage/errors";
 import { cn } from "@/lib/utils";
 import type { UploadImageOptions } from "@/services/storageService";
 
@@ -97,19 +98,19 @@ export function ProductImageSection({
         setProgress(100);
         setUploadSuccess(true);
         clearLocalPreview();
-      } else if (result.error === "storage/canceled") {
-        setError(null);
-      } else if (result.error?.includes("not enabled") || result.error?.includes("Get Started")) {
-        setError(t("admin.upload.storageNotReady"));
       } else {
-        setError(result.error ?? t("admin.upload.stalled"));
+        clearLocalPreview();
+        setError(uploadErrorMessage(result.error, t) || t("admin.upload.stalled"));
       }
     } catch (err) {
       if (controller.signal.aborted) return;
       setUploading(false);
-      const message = err instanceof Error ? err.message : t("admin.upload.failed");
+      clearLocalPreview();
       console.error("[ProductImage] upload error", err);
-      setError(message);
+      setError(
+        uploadErrorMessage(err instanceof Error ? err.message : undefined, t) ||
+          t("admin.upload.failed")
+      );
     }
   };
 
@@ -119,7 +120,7 @@ export function ProductImageSection({
     setUploading(false);
     setProgress(0);
     setError(null);
-    if (!imageUrl) clearLocalPreview();
+    clearLocalPreview();
   };
 
   const handleRemove = async () => {

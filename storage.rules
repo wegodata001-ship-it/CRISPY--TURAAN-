@@ -6,33 +6,57 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function userDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function isStaff() {
+      return isSignedIn()
+        && userDoc().data.active == true
+        && userDoc().data.role in ['Admin', 'Manager', 'Employee'];
+    }
+
+    function isImageUpload() {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+    }
+
     match /products/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create, update: if isStaff() && isImageUpload();
+      allow delete: if isStaff();
     }
 
     match /categories/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create, update: if isStaff() && isImageUpload();
+      allow delete: if isStaff();
     }
 
     match /banners/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create, update: if isStaff() && isImageUpload();
+      allow delete: if isStaff();
     }
 
     match /settings/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create, update: if isStaff() && isImageUpload();
+      allow delete: if isStaff();
     }
 
     match /modifiers/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create, update: if isStaff() && isImageUpload();
+      allow delete: if isStaff();
     }
 
     match /test/{allPaths=**} {
-      allow read, write: if true;
+      allow read: if isStaff();
+      allow create, update: if isStaff() && isImageUpload();
+      allow delete: if isStaff();
     }
   }
 }

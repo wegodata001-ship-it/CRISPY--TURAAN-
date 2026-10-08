@@ -53,6 +53,9 @@ export async function saveProductEditorChanges(
 
     if (!input.productId) {
       const parsed = productSchema.parse(input.productValues);
+      if (parsed.imageUrl && (/^data:|^blob:/i.test(parsed.imageUrl) || /base64,/i.test(parsed.imageUrl))) {
+        throw new Error("admin.upload.invalidType");
+      }
       if (parsed.imageUrl) parsed.imageUrl = normalizeImageUrl(parsed.imageUrl) ?? "";
       batch.set(
         productRef,
@@ -66,6 +69,9 @@ export async function saveProductEditorChanges(
       writes += 1;
     } else if (Object.keys(input.productPatch).length > 0) {
       const patch = { ...input.productPatch };
+      if (patch.imageUrl && (/^data:|^blob:/i.test(patch.imageUrl) || /base64,/i.test(patch.imageUrl))) {
+        throw new Error("admin.upload.invalidType");
+      }
       if (patch.imageUrl !== undefined) patch.imageUrl = normalizeImageUrl(patch.imageUrl) ?? "";
       batch.update(
         productRef,
