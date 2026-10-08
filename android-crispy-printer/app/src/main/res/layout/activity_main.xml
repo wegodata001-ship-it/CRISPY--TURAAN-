@@ -59,7 +59,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingTop="6dp"
-            android:text="عنوان الطابعة: 192.168.1.87"
+            android:text="عنوان الطابعة: 192.168.1.80"
             android:textDirection="ltr"
             android:textSize="18sp" />
 
@@ -133,15 +133,17 @@
             android:id="@+id/inputIp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:enabled="false"
             android:hint="Printer IP"
             android:inputType="text"
-            android:text="192.168.1.87"
+            android:text="192.168.1.80"
             android:textDirection="ltr" />
 
         <EditText
             android:id="@+id/inputPort"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:enabled="false"
             android:hint="Printer Port"
             android:inputType="number"
             android:text="9100"

@@ -79,6 +79,14 @@ export function mapHeartbeat(
   };
 }
 
+export async function getAgentHeartbeat(agentId: string): Promise<PrintAgentHeartbeat | null> {
+  const id = agentId.trim();
+  if (!id) return null;
+  const snap = await heartbeatsCol().doc(id).get();
+  if (!snap.exists) return null;
+  return mapHeartbeat(snap.id, snap.data() || {});
+}
+
 export async function getLatestHeartbeat(): Promise<PrintAgentHeartbeat | null> {
   try {
     const snap = await heartbeatsCol().orderBy("lastSeenAt", "desc").limit(1).get();

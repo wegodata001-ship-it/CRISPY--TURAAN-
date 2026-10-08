@@ -14,7 +14,7 @@ PRINT_AGENT_TOKEN=replace-with-a-long-random-secret
 PRINT_AGENT_API_URL=https://mishkatcafe.dev
 PRINT_AGENT_ID=mishkah-kitchen-pc
 
-PRINTER_IP=192.168.1.87
+PRINTER_IP=192.168.1.80
 PRINTER_PORT=9100
 PRINTER_TIMEOUT_MS=8000
 PRINTER_AUTO_CUT=true
@@ -35,7 +35,7 @@ From the repo root, on the restaurant PC:
 npm run print-agent
 ```
 
-The PC must be on the same LAN as `192.168.1.87`.
+The PC must be on the same LAN as `192.168.1.80`. The internal printer 192.168.1.87 is blocked.
 
 ## 3. Test
 

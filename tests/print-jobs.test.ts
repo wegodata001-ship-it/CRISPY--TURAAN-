@@ -15,6 +15,12 @@ import {
 import { buildTestReceiptModel } from "@/lib/print-jobs/test-receipt";
 import { wrapRasterReceipt } from "@/lib/printer/raster";
 import { escCut } from "@/lib/printer/escpos";
+import {
+  automaticPrintSkipReason,
+  isAndroidPrintAgent,
+  isBlockedPrinterHost,
+  isExternalPrinter,
+} from "@/lib/printer/destination";
 
 const sampleOrder = {
   orderNumber: "MC-2026-1234",
@@ -68,6 +74,31 @@ describe("print job uniqueness", () => {
     expect(newOrderPrintJobId("abc")).toBe("NEW_ORDER_abc");
     expect(printJobUniqueKey("abc", "NEW_ORDER")).toBe("abc:NEW_ORDER");
     expect(printJobUniqueKey("abc", "REPRINT")).not.toBe(printJobUniqueKey("abc", "NEW_ORDER"));
+  });
+});
+
+describe("external printer lock", () => {
+  it("allows only the external printer and the Android agent", () => {
+    expect(isExternalPrinter("192.168.1.80", 9100)).toBe(true);
+    expect(isExternalPrinter("192.168.1.87", 9100)).toBe(false);
+    expect(isExternalPrinter("192.168.1.80", 9101)).toBe(false);
+    expect(isBlockedPrinterHost("192.168.1.87")).toBe(true);
+    expect(isAndroidPrintAgent("crispy-android-tablet")).toBe(true);
+    expect(isAndroidPrintAgent("crispy-kitchen-pc")).toBe(false);
+  });
+
+  it("prints received cash orders and skips cancelled or failed payments", () => {
+    expect(automaticPrintSkipReason({ status: "received", paymentStatus: "pending" })).toBeNull();
+    expect(automaticPrintSkipReason({ status: "received", paymentStatus: "paid" })).toBeNull();
+    expect(automaticPrintSkipReason({ status: "cancelled", paymentStatus: "pending" })).toBe(
+      "order_cancelled"
+    );
+    expect(automaticPrintSkipReason({ status: "received", paymentStatus: "failed" })).toBe(
+      "payment_not_collectable"
+    );
+    expect(automaticPrintSkipReason({ status: "received", paymentStatus: "refunded" })).toBe(
+      "payment_not_collectable"
+    );
   });
 });
 

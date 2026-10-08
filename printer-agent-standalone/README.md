@@ -8,7 +8,7 @@ The kitchen computer should receive only the built folder:
 
 Copy it to `C:\MISHKAH-PRINTER`.
 
-It talks to `https://mishkatcafe.dev` with `PRINT_AGENT_TOKEN` and prints to `192.168.1.87:9100`.
+It talks to the configured print API with `PRINT_AGENT_TOKEN` and prints to `192.168.1.80:9100`.
 
 It does **not** need:
 
@@ -43,7 +43,7 @@ Set `PRINT_AGENT_TOKEN` to the **same** Vercel token. Keep:
 PRINT_AGENT_ENABLED=true
 PRINT_AGENT_API_URL=https://mishkatcafe.dev
 PRINT_AGENT_ID=mishkah-kitchen-pc
-PRINTER_IP=192.168.1.87
+PRINTER_IP=192.168.1.80
 PRINTER_PORT=9100
 ```
 

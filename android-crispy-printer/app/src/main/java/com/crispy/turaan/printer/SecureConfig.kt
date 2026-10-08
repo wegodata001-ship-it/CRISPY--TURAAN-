@@ -23,9 +23,9 @@ class SecureConfig(context: Context) {
         )
     }
 
-    fun printerIp(): String = publicPrefs.getString(KEY_IP, DEFAULT_IP) ?: DEFAULT_IP
+    fun printerIp(): String = ALLOWED_IP
 
-    fun printerPort(): Int = publicPrefs.getInt(KEY_PORT, DEFAULT_PORT)
+    fun printerPort(): Int = ALLOWED_PORT
 
     fun apiUrl(): String = publicPrefs.getString(KEY_API, DEFAULT_API) ?: DEFAULT_API
 
@@ -46,9 +46,12 @@ class SecureConfig(context: Context) {
         token: String,
         activate: Boolean
     ) {
+        if (ip.trim() == BLOCKED_IP || port != ALLOWED_PORT) {
+            // The internal printer and any other destination are ignored.
+        }
         publicPrefs.edit()
-            .putString(KEY_IP, ip.trim())
-            .putInt(KEY_PORT, port)
+            .putString(KEY_IP, ALLOWED_IP)
+            .putInt(KEY_PORT, ALLOWED_PORT)
             .putString(KEY_API, apiUrl.trim().trimEnd('/'))
             .putString(KEY_AGENT, DEFAULT_AGENT)
             .putBoolean(KEY_ACTIVATED, activate || isActivated())
@@ -71,8 +74,11 @@ class SecureConfig(context: Context) {
     }
 
     companion object {
-        const val DEFAULT_IP = "192.168.1.87"
-        const val DEFAULT_PORT = 9100
+        const val ALLOWED_IP = "192.168.1.80"
+        const val ALLOWED_PORT = 9100
+        const val BLOCKED_IP = "192.168.1.87"
+        const val DEFAULT_IP = ALLOWED_IP
+        const val DEFAULT_PORT = ALLOWED_PORT
         const val DEFAULT_API = "https://almostafachicken.com"
         const val DEFAULT_AGENT = "crispy-android-tablet"
         private const val KEY_IP = "printer_ip"

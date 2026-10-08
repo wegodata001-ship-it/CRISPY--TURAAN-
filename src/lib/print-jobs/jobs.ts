@@ -2,6 +2,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { isAutoPrintNewOrdersEnabled, getPrintStoreId } from "@/lib/print-jobs/config";
+import { automaticPrintSkipReason } from "@/lib/printer/destination";
 import { newOrderPrintJobId, parsePrintLocale, printJobUniqueKey } from "@/lib/print-jobs/ids";
 import { toIso, toMillis } from "@/lib/print-jobs/time";
 import {
@@ -107,6 +108,9 @@ export async function enqueueNewOrderPrintJob(orderId: string): Promise<EnqueueR
   if (!orderSnap.exists) return { status: "skipped", reason: "order_not_found" };
 
   const order = orderSnap.data() as FirestoreOrder;
+  const skipReason = automaticPrintSkipReason(order);
+  if (skipReason) return { status: "skipped", reason: skipReason };
+
   const jobId = newOrderPrintJobId(orderId);
   const payload: FirestorePrintJob = {
     storeId: getPrintStoreId(),

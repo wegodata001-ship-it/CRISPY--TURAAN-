@@ -18,13 +18,8 @@ export async function maybeEnqueueNewOrderPrint(orderId: string): Promise<Enqueu
     if (!snap.exists) return { status: "skipped", reason: "order_not_found" };
     return await enqueueNewOrderPrintJob(orderId);
   } catch (error) {
-    console.error("[PrintJob] enqueue failed", {
-      orderId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
-    return {
-      status: "skipped",
-      reason: error instanceof Error ? error.message : "enqueue_failed",
-    };
+    const message = error instanceof Error ? error.message : "enqueue_failed";
+    console.error("[PrintJob] enqueue failed", { orderId, error: message });
+    throw error;
   }
 }

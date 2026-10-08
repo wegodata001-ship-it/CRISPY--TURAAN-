@@ -72,7 +72,7 @@ export function SettingsAdmin() {
         <p className="text-sm text-coffee/60">
           {t(
             "admin.settings.printerHint",
-            "הדפסת מטבח דרך הסוכן המקומי — TCP 192.168.1.87:9100"
+            "הדפסת מטבח דרך סוכן האנדרואיד — TCP 192.168.1.80:9100"
           )}
         </p>
         <Button asChild variant="outline" className="mt-3 rounded-xl">

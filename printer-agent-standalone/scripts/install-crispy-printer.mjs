@@ -95,7 +95,7 @@ if (!lines.some((line) => line.startsWith("PRINT_AGENT_ID="))) {
   lines.push("PRINT_AGENT_ID=crispy-kitchen-pc");
 }
 if (!lines.some((line) => line.startsWith("PRINTER_IP="))) {
-  lines.push("PRINTER_IP=192.168.1.87");
+  lines.push("PRINTER_IP=192.168.1.80");
 }
 if (!lines.some((line) => line.startsWith("PRINTER_PORT="))) {
   lines.push("PRINTER_PORT=9100");

@@ -34,6 +34,9 @@ export async function withPrinterSocket(
 ): Promise<{ host: string; port: number; bytesSent: number }> {
   const host = options.host ?? getPrinterHost();
   const port = options.port ?? getPrinterPort();
+  if (host === "192.168.1.87") {
+    return Promise.reject(new PrinterConnectionError("Blocked printer destination"));
+  }
   const timeoutMs = options.timeoutMs ?? getPrinterTimeoutMs();
   const data = options.data;
   const localAddress = options.localAddress ?? bindLocalAddress;

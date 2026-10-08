@@ -25,8 +25,10 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val config = SecureConfig(this)
-        binding.inputIp.setText(config.printerIp())
-        binding.inputPort.setText(config.printerPort().toString())
+        binding.inputIp.setText(SecureConfig.ALLOWED_IP)
+        binding.inputIp.isEnabled = false
+        binding.inputPort.setText(SecureConfig.ALLOWED_PORT.toString())
+        binding.inputPort.isEnabled = false
         binding.inputApi.setText(config.apiUrl())
         if (config.token().isNotEmpty()) binding.inputToken.setText(TOKEN_MASK)
 
@@ -35,7 +37,7 @@ class MainActivity : AppCompatActivity() {
         binding.buttonReconnect.setOnClickListener { startAgent(null) }
         binding.buttonAdmin.setOnClickListener {
             startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse("https://almostafachicken.com/admin/printer"))
+                Intent(Intent.ACTION_VIEW, Uri.parse("https://portal.almostafachicken.com/"))
             )
         }
 
@@ -76,12 +78,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveSettings() {
-        val port = binding.inputPort.text.toString().toIntOrNull() ?: SecureConfig.DEFAULT_PORT
         val typedToken = binding.inputToken.text.toString()
         val token = if (typedToken == TOKEN_MASK) "" else typedToken
         SecureConfig(this).save(
-            ip = binding.inputIp.text.toString().ifBlank { SecureConfig.DEFAULT_IP },
-            port = port,
+            ip = SecureConfig.ALLOWED_IP,
+            port = SecureConfig.ALLOWED_PORT,
             apiUrl = binding.inputApi.text.toString().ifBlank { SecureConfig.DEFAULT_API },
             token = token,
             activate = true

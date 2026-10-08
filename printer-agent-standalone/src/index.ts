@@ -55,7 +55,7 @@ async function agentFetch(path: string, init?: RequestInit): Promise<Response> {
 }
 
 function currentDiagnostics(): NetworkDiagnostics {
-  return collectNetworkDiagnostics(getPrinterHost() || "192.168.1.87");
+  return collectNetworkDiagnostics(getPrinterHost() || "192.168.1.80");
 }
 
 async function sendHeartbeat(

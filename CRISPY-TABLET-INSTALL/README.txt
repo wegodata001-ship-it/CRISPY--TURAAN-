@@ -12,7 +12,7 @@ Install the file:
 5. Install CRISPY Printer.
 6. Open it once.
 7. Approve the notification permission and the battery prompt.
-8. Connect the tablet to the same reachable local network as printer 192.168.1.87.
+8. Connect the tablet to the same reachable local network as printer 192.168.1.80.
 9. Press "اختبار الطباعة".
 10. Confirm that physical paper came out.
 11. In settings, enter the agent token and press "حفظ".

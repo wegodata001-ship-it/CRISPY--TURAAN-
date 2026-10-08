@@ -168,6 +168,6 @@ class AgentService : Service() {
         private const val NOTIFICATION_ID = 87
         private const val POLL_MS = 5_000L
         private const val HEARTBEAT_MS = 30_000L
-        private const val VERSION = "1.0.0"
+        private const val VERSION = "1.2.0"
     }
 }
