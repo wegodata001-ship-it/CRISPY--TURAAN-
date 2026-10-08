@@ -8,7 +8,7 @@ import {
 import { getFirebaseStorage } from "@/lib/firebase";
 import { STORAGE_PATHS } from "@/lib/firebase/collections";
 import { ServiceError, type ServiceResult, success, failure } from "@/lib/errors";
-import { storageErrorTranslationKey } from "@/lib/storage/errors";
+import { logStorageError, storageErrorTranslationKey } from "@/lib/storage/errors";
 
 const STALL_MS = 25_000;
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
@@ -31,7 +31,11 @@ function asOptions(
   return value ?? {};
 }
 
-function failUpload(error: unknown): ServiceResult<string> {
+function failUpload(error: unknown, path?: string): ServiceResult<string> {
+  logStorageError(error, {
+    bucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    path,
+  });
   return failure(error, storageErrorTranslationKey(error));
 }
 
@@ -54,32 +58,12 @@ export function storagePathFromUrl(url: string): string | null {
   }
 }
 
-/**
- * Best-effort probe. A 404 means Storage was never enabled.
- * CORS / network failures must not block the SDK upload — the SDK error is authoritative.
- */
-async function assertStorageBucketExists() {
+function requireStorageBucket() {
   const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
   if (!bucket) {
-    throw new ServiceError("admin.upload.storageNotReady", "storage/unconfigured");
+    throw new ServiceError("admin.upload.unconfigured", "storage/unconfigured");
   }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 4000);
-  try {
-    const res = await fetch(
-      `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?maxResults=1`,
-      { method: "GET", signal: controller.signal }
-    );
-    if (res.status === 404) {
-      throw new ServiceError("admin.upload.storageNotReady", "storage/bucket-not-found");
-    }
-  } catch (error) {
-    if (error instanceof ServiceError) throw error;
-    // CORS, timeout, or offline — continue and let the Storage SDK report the real error.
-  } finally {
-    clearTimeout(timer);
-  }
+  return bucket;
 }
 
 export async function uploadImageWithProgress(
@@ -94,7 +78,7 @@ export async function uploadImageWithProgress(
 
   try {
     assertUploadableFile(file);
-    await assertStorageBucketExists();
+    requireStorageBucket();
     const storage = getFirebaseStorage();
     const storageRef = ref(storage, path);
     const task: UploadTask = uploadBytesResumable(storageRef, file, {
@@ -150,24 +134,24 @@ export async function uploadImageWithProgress(
           const total = snapshot.totalBytes || file.size || 1;
           onProgress?.(Math.min(100, Math.round((snapshot.bytesTransferred / total) * 100)));
         },
-        (error) => finish(failUpload(error)),
+        (error) => finish(failUpload(error, path)),
         async () => {
           try {
             onProgress?.(100);
             const url = await getDownloadURL(task.snapshot.ref);
             if (!url || url.startsWith("data:") || url.startsWith("blob:")) {
-              finish(failUpload(new Error("storage/object-not-found")));
+              finish(failUpload(new Error("storage/object-not-found"), path));
               return;
             }
             finish(success(url));
           } catch (error) {
-            finish(failUpload(error));
+            finish(failUpload(error, path));
           }
         }
       );
     });
   } catch (error) {
-    return failUpload(error);
+    return failUpload(error, path);
   }
 }
 

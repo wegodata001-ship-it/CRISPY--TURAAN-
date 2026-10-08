@@ -20,7 +20,7 @@ import type { PrintJob, PrintLocale } from "@/lib/print-jobs/types";
 type StatusPayload = {
   ok?: boolean;
   error?: string;
-  printer?: { name: string; ip: string | null; port: number | null };
+  printer?: { name: string; ip: string | null; port: number | null; connection?: string };
   agent?: {
     online: boolean;
     status: string;
@@ -106,8 +106,10 @@ export function PrinterAdmin() {
   );
 
   const online = Boolean(data?.agent?.online);
+  const printerConnected = data?.agent?.printerConnectionStatus === "connected";
   const ip = data?.printer?.ip || "—";
   const port = data?.printer?.port ?? "—";
+  const connection = data?.printer?.connection || "TCP / LAN";
 
   return (
     <div className="space-y-6">
@@ -144,6 +146,31 @@ export function PrinterAdmin() {
             <dt className="text-coffee/50">{t("admin.printer.port", "Port")}</dt>
             <dd className="font-mono font-medium text-dark-brown" dir="ltr">
               {port}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-coffee/50">{t("admin.printer.connection", "Connection")}</dt>
+            <dd className="font-medium text-dark-brown" dir="ltr">
+              {connection}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-coffee/50">{t("admin.printer.linkStatus", "Status")}</dt>
+            <dd
+              className={cn(
+                "mt-1 inline-flex items-center gap-1.5 font-semibold",
+                printerConnected ? "text-turquoise" : "text-red-600"
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block h-2.5 w-2.5 rounded-full",
+                  printerConnected ? "bg-turquoise" : "bg-red-500"
+                )}
+              />
+              {printerConnected
+                ? t("admin.printer.connected", "מחוברת")
+                : t("admin.printer.disconnected", "לא מחוברת")}
             </dd>
           </div>
           <div>
@@ -199,6 +226,19 @@ export function PrinterAdmin() {
         )}
 
         <div className="mt-5 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={Boolean(busy)}
+            onClick={() => void run("probe", "/api/printer/status")}
+          >
+            {busy === "probe" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Wifi className="h-4 w-4" />
+            )}
+            {t("admin.printer.checkConnection", "בדיקת חיבור")}
+          </Button>
           {(["ar", "he", "en"] as PrintLocale[]).map((locale) => (
             <Button
               key={locale}
@@ -214,6 +254,21 @@ export function PrinterAdmin() {
               {t("admin.printer.testPrint", "Print test order")} ({locale.toUpperCase()})
             </Button>
           ))}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={Boolean(busy)}
+            onClick={() => {
+              setNotice(
+                t(
+                  "admin.printer.savedHint",
+                  "הכתובת נשמרת ב-PRINTER_IP של הסוכן המקומי. אין לשנות אותה ב-Vercel."
+                )
+              );
+            }}
+          >
+            {t("admin.printer.save", "שמור")}
+          </Button>
           <Button
             type="button"
             variant="outline"

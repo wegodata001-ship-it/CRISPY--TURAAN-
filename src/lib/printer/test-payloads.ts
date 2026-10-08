@@ -13,6 +13,8 @@ import {
   getArabicCodePageIndex,
   getArabicEncoding,
   getHebrewCodePageIndex,
+  getPrinterHost,
+  getPrinterPort,
 } from "@/lib/printer/config";
 import { toVisualOrder } from "@/lib/printer/text-rtl";
 
@@ -36,24 +38,22 @@ export function buildAsciiTestPayload(now = new Date()): Buffer {
     second: "2-digit",
     hour12: false,
   });
+  const target = `${getPrinterHost() || "PRINTER_IP"}:${getPrinterPort()}`;
 
   return concatBuffers(
     escInit(),
     escAlign("center"),
     escBold(true),
-    textLine("CRISPY PRINTER TEST"),
+    textLine("================================"),
+    textLine("CRISPY"),
+    textLine("================================"),
     escBold(false),
-    divider(),
-    textLine("Printer connection OK"),
+    textLine("Printer test"),
     escAlign("left"),
     textLine(""),
-    textLine("Order: TEST-001"),
-    textLine("Coffee x 2"),
-    textLine("Cake x 1"),
-    textLine(""),
-    textLine("Total: 30.00"),
-    textLine(""),
-    textLine(`Date: ${stamp}`),
+    textLine(`Printer: ${target}`),
+    textLine("Connection: TCP LAN"),
+    textLine(`Date / Time: ${stamp}`),
     textLine(""),
     divider(),
     escAlign("center"),

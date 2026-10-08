@@ -1,12 +1,13 @@
 export const STORAGE_ERROR_KEYS = {
   canceled: "storage/canceled",
-  notReady: "admin.upload.storageNotReady",
+  unconfigured: "admin.upload.unconfigured",
   unauthenticated: "admin.upload.unauthenticated",
   unauthorized: "admin.upload.unauthorized",
   invalidType: "admin.upload.invalidType",
   tooLarge: "admin.upload.tooLarge",
   quota: "admin.upload.quota",
   stalled: "admin.upload.stalled",
+  notFound: "admin.upload.objectNotFound",
   network: "admin.upload.network",
   failed: "admin.upload.failed",
 } as const;
@@ -42,10 +43,10 @@ export function storageErrorTranslationKey(error: unknown): string {
   if (code === "storage/canceled" || message === "storage/canceled") {
     return STORAGE_ERROR_KEYS.canceled;
   }
-  if (
-    code === "storage/unauthenticated" ||
-    message.includes("unauthenticated")
-  ) {
+  if (code === "storage/unconfigured" || message.includes("unconfigured")) {
+    return STORAGE_ERROR_KEYS.unconfigured;
+  }
+  if (code === "storage/unauthenticated" || message.includes("unauthenticated")) {
     return STORAGE_ERROR_KEYS.unauthenticated;
   }
   if (
@@ -55,6 +56,12 @@ export function storageErrorTranslationKey(error: unknown): string {
     message.includes("permission denied")
   ) {
     return STORAGE_ERROR_KEYS.unauthorized;
+  }
+  if (
+    code === "storage/object-not-found" ||
+    message.includes("object-not-found")
+  ) {
+    return STORAGE_ERROR_KEYS.notFound;
   }
   if (
     code === "storage/invalid-format" ||
@@ -80,14 +87,6 @@ export function storageErrorTranslationKey(error: unknown): string {
     message.includes("stalled")
   ) {
     return STORAGE_ERROR_KEYS.stalled;
-  }
-  if (
-    message.includes("not enabled") ||
-    message.includes("Get Started") ||
-    message.includes("bucket-not-found") ||
-    message.includes("404")
-  ) {
-    return STORAGE_ERROR_KEYS.notReady;
   }
   if (
     code === "storage/unknown" &&
@@ -116,4 +115,23 @@ export function isEmbeddedImagePayload(value: string): boolean {
     trimmed.startsWith("blob:") ||
     trimmed.includes("base64,")
   );
+}
+
+export function logStorageError(
+  error: unknown,
+  context: { bucket?: string; path?: string }
+): void {
+  if (process.env.NODE_ENV === "production") return;
+  const code =
+    typeof error === "object" && error && "code" in error
+      ? String((error as { code?: string }).code)
+      : "";
+  const message = error instanceof Error ? error.message : String(error);
+  console.error("[Storage] upload error", {
+    code,
+    message,
+    bucket: context.bucket,
+    path: context.path,
+    error,
+  });
 }

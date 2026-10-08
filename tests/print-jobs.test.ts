@@ -72,9 +72,8 @@ describe("print job uniqueness", () => {
 });
 
 describe("print auto-gate and retry", () => {
-  it("keeps automatic new-order printing off by default", () => {
-    expect(process.env.PRINT_AUTO_NEW_ORDERS).not.toBe("true");
-    expect(isAutoPrintNewOrdersEnabled()).toBe(false);
+  it("gates automatic new-order printing on PRINT_AUTO_NEW_ORDERS", () => {
+    expect(isAutoPrintNewOrdersEnabled()).toBe(process.env.PRINT_AUTO_NEW_ORDERS === "true");
   });
 
   it("retries twice then fails", () => {

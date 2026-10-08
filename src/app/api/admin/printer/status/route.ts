@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth/verify-admin";
 import { isAutoPrintNewOrdersEnabled } from "@/lib/print-jobs/config";
 import { getLatestHeartbeat, isAgentOnline } from "@/lib/print-jobs/heartbeat";
 import { countJobsByStatus, lastSuccessfulPrintAt, listRecentPrintJobs } from "@/lib/print-jobs/jobs";
+import { getPrinterHost, getPrinterPort } from "@/lib/printer/config";
 import { PRINTER_DISPLAY_NAME } from "@/lib/print-jobs/types";
 
 export const runtime = "nodejs";
@@ -26,8 +27,9 @@ export async function GET(request: NextRequest) {
       ok: true,
       printer: {
         name: PRINTER_DISPLAY_NAME,
-        ip: heartbeat?.printerIp ?? null,
-        port: heartbeat?.printerPort ?? null,
+        ip: heartbeat?.printerIp || getPrinterHost() || null,
+        port: heartbeat?.printerPort ?? getPrinterPort(),
+        connection: "TCP / LAN",
       },
       agent: {
         online,

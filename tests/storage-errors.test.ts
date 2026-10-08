@@ -14,10 +14,22 @@ describe("storageErrorTranslationKey", () => {
     );
   });
 
-  it("maps missing Storage bucket", () => {
+  it("maps missing Storage bucket config", () => {
     expect(
-      storageErrorTranslationKey(new Error("storage/unknown: Firebase Storage is not enabled. Get Started"))
-    ).toBe(STORAGE_ERROR_KEYS.notReady);
+      storageErrorTranslationKey({ code: "storage/unconfigured" })
+    ).toBe(STORAGE_ERROR_KEYS.unconfigured);
+  });
+
+  it("does not treat a generic 404 as Storage-not-enabled", () => {
+    expect(storageErrorTranslationKey(new Error("HTTP 404 Not Found"))).toBe(
+      STORAGE_ERROR_KEYS.failed
+    );
+  });
+
+  it("maps object-not-found", () => {
+    expect(storageErrorTranslationKey({ code: "storage/object-not-found" })).toBe(
+      STORAGE_ERROR_KEYS.notFound
+    );
   });
 
   it("maps staff permission errors", () => {

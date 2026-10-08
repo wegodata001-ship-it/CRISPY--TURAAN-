@@ -11,9 +11,10 @@
  *   npx tsx scripts/printer-phase-test.mts receipt-en
  */
 import "dotenv/config";
-import { sendRawToPrinter } from "../src/lib/printer/tcp";
+import { probePrinterConnection, sendRawToPrinter } from "../src/lib/printer/tcp";
 import {
   buildArabicTextTestPayload,
+  buildAsciiTestPayload,
   buildCutterTestPayload,
   buildHebrewTestPayload,
 } from "../src/lib/printer/test-payloads";
@@ -29,8 +30,18 @@ async function main() {
   const port = getPrinterPort();
   console.log(`[printer-phase-test] target ${host}:${port} mode=${mode}`);
 
+  if (mode === "probe") {
+    const result = await probePrinterConnection();
+    console.log(JSON.stringify({ success: true, mode, printer: result }, null, 2));
+    return;
+  }
+
   let payload: Buffer;
   switch (mode) {
+    case "ascii":
+    case "test":
+      payload = buildAsciiTestPayload();
+      break;
     case "cutter":
       payload = buildCutterTestPayload("full");
       break;
@@ -55,7 +66,7 @@ async function main() {
     }
     default:
       console.error(
-        "Unknown mode. Use: cutter | cutter-partial | hebrew | arabic | arabic-raster | receipt-ar | receipt-he | receipt-en"
+        "Unknown mode. Use: probe | ascii | cutter | cutter-partial | hebrew | arabic | arabic-raster | receipt-ar | receipt-he | receipt-en"
       );
       process.exit(1);
   }

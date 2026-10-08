@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Save } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Printer, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +67,21 @@ export function SettingsAdmin() {
           </Button>
         }
       />
+
+      <AdminCard title={t("admin.printer.title", "מדפסת")}>
+        <p className="text-sm text-coffee/60">
+          {t(
+            "admin.settings.printerHint",
+            "הדפסת מטבח דרך הסוכן המקומי — TCP 192.168.1.87:9100"
+          )}
+        </p>
+        <Button asChild variant="outline" className="mt-3 rounded-xl">
+          <Link href="/admin/printer">
+            <Printer className="h-4 w-4" />
+            {t("admin.settings.openPrinter", "הגדרות מדפסת")}
+          </Link>
+        </Button>
+      </AdminCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <AdminCard title={t("admin.settings.businessInfo")}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, Printer, Wifi, Scissors, Languages, ImageIcon } from "lucide-react";
 import { useAuthFetch } from "@/lib/auth/auth-fetch";
 import { useT } from "@/components/providers/locale-provider";
@@ -18,8 +18,8 @@ export function PrinterTestAdmin() {
   const [detail, setDetail] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
-  const ip = "LAN (from PRINTER_IP)";
-  const port = 9100;
+  const [ip, setIp] = useState("—");
+  const [port, setPort] = useState("—");
 
   const run = useCallback(
     async (key: string, path: string, init?: RequestInit) => {
@@ -41,6 +41,8 @@ export function PrinterTestAdmin() {
         if (key === "status") {
           setTone("ok");
           setStatus("Connected");
+          if (typeof data.ip === "string") setIp(data.ip);
+          if (data.port != null) setPort(String(data.port));
           setDetail(`${data.ip}:${data.port}`);
           return;
         }
@@ -65,6 +67,10 @@ export function PrinterTestAdmin() {
     },
     [authFetch]
   );
+
+  useEffect(() => {
+    void run("status", "/api/printer/status");
+  }, [run]);
 
   return (
     <div className="space-y-6">
