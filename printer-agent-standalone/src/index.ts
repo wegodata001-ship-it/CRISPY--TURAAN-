@@ -73,6 +73,7 @@ async function sendHeartbeat(
       printerConnectionStatus: printerStatus,
       printerIp: getPrinterHost(),
       printerPort: getPrinterPort(),
+      platform: "WINDOWS",
       ethernetAvailable: diag.ethernetAvailable,
       ethernetIp: diag.ethernetIp,
       wifiSameSubnet: diag.wifiSameSubnet,

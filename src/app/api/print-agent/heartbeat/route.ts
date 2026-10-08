@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       tcp9100?: "PASS" | "FAIL" | "UNKNOWN";
       routeConflict?: boolean;
       networkWarning?: string | null;
+      platform?: "ANDROID" | "WINDOWS";
     };
     const agentId = body.agentId?.trim();
     if (!agentId) {
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
       tcp9100: body.tcp9100,
       routeConflict: body.routeConflict,
       networkWarning: body.networkWarning,
+      platform: body.platform === "ANDROID" || body.platform === "WINDOWS" ? body.platform : null,
     });
 
     console.info("[PrintAgent] heartbeat", agentId);

@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
         tcp9100: heartbeat?.tcp9100 ?? null,
         routeConflict: heartbeat?.routeConflict ?? null,
         networkWarning: heartbeat?.networkWarning ?? null,
+        platform: heartbeat?.platform ?? null,
       },
       signals: {
         agentOffline: !online,

@@ -34,6 +34,7 @@ type StatusPayload = {
     tcp9100?: string | null;
     routeConflict?: boolean | null;
     networkWarning?: string | null;
+    platform?: "ANDROID" | "WINDOWS" | null;
   };
   signals?: {
     agentOffline?: boolean;
@@ -257,8 +258,12 @@ export function PrinterAdmin() {
             )}
           >
             {data?.signals?.agentOffline
-              ? t("admin.printer.agentOffline", "AGENT OFFLINE")
-              : t("admin.printer.agentOnline", "AGENT ONLINE")}
+              ? data?.agent?.platform === "ANDROID"
+                ? t("admin.printer.androidOffline", "CRISPY Android Agent OFFLINE")
+                : t("admin.printer.agentOffline", "AGENT OFFLINE")
+              : data?.agent?.platform === "ANDROID"
+                ? t("admin.printer.androidOnline", "CRISPY Android Agent ONLINE")
+                : t("admin.printer.agentOnline", "AGENT ONLINE")}
           </div>
           <div
             className={cn(

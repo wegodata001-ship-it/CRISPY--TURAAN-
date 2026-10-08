@@ -22,6 +22,7 @@ export async function upsertAgentHeartbeat(input: {
   tcp9100?: PrintAgentHeartbeat["tcp9100"];
   routeConflict?: boolean;
   networkWarning?: string | null;
+  platform?: "ANDROID" | "WINDOWS" | null;
 }): Promise<void> {
   const id = input.agentId.trim() || "default";
   await heartbeatsCol()
@@ -42,6 +43,7 @@ export async function upsertAgentHeartbeat(input: {
         tcp9100: input.tcp9100 ?? null,
         routeConflict: input.routeConflict ?? null,
         networkWarning: input.networkWarning?.slice(0, 300) ?? null,
+        platform: input.platform === "ANDROID" || input.platform === "WINDOWS" ? input.platform : null,
       },
       { merge: true }
     );
@@ -73,6 +75,7 @@ export function mapHeartbeat(
         : null,
     routeConflict: typeof data.routeConflict === "boolean" ? data.routeConflict : null,
     networkWarning: typeof data.networkWarning === "string" ? data.networkWarning : null,
+    platform: data.platform === "ANDROID" || data.platform === "WINDOWS" ? data.platform : null,
   };
 }
 

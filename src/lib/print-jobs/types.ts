@@ -55,6 +55,7 @@ export interface PrintAgentHeartbeat {
   tcp9100?: "PASS" | "FAIL" | "UNKNOWN" | null;
   routeConflict?: boolean | null;
   networkWarning?: string | null;
+  platform?: "ANDROID" | "WINDOWS" | null;
 }
 
 export interface ReceiptModifierLine {

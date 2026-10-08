@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CrispyPrinter" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/crispy_red</item>
+        <item name="colorPrimaryVariant">@color/crispy_red</item>
+        <item name="android:statusBarColor">@color/crispy_red</item>
+        <item name="android:navigationBarColor">@color/cream</item>
+        <item name="android:windowBackground">@color/cream</item>
+    </style>
+</resources>
