@@ -36,7 +36,7 @@ describe("email templates", () => {
       total: 36,
       paymentMethod: "cash",
       orderType: "pickup",
-      status: "pending",
+      status: "received",
       notes: "בלי קרח",
       viewUrl: "https://portal.example/orders?order=abc",
     });
@@ -80,7 +80,7 @@ describe("significant diff", () => {
       orderNumber: "A",
       customerId: "g",
       customerName: "A",
-      status: "pending",
+      status: "received",
       items: [{ productId: "p", productName: "Cappuccino", quantity: 1, price: 18 }],
       total: 18,
       createdAt: new Date().toISOString(),

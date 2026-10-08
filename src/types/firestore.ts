@@ -75,7 +75,7 @@ export interface FirestoreOrder {
   customerId: string;
   customerName: string;
   items: FirestoreOrderItem[];
-  status: OrderStatus;
+  status: OrderStatus | "pending" | "confirmed";
   subtotal: number;
   discount: number;
   delivery: number;

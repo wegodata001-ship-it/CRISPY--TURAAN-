@@ -18,7 +18,10 @@ describe("public site URL", () => {
     expect(isPublicCustomerUrl("http://127.0.0.1:3000")).toBe(false);
     expect(isPublicCustomerUrl("http://192.168.1.20:3000")).toBe(false);
     expect(isPublicCustomerUrl("https://crispy-git-feat-xyz.vercel.app")).toBe(false);
+    expect(isPublicCustomerUrl("https://crispy-turaan.vercel.app")).toBe(false);
+    expect(isPublicCustomerUrl("https://crispy-turaan.vercel.app/menu-display")).toBe(false);
     expect(isPublicCustomerUrl("https://example.com/")).toBe(true);
+    expect(isPublicCustomerUrl("https://almostafachicken.com/")).toBe(true);
   });
 
   it("does not encode localhost or preview hosts as the public order URL", () => {

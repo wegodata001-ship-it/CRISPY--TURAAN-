@@ -31,6 +31,7 @@ import {
   fingerprintChanges,
 } from "@/lib/email/significant-diff";
 import { nowTimestamp } from "@/types/firestore";
+import { normalizeOrderStatus } from "@/lib/orders/operations";
 import {
   calculateLineTotal,
   collectKitchenNotes,
@@ -182,8 +183,7 @@ export async function getOrdersByCustomer(customerId: string): Promise<Order[]> 
 
 export async function getOrderStats(): Promise<{
   total: number;
-  pending: number;
-  confirmed: number;
+  received: number;
   preparing: number;
   ready: number;
   delivered: number;
@@ -193,8 +193,7 @@ export async function getOrderStats(): Promise<{
     const orders = await getOrders();
     return {
       total: orders.length,
-      pending: orders.filter((o) => o.status === "pending").length,
-      confirmed: orders.filter((o) => o.status === "confirmed").length,
+      received: orders.filter((o) => o.status === "received").length,
       preparing: orders.filter((o) => o.status === "preparing").length,
       ready: orders.filter((o) => o.status === "ready").length,
       delivered: orders.filter((o) => o.status === "delivered").length,
@@ -324,7 +323,7 @@ export async function createOrderFromCart(
     customerId,
     customerName,
     items,
-    status: "pending",
+    status: "received",
     subtotal,
     discount,
     delivery: 0,
@@ -365,20 +364,20 @@ export async function updateOrderStatus(
 ): Promise<ServiceResult<void>> {
   try {
     const now = nowTimestamp();
-    const patch: Record<string, unknown> = { status };
+    const canonical = normalizeOrderStatus(status);
+    const patch: Record<string, unknown> = { status: canonical };
 
-    if (status === "confirmed") patch.confirmedAt = now;
-    if (status === "preparing") patch.preparationStartedAt = now;
-    if (status === "ready") patch.readyAt = now;
-    if (status === "delivered") patch.completedAt = now;
-    if (status === "cancelled") {
+    if (canonical === "preparing") patch.preparationStartedAt = now;
+    if (canonical === "ready") patch.readyAt = now;
+    if (canonical === "delivered") patch.completedAt = now;
+    if (canonical === "cancelled") {
       patch.cancelledAt = now;
       patch.cancelReason = metadata?.cancelReason?.trim() || "other";
       patch.cancelledBy = metadata?.cancelledBy?.trim() || "admin";
     }
 
     await updateDoc(doc(getDb(), COLLECTIONS.orders, id), patch);
-    if (status === "cancelled") {
+    if (canonical === "cancelled") {
       requestOrderCancelledEmailNotification(id);
     }
     return success(undefined);

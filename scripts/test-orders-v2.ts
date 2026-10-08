@@ -14,7 +14,7 @@ const base: Order = {
   orderNumber: "MC-2026-TEST",
   customerId: "guest",
   customerName: "Tasneem",
-  status: "pending",
+  status: "received",
   items: [
     {
       productId: "croissant",
@@ -38,9 +38,8 @@ const base: Order = {
   createdAt: new Date().toISOString(),
 };
 
-assert.deepEqual(ACTIVE_ORDER_STATUSES, ["pending", "confirmed", "preparing", "ready"]);
-assert.equal(nextOrderStatus("pending"), "confirmed");
-assert.equal(nextOrderStatus("confirmed"), "preparing");
+assert.deepEqual(ACTIVE_ORDER_STATUSES, ["received", "preparing", "ready"]);
+assert.equal(nextOrderStatus("received"), "preparing");
 assert.equal(nextOrderStatus("preparing"), "ready");
 assert.equal(nextOrderStatus("ready"), "delivered");
 assert.equal(nextOrderStatus("delivered"), null);

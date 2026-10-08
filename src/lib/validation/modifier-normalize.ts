@@ -9,15 +9,26 @@ export function normalizeModifierGroupInput(
   const nameEn = (input.nameEn?.trim() || nameHe).trim();
   const selectionType = input.selectionType === "multiple" ? "multiple" : "single";
   const isMultiple = selectionType === "multiple";
+  const requirement = input.requirement ?? "optional";
+  const required = requirement === "required";
+
+  let minSelections = isMultiple ? Math.max(0, input.minSelections ?? 0) : 0;
+  let maxSelections = isMultiple ? Math.max(1, input.maxSelections ?? 2) : 1;
+  if (required) minSelections = Math.max(1, minSelections);
+  if (!isMultiple) {
+    minSelections = required ? 1 : 0;
+    maxSelections = 1;
+  }
+  if (minSelections > maxSelections) maxSelections = minSelections;
 
   return {
     nameHe,
     nameAr,
     nameEn,
     selectionType,
-    requirement: input.requirement ?? "optional",
-    minSelections: isMultiple ? Math.max(0, input.minSelections ?? 0) : 0,
-    maxSelections: isMultiple ? Math.max(1, input.maxSelections ?? 2) : 1,
+    requirement,
+    minSelections,
+    maxSelections,
     displayType: input.displayType ?? "buttons",
     sortOrder: input.sortOrder ?? 0,
     ...(input.color ? { color: input.color } : {}),

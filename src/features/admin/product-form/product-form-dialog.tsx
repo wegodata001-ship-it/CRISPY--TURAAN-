@@ -37,6 +37,7 @@ import {
   ProductModifiersPanel,
   type ProductModifiersPanelHandle,
 } from "./product-modifiers-panel";
+import { ProductInheritedAddons } from "./product-inherited-addons";
 import { ProductImageSection } from "./product-image-section";
 import { AdminToastStack, createToast, type AdminToast } from "@/features/admin/components/admin-toast";
 import { getRootCategoriesForAdmin, getSubcategories } from "@/lib/menu/category-tree";
@@ -841,15 +842,23 @@ export function ProductFormDialog({
           )}
 
           <div className={tab === "modifiers" ? undefined : "hidden"}>
-            <ProductModifiersPanel
-              ref={modifiersPanelRef}
-              productId={productId}
-              allGroups={allGroups}
-              linkedGroupIds={linkedGroupIds}
-              existingLinks={modifierLinks}
-              onLinkedChange={handleLinkedChange}
-              onDirty={() => setIsDirty(true)}
-            />
+            <div className="space-y-5">
+              <ProductInheritedAddons
+                productId={productId}
+                categoryId={watchedCategoryId}
+                subcategoryId={form.watch("subcategoryId")}
+                categories={categories}
+              />
+              <ProductModifiersPanel
+                ref={modifiersPanelRef}
+                productId={productId}
+                allGroups={allGroups}
+                linkedGroupIds={linkedGroupIds}
+                existingLinks={modifierLinks}
+                onLinkedChange={handleLinkedChange}
+                onDirty={() => setIsDirty(true)}
+              />
+            </div>
           </div>
 
           {tab === "settings" && (

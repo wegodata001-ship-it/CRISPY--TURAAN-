@@ -13,6 +13,8 @@ export const COLLECTIONS = {
   modifierOptions: "modifier_options",
   productModifierGroups: "product_modifier_groups",
   productModifierOptions: "product_modifier_options",
+  categoryModifierGroups: "category_modifier_groups",
+  productAddonExclusions: "product_addon_exclusions",
   businessRules: "business_rules",
   suggestions: "suggestions",
   inventoryLinks: "inventory_links",

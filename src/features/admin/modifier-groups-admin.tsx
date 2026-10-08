@@ -1,89 +1,71 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
-import { useModifierGroups } from "@/hooks/useModifiers";
+import { useCallback, useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import {
-  createModifierGroup,
-  updateModifierGroup,
-  deleteModifierGroup,
-} from "@/services/modifierService";
+  useAllModifierOptions,
+  useAllProductModifierGroups,
+  useModifierGroups,
+} from "@/hooks/useModifiers";
+import { useProducts } from "@/hooks/useProducts";
+import { deleteModifierGroup } from "@/services/modifierService";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
 import { AdminToastStack, createToast, type AdminToast } from "./components/admin-toast";
-import { GroupFormDialog } from "./modifier-groups/group-form-dialog";
-import { GroupOptionsManager } from "./modifier-groups/group-options-manager";
-import type { ModifierGroupInput } from "@/lib/validation/modifier-schemas";
+import { GroupBuilderDrawer } from "./modifier-groups/group-builder-drawer";
+import { GroupCard } from "./modifier-groups/group-card";
+import { AssignProductsDialog } from "./modifier-groups/assign-products-dialog";
 import type { ModifierGroup } from "@/types/modifiers";
 
 export function ModifierGroupsAdmin() {
   const t = useT();
   const { groups, loading } = useModifierGroups();
-  const [formOpen, setFormOpen] = useState(false);
+  const { options, error: optionsError } = useAllModifierOptions();
+  const { links } = useAllProductModifierGroups();
+  const { products } = useProducts(undefined, { admin: true });
+  const [builderOpen, setBuilderOpen] = useState(false);
   const [editing, setEditing] = useState<ModifierGroup | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [autoOpenAddForGroup, setAutoOpenAddForGroup] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState<ModifierGroup | null>(null);
   const [toasts, setToasts] = useState<AdminToast[]>([]);
 
   const pushToast = useCallback((toast: AdminToast) => {
     setToasts((prev) => [...prev, toast]);
   }, []);
 
-  const dismissToast = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  const notify = useCallback(
+    (message: string, type?: "error") => {
+      pushToast(createToast(message, type === "error" ? "error" : undefined));
+    },
+    [pushToast]
+  );
+
+  const optionsByGroup = useMemo(() => {
+    const map = new Map<string, typeof options>();
+    for (const option of options) {
+      const list = map.get(option.groupId) ?? [];
+      list.push(option);
+      map.set(option.groupId, list);
+    }
+    return map;
+  }, [options]);
 
   const openCreate = () => {
     setEditing(null);
-    setFormOpen(true);
+    setBuilderOpen(true);
   };
 
   const openEdit = (group: ModifierGroup) => {
     setEditing(group);
-    setFormOpen(true);
+    setBuilderOpen(true);
   };
 
-  const handleSave = async (payload: ModifierGroupInput): Promise<boolean> => {
-    if (saving) return false;
-    setSaving(true);
-
-    const result = editing
-      ? await updateModifierGroup(editing.id, payload)
-      : await createModifierGroup(payload);
-
-    setSaving(false);
-
-    if (!result.success) {
-      pushToast(createToast(result.error, "error"));
-      return false;
-    }
-
-    pushToast(createToast(t("admin.modifiers.groupSaved")));
-    setFormOpen(false);
-
-    if (!editing) {
-      setAutoOpenAddForGroup(result.data.id);
-      requestAnimationFrame(() => {
-        document.getElementById(`modifier-group-${result.data.id}`)?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      });
-    }
-
-    return true;
-  };
-
-  const handleDelete = async (group: ModifierGroup) => {
+  const handleArchive = async (group: ModifierGroup) => {
     if (!confirm(t("admin.modifiers.deleteGroupConfirm"))) return;
     const result = await deleteModifierGroup(group.id);
-    if (result.success) {
-      pushToast(createToast(t("admin.modifiers.groupDeleted")));
-    } else {
-      pushToast(createToast(result.error, "error"));
-    }
+    if (result.success) notify(t("admin.modifiers.groupDeleted"));
+    else notify(result.error, "error");
   };
 
   if (loading) {
@@ -109,36 +91,54 @@ export function ModifierGroupsAdmin() {
         }
       />
 
+      {optionsError && (
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{optionsError}</p>
+      )}
+
       {groups.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-beige-dark/30 py-12 text-center text-sm text-coffee/50">
           {t("admin.modifiers.noGroups")}
         </p>
       ) : (
-        <div className="divide-y divide-beige-dark/20 rounded-2xl border border-beige-dark/20 bg-warm-white dark:divide-white/10 dark:border-white/10 dark:bg-[#1a1412]/40">
+        <div className="grid gap-4">
           {groups.map((group) => (
-            <GroupOptionsManager
+            <GroupCard
               key={group.id}
               group={group}
-              onToast={pushToast}
-              onEditGroup={() => openEdit(group)}
-              onDeleteGroup={() => void handleDelete(group)}
-              autoOpenAdd={autoOpenAddForGroup === group.id}
-              onAutoOpenAddHandled={() => setAutoOpenAddForGroup(null)}
+              options={optionsByGroup.get(group.id) ?? []}
+              products={products}
+              links={links}
+              onEdit={() => openEdit(group)}
+              onAssign={() => setAssigning(group)}
+              onArchive={() => void handleArchive(group)}
+              onToast={notify}
             />
           ))}
         </div>
       )}
 
-      <GroupFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
+      <GroupBuilderDrawer
+        open={builderOpen}
+        onOpenChange={setBuilderOpen}
         editing={editing}
-        sortOrder={groups.length + 1}
-        saving={saving}
-        onSave={handleSave}
+        existingOptions={editing ? optionsByGroup.get(editing.id) ?? [] : []}
+        sortOrder={groups.length}
+        onSaved={() => notify(t("admin.modifiers.groupSaved"))}
+        onError={(message) => notify(message, "error")}
       />
 
-      <AdminToastStack toasts={toasts} onDismiss={dismissToast} />
+      <AssignProductsDialog
+        open={Boolean(assigning)}
+        onOpenChange={(open) => {
+          if (!open) setAssigning(null);
+        }}
+        group={assigning}
+        links={links}
+        onSaved={() => notify(t("admin.modifiers.assignSaved"))}
+        onError={(message) => notify(message, "error")}
+      />
+
+      <AdminToastStack toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((toast) => toast.id !== id))} />
     </div>
   );
 }

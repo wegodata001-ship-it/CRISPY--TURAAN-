@@ -14,15 +14,16 @@ import {
 } from "lucide-react";
 import { useAllCategories, useProducts } from "@/hooks/useProducts";
 import {
+  useAllModifierOptions,
   useAllProductModifierGroups,
   useModifierGroups,
-  useProductBuilderConfig,
 } from "@/hooks/useModifiers";
+import { CatalogModifierPreviewProvider } from "@/features/catalog/catalog-modifier-preview-context";
+import { ProductDetailDrawer } from "@/features/catalog/product-detail-drawer";
 import {
   createModifierGroup,
   syncProductModifierLinks,
 } from "@/services/modifierService";
-import { ProductBuilderPreview } from "@/features/catalog/product-builder";
 import { SortableList } from "@/components/admin/sortable-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ export function ProductBuilderAdmin() {
   const { products, loading: productsLoading } = useProducts(undefined, { admin: true });
   const { categories } = useAllCategories();
   const { groups, loading: groupsLoading } = useModifierGroups();
+  const { options } = useAllModifierOptions();
   const { links: allLinks, loading: linksLoading } = useAllProductModifierGroups();
   const [productId, setProductId] = useState("");
   const [search, setSearch] = useState("");
@@ -84,7 +86,14 @@ export function ProductBuilderAdmin() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [toasts, setToasts] = useState<AdminToast[]>([]);
   const [localGroups, setLocalGroups] = useState<ModifierGroup[]>([]);
-  const { config } = useProductBuilderConfig(previewOpen && productId ? productId : null);
+  const optionCountByGroup = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const option of options) {
+      if (option.archived) continue;
+      counts.set(option.groupId, (counts.get(option.groupId) ?? 0) + 1);
+    }
+    return counts;
+  }, [options]);
 
   const product = products.find((item) => item.id === productId);
   const categoryById = useMemo(
@@ -99,7 +108,7 @@ export function ProductBuilderAdmin() {
   const linkCounts = useMemo(() => {
     const counts = new Map<string, number>();
     allLinks.forEach((link) => {
-      if (link.active) counts.set(link.productId, (counts.get(link.productId) ?? 0) + 1);
+      if (link.active !== false) counts.set(link.productId, (counts.get(link.productId) ?? 0) + 1);
     });
     return counts;
   }, [allLinks]);
@@ -253,7 +262,7 @@ export function ProductBuilderAdmin() {
           requirement: link.requirement,
           selectionType: link.selectionType,
           displayType: link.displayType,
-          active: link.active,
+          active: link.active !== false,
         }))
       );
       if (!result.success) {
@@ -411,6 +420,11 @@ export function ProductBuilderAdmin() {
                               ? t("admin.modifiers.required")
                               : t("admin.modifiers.optional")}
                           </p>
+                          {(optionCountByGroup.get(group.id) ?? 0) === 0 && (
+                            <p className="mt-1 text-xs font-medium text-amber-700">
+                              {t("admin.builder.emptyGroupWarning")}
+                            </p>
+                          )}
                         </div>
                         <Button
                           variant="ghost"
@@ -677,18 +691,13 @@ export function ProductBuilderAdmin() {
         </AdminModalFooter>
       </AdminModal>
 
-      <AdminModal open={previewOpen} onOpenChange={setPreviewOpen} size="md">
-        <AdminModalHeader onClose={() => setPreviewOpen(false)}><AdminModalTitle>{t("admin.builder.customerPreview")}</AdminModalTitle></AdminModalHeader>
-        <AdminModalBody>
-          {product && config ? (
-            <ProductBuilderPreview product={product} config={config} />
-          ) : (
-            <div className="grid min-h-48 place-items-center">
-              <Loader2 className="h-6 w-6 animate-spin text-turquoise" />
-            </div>
-          )}
-        </AdminModalBody>
-      </AdminModal>
+      <CatalogModifierPreviewProvider>
+        <ProductDetailDrawer
+          product={previewOpen ? product ?? null : null}
+          open={previewOpen && Boolean(product)}
+          onOpenChange={setPreviewOpen}
+        />
+      </CatalogModifierPreviewProvider>
 
       <AdminToastStack
         toasts={toasts}

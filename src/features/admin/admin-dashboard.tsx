@@ -36,6 +36,7 @@ import { AdminKpiCard } from "./components/admin-kpi-card";
 import { AdminCard } from "./components/admin-card";
 import { AdminEmptyState } from "./components/admin-empty-state";
 import { QrLinksGrid } from "./qr-links-admin";
+import { ACTIVE_ORDER_STATUSES, ORDER_STATUS_LABEL_KEY } from "@/lib/orders/operations";
 import type { OrderStatus } from "@/types";
 
 function isToday(iso: string) {
@@ -49,8 +50,6 @@ function isThisMonth(iso: string) {
   const now = new Date();
   return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 }
-
-const ACTIVE_STATUSES: OrderStatus[] = ["pending", "preparing", "ready"];
 
 export function AdminDashboard() {
   const t = useT();
@@ -66,7 +65,7 @@ export function AdminDashboard() {
     const delivered = orders.filter((o) => o.status === "delivered");
     const todayOrders = orders.filter((o) => isToday(o.createdAt));
     const monthOrders = orders.filter((o) => isThisMonth(o.createdAt));
-    const activeOrders = orders.filter((o) => ACTIVE_STATUSES.includes(o.status));
+    const activeOrders = orders.filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status));
     const todaySales = todayOrders.reduce((s, o) => s + o.total, 0);
     const monthSales = monthOrders.reduce((s, o) => s + o.total, 0);
     const totalRevenue = delivered.reduce((s, o) => s + o.total, 0);
@@ -110,7 +109,7 @@ export function AdminDashboard() {
     };
   }, [orders, products, categories]);
 
-  const statusLabel = (status: OrderStatus) => t(`admin.status.${status}`);
+  const statusLabel = (status: OrderStatus) => t(ORDER_STATUS_LABEL_KEY[status]);
 
   const statsCards = [
     {

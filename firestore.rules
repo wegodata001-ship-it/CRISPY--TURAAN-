@@ -89,6 +89,16 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    match /category_modifier_groups/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /product_addon_exclusions/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
     match /product_modifier_options/{id} {
       allow read: if true;
       allow write: if isStaff();

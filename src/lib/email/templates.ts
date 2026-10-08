@@ -176,11 +176,12 @@ function fulfillmentLabel(type?: "pickup" | "delivery"): string {
 
 function statusLabel(status?: string): string {
   const map: Record<string, string> = {
-    pending: "ממתין",
-    confirmed: "אושר",
+    received: "התקבלה",
+    pending: "התקבלה",
+    confirmed: "בהכנה",
     preparing: "בהכנה",
     ready: "מוכן",
-    delivered: "הושלם",
+    delivered: "נמסר",
     cancelled: "בוטל",
   };
   return status ? map[status] ?? status : "—";

@@ -8,6 +8,7 @@ import type {
 } from "@/types/firestore";
 import { timestampToIso } from "@/types/firestore";
 import { normalizeImageUrl } from "@/lib/menu/placeholders";
+import { normalizeOrderStatus } from "@/lib/orders/operations";
 import type {
   Category,
   Product,
@@ -112,7 +113,7 @@ export function mapOrder(doc: FirestoreDoc<FirestoreOrder>): Order {
     orderNumber: doc.orderNumber,
     customerId: doc.customerId,
     customerName: doc.customerName,
-    status: doc.status,
+    status: normalizeOrderStatus(doc.status),
     items: doc.items.map((item) => ({
       ...item,
       modifiers: item.modifiers?.map((m) => ({

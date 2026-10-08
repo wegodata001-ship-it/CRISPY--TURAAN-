@@ -5,6 +5,7 @@ import type {
   ModifierOption,
   ProductModifierGroup,
 } from "@/types/modifiers";
+import { isEnabledFlag, isVisibleRecord } from "@/lib/product-builder/visibility";
 
 export type ModifierPreviewOption = {
   id: string;
@@ -35,7 +36,7 @@ export function buildModifierPreviewByProductId(
   const optionsByGroup = new Map<string, ModifierOption[]>();
 
   for (const option of options) {
-    if (!option.active || option.archived) continue;
+    if (!isVisibleRecord(option)) continue;
     const list = optionsByGroup.get(option.groupId) ?? [];
     list.push(option);
     optionsByGroup.set(option.groupId, list);
@@ -46,12 +47,12 @@ export function buildModifierPreviewByProductId(
 
   const byProduct = new Map<string, ModifierPreviewGroup[]>();
   const activeLinks = [...links]
-    .filter((link) => link.active)
+    .filter((link) => isEnabledFlag(link.active))
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
   for (const link of activeLinks) {
     const group = groupsById.get(link.groupId);
-    if (!group || !group.active || group.archived) continue;
+    if (!group || !isVisibleRecord(group)) continue;
 
     const groupOptions = optionsByGroup.get(group.id) ?? [];
     if (groupOptions.length === 0) continue;

@@ -11,6 +11,8 @@ import {
   subscribeToInventoryLinks,
   subscribeToProductModifierGroups,
   subscribeToAllProductModifierGroups,
+  subscribeToCategoryModifierGroups,
+  subscribeToProductAddonExclusions,
 } from "@/services/modifierService";
 import type {
   ModifierGroup,
@@ -50,20 +52,30 @@ export function useModifierGroups(includeArchived = false) {
 export function useModifierOptions(groupId?: string) {
   const [options, setOptions] = useState<ModifierOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
     const unsub = subscribeToModifierOptions(
       groupId,
       (data) => {
         setOptions(data.filter((o) => !o.archived));
         setLoading(false);
+        setError(null);
       },
-      () => setLoading(false)
+      (message) => {
+        setError(message);
+        setLoading(false);
+      }
     );
     return () => unsub();
   }, [groupId]);
 
-  return { options, loading };
+  return { options, loading, error };
+}
+
+export function useAllModifierOptions() {
+  return useModifierOptions(undefined);
 }
 
 export function useProductBuilderConfig(productId: string | null) {
@@ -91,7 +103,11 @@ export function useProductBuilderConfig(productId: string | null) {
     const unsub = subscribeToProductBuilderConfig(
       productId,
       (data) => {
-        productBuilderConfigCache.set(productId, data);
+        if (data.groups.length > 0) {
+          productBuilderConfigCache.set(productId, data);
+        } else {
+          productBuilderConfigCache.delete(productId);
+        }
         setConfig(data);
         setLoading(false);
       },
@@ -191,4 +207,42 @@ export function useInventoryLinks() {
   }, []);
 
   return { links, loading };
+}
+
+export function useCategoryModifierGroups() {
+  const [links, setLinks] = useState<
+    import("@/lib/product-builder/category-addons").CategoryAddonLink[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    return subscribeToCategoryModifierGroups(
+      (data) => {
+        setLinks(data);
+        setLoading(false);
+      },
+      () => setLoading(false)
+    );
+  }, []);
+
+  return { links, loading };
+}
+
+export function useProductAddonExclusions() {
+  const [exclusions, setExclusions] = useState<
+    import("@/lib/product-builder/category-addons").ProductAddonExclusion[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    return subscribeToProductAddonExclusions(
+      (data) => {
+        setExclusions(data);
+        setLoading(false);
+      },
+      () => setLoading(false)
+    );
+  }, []);
+
+  return { exclusions, loading };
 }

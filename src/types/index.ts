@@ -57,8 +57,7 @@ export interface Customer {
 }
 
 export type OrderStatus =
-  | "pending"
-  | "confirmed"
+  | "received"
   | "preparing"
   | "ready"
   | "delivered"

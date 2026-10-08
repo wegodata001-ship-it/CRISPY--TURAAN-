@@ -21,9 +21,10 @@ import {
 } from "@/components/ui/select";
 import { formatPrice, cn } from "@/lib/utils";
 import {
-  ACTIVE_ORDER_STATUSES,
   ORDER_STATUSES,
+  ORDER_STATUS_LABEL_KEY,
   averagePreparationMinutes,
+  countOrdersByStatus,
   effectivePaymentStatus,
   isActiveOrder,
   isToday,
@@ -189,10 +190,10 @@ export function OrdersAdmin() {
   };
 
   const kpis: { status: OrderStatus; value: number }[] = [
-    { status: "pending", value: todayOrders.filter((order) => order.status === "pending").length },
-    { status: "preparing", value: todayOrders.filter((order) => order.status === "preparing").length },
-    { status: "ready", value: todayOrders.filter((order) => order.status === "ready").length },
-    { status: "delivered", value: todayOrders.filter((order) => order.status === "delivered").length },
+    { status: "received", value: countOrdersByStatus(todayOrders, "received") },
+    { status: "preparing", value: countOrdersByStatus(todayOrders, "preparing") },
+    { status: "ready", value: countOrdersByStatus(todayOrders, "ready") },
+    { status: "delivered", value: countOrdersByStatus(todayOrders, "delivered") },
   ];
 
   return (
@@ -221,7 +222,7 @@ export function OrdersAdmin() {
             className="rounded-2xl border border-beige-dark/15 bg-warm-white p-4 text-start shadow-soft transition hover:border-turquoise/40"
           >
             <p className="text-2xl font-bold text-dark-brown dark:text-warm-white">{value}</p>
-            <p className="text-sm text-coffee/55">{t(`admin.status.${status}`)}</p>
+            <p className="text-sm text-coffee/55">{t(ORDER_STATUS_LABEL_KEY[status])}</p>
           </button>
         ))}
         <div className="rounded-2xl border border-beige-dark/15 bg-warm-white p-4 shadow-soft">
@@ -280,7 +281,7 @@ export function OrdersAdmin() {
           <SelectContent>
             <SelectItem value="all">{t("admin.status.all")}</SelectItem>
             {ORDER_STATUSES.map((status) => (
-              <SelectItem key={status} value={status}>{t(`admin.status.${status}`)}</SelectItem>
+              <SelectItem key={status} value={status}>{t(ORDER_STATUS_LABEL_KEY[status])}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -305,7 +306,7 @@ export function OrdersAdmin() {
 
       {statusFilter !== "all" && (
         <button className="mt-3 text-sm text-turquoise" onClick={() => setStatusFilter("all")}>
-          {t(`admin.status.${statusFilter}`)} ×
+          {t(ORDER_STATUS_LABEL_KEY[statusFilter])} ×
         </button>
       )}
 

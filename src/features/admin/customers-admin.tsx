@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { getInitials, formatDateShort, formatPrice } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
+import { ORDER_STATUS_LABEL_KEY, orderStatusBadgeVariant } from "@/lib/orders/operations";
 import type { Customer, OrderStatus } from "@/types";
 
 export function CustomersAdmin() {
@@ -38,7 +39,7 @@ export function CustomersAdmin() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const statusLabel = (status: OrderStatus) => t(`admin.status.${status}`);
+  const statusLabel = (status: OrderStatus) => t(ORDER_STATUS_LABEL_KEY[status]);
 
   const form = useForm({
     resolver: zodResolver(customerSchema),
@@ -245,7 +246,7 @@ export function CustomersAdmin() {
                           <p className="font-medium">{order.orderNumber}</p>
                           <p className="text-xs text-coffee/50">{formatDateShort(order.createdAt)}</p>
                         </div>
-                        <Badge variant={order.status as "pending"}>{statusLabel(order.status)}</Badge>
+                        <Badge variant={orderStatusBadgeVariant(order.status)}>{statusLabel(order.status)}</Badge>
                         <span className="font-semibold text-coffee">{formatPrice(order.total)}</span>
                       </div>
                     ))}

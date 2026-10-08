@@ -1,12 +1,13 @@
 /**
  * Single source for customer-facing and admin production URLs.
  * QR / copy / open / download must all read from here.
- * Never emit localhost in production.
+ * Never emit localhost or retired Vercel customer hosts in production.
  */
 
 export const PRODUCTION_ADMIN_URL = "https://portal.crispy-turaan.vercel.app";
-export const PRODUCTION_MENU_URL = "https://crispy-turaan.vercel.app/menu-display";
-export const PRODUCTION_ORDER_URL = "https://crispy-turaan.vercel.app";
+export const PRODUCTION_MENU_URL = "https://menu.almostafachicken.com";
+export const PRODUCTION_CUSTOMER_URL = "https://almostafachicken.com";
+export const PRODUCTION_ORDER_URL = PRODUCTION_CUSTOMER_URL;
 
 function isProductionRuntime(): boolean {
   return (
@@ -26,6 +27,12 @@ function isLocalHostname(hostname: string): boolean {
   );
 }
 
+/** Old public Vercel host — never show this to customers. Admin portal is allowed. */
+export function isRetiredCustomerHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return host === "crispy-turaan.vercel.app" || host === "www.crispy-turaan.vercel.app";
+}
+
 export function normalizePublicUrl(raw: string, fallback: string): string {
   const value = raw.trim();
   if (!value) return fallback.replace(/\/+$/, "");
@@ -34,7 +41,7 @@ export function normalizePublicUrl(raw: string, fallback: string): string {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       return fallback.replace(/\/+$/, "");
     }
-    if (isLocalHostname(parsed.hostname)) {
+    if (isLocalHostname(parsed.hostname) || isRetiredCustomerHost(parsed.hostname)) {
       return fallback.replace(/\/+$/, "");
     }
     const path = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
@@ -77,12 +84,22 @@ export function getMenuUrl(): string {
   );
 }
 
-/** Customer ordering homepage. Used by طلب أونلاين QR and "back to store". */
-export function getOrderUrl(): string {
+/** Customer website / online ordering. Used by طلب أونلاين QR and "back to store". */
+export function getCustomerUrl(): string {
   return readConfiguredUrl(
-    ["NEXT_PUBLIC_ORDER_URL", "NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_QR_LINK_2"],
-    PRODUCTION_ORDER_URL
+    [
+      "NEXT_PUBLIC_CUSTOMER_URL",
+      "NEXT_PUBLIC_ORDER_URL",
+      "NEXT_PUBLIC_SITE_URL",
+      "NEXT_PUBLIC_QR_LINK_2",
+    ],
+    PRODUCTION_CUSTOMER_URL
   );
+}
+
+/** @deprecated Use getCustomerUrl — kept so existing imports keep working. */
+export function getOrderUrl(): string {
+  return getCustomerUrl();
 }
 
 export function getAdminOrigin(): string {
@@ -97,15 +114,15 @@ export function getMenuOrigin(): string {
   try {
     return new URL(getMenuUrl()).origin;
   } catch {
-    return new URL(PRODUCTION_MENU_URL).origin;
+    return PRODUCTION_MENU_URL;
   }
 }
 
 export function getOrderOrigin(): string {
   try {
-    return new URL(getOrderUrl()).origin;
+    return new URL(getCustomerUrl()).origin;
   } catch {
-    return PRODUCTION_ORDER_URL;
+    return PRODUCTION_CUSTOMER_URL;
   }
 }
 

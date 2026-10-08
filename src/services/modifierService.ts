@@ -230,18 +230,18 @@ export async function reorderModifierGroups(ids: string[]): Promise<ServiceResul
 
 // ─── Modifier Options ──────────────────────────────────────────────
 
+function sortModifierOptions(options: ModifierOption[]): ModifierOption[] {
+  return [...options].sort((a, b) => a.sortOrder - b.sortOrder || a.name_he.localeCompare(b.name_he));
+}
+
 export async function getModifierOptions(groupId?: string): Promise<ModifierOption[]> {
   const db = getDb();
   const q = groupId
-    ? query(
-        collection(db, COLLECTIONS.modifierOptions),
-        where("groupId", "==", groupId),
-        orderBy("sortOrder", "asc")
-      )
-    : query(collection(db, COLLECTIONS.modifierOptions), orderBy("sortOrder", "asc"));
+    ? query(collection(db, COLLECTIONS.modifierOptions), where("groupId", "==", groupId))
+    : collection(db, COLLECTIONS.modifierOptions);
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) =>
-    mapModifierOption(docTo<FirestoreModifierOption>(d.id, d.data()))
+  return sortModifierOptions(
+    snapshot.docs.map((d) => mapModifierOption(docTo<FirestoreModifierOption>(d.id, d.data())))
   );
 }
 
@@ -252,16 +252,16 @@ export function subscribeToModifierOptions(
 ): Unsubscribe {
   const db = getDb();
   const q = groupId
-    ? query(
-        collection(db, COLLECTIONS.modifierOptions),
-        where("groupId", "==", groupId),
-        orderBy("sortOrder", "asc")
-      )
-    : query(collection(db, COLLECTIONS.modifierOptions), orderBy("sortOrder", "asc"));
+    ? query(collection(db, COLLECTIONS.modifierOptions), where("groupId", "==", groupId))
+    : collection(db, COLLECTIONS.modifierOptions);
   return onSnapshot(
     q,
     (snap) => {
-      onData(snap.docs.map((d) => mapModifierOption(docTo<FirestoreModifierOption>(d.id, d.data()))));
+      onData(
+        sortModifierOptions(
+          snap.docs.map((d) => mapModifierOption(docTo<FirestoreModifierOption>(d.id, d.data())))
+        )
+      );
     },
     (err) => onError(err.message)
   );
@@ -328,6 +328,106 @@ export async function deleteModifierOption(id: string): Promise<ServiceResult<vo
     return success(undefined);
   } catch (error) {
     return failure(error, "Failed to archive modifier option");
+  }
+}
+
+export type ModifierOptionDraftInput = {
+  id?: string;
+  nameHe: string;
+  nameAr?: string;
+  nameEn?: string;
+  priceDelta: number;
+  sortOrder: number;
+  active?: boolean;
+};
+
+/** Create or update a group and all of its options in one write. Archives removed options. */
+export async function saveModifierGroupWithOptions(
+  groupId: string | null,
+  groupInput: ModifierGroupInput,
+  optionDrafts: ModifierOptionDraftInput[],
+  archiveOptionIds: string[] = []
+): Promise<ServiceResult<ModifierGroup>> {
+  try {
+    const parsedGroup = modifierGroupSchema.parse(normalizeModifierGroupInput(groupInput));
+    const named = optionDrafts.filter((option) => option.nameHe.trim());
+    if (named.length === 0) {
+      return failure(new ServiceError("At least one named option is required", "VALIDATION"));
+    }
+    if (parsedGroup.maxSelections < 1) {
+      return failure(new ServiceError("maxSelections must be at least 1", "VALIDATION"));
+    }
+    if (parsedGroup.minSelections > parsedGroup.maxSelections) {
+      return failure(new ServiceError("minSelections cannot exceed maxSelections", "VALIDATION"));
+    }
+    if (parsedGroup.requirement === "required" && parsedGroup.minSelections < 1) {
+      return failure(new ServiceError("Required groups need minSelections ≥ 1", "VALIDATION"));
+    }
+
+    const db = getDb();
+    const now = nowTimestamp();
+    let resolvedId = groupId;
+    let createdAt = now;
+
+    if (resolvedId) {
+      const ref = doc(db, COLLECTIONS.modifierGroups, resolvedId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return failure(new ServiceError("Not found", "NOT_FOUND"));
+      createdAt = (snap.data() as FirestoreModifierGroup).createdAt;
+      await updateDoc(ref, sanitizeFirestoreData({ ...parsedGroup, updatedAt: now }));
+    } else {
+      const data: FirestoreModifierGroup = { ...parsedGroup, createdAt: now, updatedAt: now };
+      const ref = await addDoc(collection(db, COLLECTIONS.modifierGroups), sanitizeFirestoreData(data));
+      resolvedId = ref.id;
+    }
+
+    const batch = writeBatch(db);
+    named.forEach((option, index) => {
+      const parsed = modifierOptionSchema.parse(
+        normalizeModifierOptionInput({
+          groupId: resolvedId!,
+          nameHe: option.nameHe,
+          nameAr: option.nameAr,
+          nameEn: option.nameEn,
+          priceDelta: option.priceDelta,
+          sortOrder: option.sortOrder ?? index,
+          active: option.active ?? true,
+          archived: false,
+        })
+      );
+      if (option.id) {
+        batch.update(
+          doc(db, COLLECTIONS.modifierOptions, option.id),
+          sanitizeFirestoreData({ ...parsed, updatedAt: now })
+        );
+      } else {
+        const optionRef = doc(collection(db, COLLECTIONS.modifierOptions));
+        batch.set(
+          optionRef,
+          sanitizeFirestoreData({ ...parsed, createdAt: now, updatedAt: now })
+        );
+      }
+    });
+
+    for (const optionId of archiveOptionIds) {
+      batch.update(doc(db, COLLECTIONS.modifierOptions, optionId), {
+        archived: true,
+        active: false,
+        updatedAt: now,
+      });
+    }
+
+    await batch.commit();
+    return success(
+      mapModifierGroup({
+        id: resolvedId,
+        ...parsedGroup,
+        createdAt,
+        updatedAt: now,
+      })
+    );
+  } catch (error) {
+    return failure(error, "Failed to save modifier group with options");
   }
 }
 
@@ -522,7 +622,7 @@ export async function syncProductModifierLinks(
             productId,
             groupId,
             sortOrder,
-            active: desired.active,
+            active: desired.active !== false,
             requirement: desired.requirement,
             selectionType: desired.selectionType,
             displayType: desired.displayType,
@@ -539,6 +639,121 @@ export async function syncProductModifierLinks(
     return success(undefined);
   } catch (error) {
     return failure(error, "Failed to sync product modifier links");
+  }
+}
+
+const CATEGORY_ADDON_SETTINGS_ID = "category_addon_assignments";
+const PRODUCT_EXCLUSION_SETTINGS_ID = "product_addon_exclusions";
+
+function parseCategoryAddonLinks(
+  raw: unknown
+): import("@/lib/product-builder/category-addons").CategoryAddonLink[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      const row = item as Record<string, unknown>;
+      return {
+        id: String(row.id ?? `${row.categoryId ?? ""}__${row.groupId ?? ""}`),
+        categoryId: String(row.categoryId ?? ""),
+        groupId: String(row.groupId ?? ""),
+        sortOrder: Number(row.sortOrder ?? 0),
+        active: row.active !== false,
+      };
+    })
+    .filter((link) => link.categoryId && link.groupId);
+}
+
+function parseProductExclusions(
+  raw: unknown
+): import("@/lib/product-builder/category-addons").ProductAddonExclusion[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      const row = item as Record<string, unknown>;
+      return {
+        id: String(row.id ?? `${row.productId ?? ""}__${row.groupId ?? ""}`),
+        productId: String(row.productId ?? ""),
+        groupId: String(row.groupId ?? ""),
+      };
+    })
+    .filter((item) => item.productId && item.groupId);
+}
+
+export function subscribeToCategoryModifierGroups(
+  onData: (links: import("@/lib/product-builder/category-addons").CategoryAddonLink[]) => void,
+  onError: (message: string) => void
+): Unsubscribe {
+  const db = getDb();
+  return onSnapshot(
+    doc(db, COLLECTIONS.settings, CATEGORY_ADDON_SETTINGS_ID),
+    (snap) => onData(parseCategoryAddonLinks(snap.data()?.links)),
+    (error) => {
+      onData([]);
+      onError(error.message);
+    }
+  );
+}
+
+export async function syncCategoryModifierLinks(
+  categoryId: string,
+  groupIds: string[]
+): Promise<ServiceResult<void>> {
+  try {
+    const db = getDb();
+    const ref = doc(db, COLLECTIONS.settings, CATEGORY_ADDON_SETTINGS_ID);
+    const snap = await getDoc(ref);
+    const existing = parseCategoryAddonLinks(snap.data()?.links);
+    const desired = [...new Set(groupIds.filter(Boolean))];
+    const next = [
+      ...existing.filter((link) => link.categoryId !== categoryId),
+      ...desired.map((groupId, index) => ({
+        id: `${categoryId}__${groupId}`,
+        categoryId,
+        groupId,
+        sortOrder: index,
+        active: true,
+      })),
+    ];
+    await setDoc(ref, sanitizeFirestoreData({ links: next }), { merge: true });
+    return success(undefined);
+  } catch (error) {
+    return failure(error, "Failed to save category add-on assignment");
+  }
+}
+
+export function subscribeToProductAddonExclusions(
+  onData: (items: import("@/lib/product-builder/category-addons").ProductAddonExclusion[]) => void,
+  onError: (message: string) => void
+): Unsubscribe {
+  const db = getDb();
+  return onSnapshot(
+    doc(db, COLLECTIONS.settings, PRODUCT_EXCLUSION_SETTINGS_ID),
+    (snap) => onData(parseProductExclusions(snap.data()?.items)),
+    (error) => {
+      onData([]);
+      onError(error.message);
+    }
+  );
+}
+
+export async function setProductAddonExclusion(
+  productId: string,
+  groupId: string,
+  excluded: boolean
+): Promise<ServiceResult<void>> {
+  try {
+    const db = getDb();
+    const ref = doc(db, COLLECTIONS.settings, PRODUCT_EXCLUSION_SETTINGS_ID);
+    const snap = await getDoc(ref);
+    const existing = parseProductExclusions(snap.data()?.items);
+    const id = `${productId}__${groupId}`;
+    const next = excluded
+      ? [...existing.filter((item) => item.id !== id), { id, productId, groupId }]
+      : existing.filter((item) => item.id !== id);
+    await setDoc(ref, sanitizeFirestoreData({ items: next }), { merge: true });
+    return success(undefined);
+  } catch (error) {
+    return failure(error, "Failed to update product add-on exclusion");
   }
 }
 
@@ -868,56 +1083,90 @@ export function subscribeToProductBuilderConfig(
   };
 
   const db = getDb();
+  const markReady = (key: keyof typeof ready) => {
+    ready[key] = true;
+    emit();
+  };
   const unsubs = [
-    onSnapshot(query(collection(db, COLLECTIONS.modifierGroups), orderBy("sortOrder", "asc")), (s) => {
-      cache.groups = s.docs.map((d) => mapModifierGroup(docTo<FirestoreModifierGroup>(d.id, d.data())));
-      ready.groups = true;
-      emit();
-    }, (e) => onError(e.message)),
-    onSnapshot(query(collection(db, COLLECTIONS.modifierOptions), orderBy("sortOrder", "asc")), (s) => {
-      cache.options = s.docs.map((d) => mapModifierOption(docTo<FirestoreModifierOption>(d.id, d.data())));
-      ready.options = true;
-      emit();
-    }, (e) => onError(e.message)),
+    onSnapshot(
+      collection(db, COLLECTIONS.modifierGroups),
+      (s) => {
+        cache.groups = s.docs
+          .map((d) => mapModifierGroup(docTo<FirestoreModifierGroup>(d.id, d.data())))
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        markReady("groups");
+      },
+      (e) => {
+        onError(e.message);
+        markReady("groups");
+      }
+    ),
+    onSnapshot(
+      collection(db, COLLECTIONS.modifierOptions),
+      (s) => {
+        cache.options = sortModifierOptions(
+          s.docs.map((d) => mapModifierOption(docTo<FirestoreModifierOption>(d.id, d.data())))
+        );
+        markReady("options");
+      },
+      (e) => {
+        onError(e.message);
+        markReady("options");
+      }
+    ),
     onSnapshot(
       query(collection(db, COLLECTIONS.productModifierGroups), where("productId", "==", productId)),
       (s) => {
         cache.productGroups = s.docs
           .map((d) => mapProductModifierGroup(docTo<FirestoreProductModifierGroup>(d.id, d.data())))
           .sort((a, b) => a.sortOrder - b.sortOrder);
-        ready.productGroups = true;
-        emit();
+        markReady("productGroups");
       },
-      (e) => onError(e.message)
+      (e) => {
+        onError(e.message);
+        markReady("productGroups");
+      }
     ),
     onSnapshot(
       query(collection(db, COLLECTIONS.productModifierOptions), where("productId", "==", productId)),
       (s) => {
-        cache.productOptions = s.docs.map((d) => mapProductModifierOption(docTo<FirestoreProductModifierOption>(d.id, d.data())));
-        ready.productOptions = true;
-        emit();
+        cache.productOptions = s.docs.map((d) =>
+          mapProductModifierOption(docTo<FirestoreProductModifierOption>(d.id, d.data()))
+        );
+        markReady("productOptions");
       },
-      (e) => onError(e.message)
+      () => markReady("productOptions")
     ),
-    onSnapshot(query(collection(db, COLLECTIONS.businessRules), orderBy("priority", "asc")), (s) => {
-      cache.rules = s.docs.map((d) => mapBusinessRule(docTo<FirestoreBusinessRule>(d.id, d.data())));
-      ready.rules = true;
-      emit();
-    }, (e) => onError(e.message)),
     onSnapshot(
-      query(collection(db, COLLECTIONS.suggestions), where("triggerProductId", "==", productId), orderBy("sortOrder", "asc")),
+      collection(db, COLLECTIONS.businessRules),
       (s) => {
-        cache.suggestions = s.docs.map((d) => mapProductSuggestion(docTo<FirestoreProductSuggestion>(d.id, d.data())));
-        ready.suggestions = true;
-        emit();
+        cache.rules = s.docs
+          .map((d) => mapBusinessRule(docTo<FirestoreBusinessRule>(d.id, d.data())))
+          .sort((a, b) => a.priority - b.priority);
+        markReady("rules");
       },
-      (e) => onError(e.message)
+      () => markReady("rules")
     ),
-    onSnapshot(collection(db, COLLECTIONS.inventoryLinks), (s) => {
-      cache.inventory = s.docs.map((d) => mapInventoryLink(docTo<FirestoreInventoryLink>(d.id, d.data())));
-      ready.inventory = true;
-      emit();
-    }, (e) => onError(e.message)),
+    onSnapshot(
+      query(collection(db, COLLECTIONS.suggestions), where("triggerProductId", "==", productId)),
+      (s) => {
+        cache.suggestions = s.docs
+          .map((d) => mapProductSuggestion(docTo<FirestoreProductSuggestion>(d.id, d.data())))
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        markReady("suggestions");
+      },
+      () => markReady("suggestions")
+    ),
+    onSnapshot(
+      collection(db, COLLECTIONS.inventoryLinks),
+      (s) => {
+        cache.inventory = s.docs.map((d) =>
+          mapInventoryLink(docTo<FirestoreInventoryLink>(d.id, d.data()))
+        );
+        markReady("inventory");
+      },
+      () => markReady("inventory")
+    ),
   ];
 
   return () => unsubs.forEach((u) => u());

@@ -1,5 +1,5 @@
-import { BusinessRulesAdmin } from "@/features/admin/business-rules-admin";
+import { CategoryAddonsAdmin } from "@/features/admin/category-addons-admin";
 
 export default function BusinessRulesPage() {
-  return <BusinessRulesAdmin />;
+  return <CategoryAddonsAdmin />;
 }

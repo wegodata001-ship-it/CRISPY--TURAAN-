@@ -44,8 +44,8 @@ export function mapModifierGroup(doc: FirestoreDoc<FirestoreModifierGroup>): Mod
     sortOrder: doc.sortOrder,
     color: doc.color,
     icon: doc.icon,
-    active: doc.active,
-    archived: doc.archived ?? false,
+    active: doc.active !== false,
+    archived: doc.archived === true,
     createdAt: timestampToIso(doc.createdAt),
     updatedAt: timestampToIso(doc.updatedAt),
   };
@@ -65,8 +65,8 @@ export function mapModifierOption(doc: FirestoreDoc<FirestoreModifierOption>): M
     icon: doc.icon,
     image: doc.imageUrl,
     kitchenNote: doc.kitchenNote,
-    active: doc.active,
-    archived: doc.archived ?? false,
+    active: doc.active !== false,
+    archived: doc.archived === true,
     createdAt: timestampToIso(doc.createdAt),
     updatedAt: timestampToIso(doc.updatedAt),
   };
@@ -83,7 +83,7 @@ export function mapProductModifierGroup(
     selectionType: doc.selectionType,
     displayType: doc.displayType,
     sortOrder: doc.sortOrder,
-    active: doc.active,
+    active: doc.active !== false,
   };
 }
 

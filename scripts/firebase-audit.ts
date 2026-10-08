@@ -308,7 +308,7 @@ async function testOrdersCrud() {
       quantity: 1,
       price: product.price,
     }],
-    status: "pending",
+    status: "received",
     subtotal: product.price,
     discount: 0,
     delivery: 0,

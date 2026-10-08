@@ -10,38 +10,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatPrice, formatDate } from "@/lib/utils";
 import { useT, useLocale } from "@/components/providers/locale-provider";
 import { useOrders, useOrderStats } from "@/hooks/useOrders";
+import {
+  CUSTOMER_ORDER_STATUS_LABEL_KEY,
+  ORDER_STATUSES,
+  orderStatusBadgeVariant,
+} from "@/lib/orders/operations";
 import type { OrderStatus } from "@/types";
 
-const STATUS_VARIANTS: Record<
-  OrderStatus,
-  "pending" | "preparing" | "ready" | "delivered" | "cancelled"
-> = {
-  pending: "pending",
-  preparing: "preparing",
-  ready: "ready",
-  delivered: "delivered",
-  cancelled: "cancelled",
-  confirmed: "preparing",
-};
-
-const STATUS_KEYS: Record<OrderStatus, string> = {
-  pending: "orders.status.pending",
-  preparing: "orders.status.preparing",
-  ready: "orders.status.ready",
-  delivered: "orders.status.delivered",
-  cancelled: "orders.status.cancelled",
-  confirmed: "admin.status.confirmed",
-};
-
-const statusFilters: (OrderStatus | "all")[] = [
-  "all",
-  "pending",
-  "confirmed",
-  "preparing",
-  "ready",
-  "delivered",
-  "cancelled",
-];
+const statusFilters: (OrderStatus | "all")[] = ["all", ...ORDER_STATUSES];
 
 export function OrdersScreen() {
   const t = useT();
@@ -52,7 +28,7 @@ export function OrdersScreen() {
   const { stats } = useOrderStats();
 
   const statCards = [
-    { key: "pending" as const, count: stats.pending, color: "text-amber-600" },
+    { key: "received" as const, count: stats.received, color: "text-amber-600" },
     { key: "preparing" as const, count: stats.preparing, color: "text-orange-600" },
     { key: "ready" as const, count: stats.ready, color: "text-emerald-600" },
     { key: "delivered" as const, count: stats.delivered, color: "text-green-600" },
@@ -82,7 +58,7 @@ export function OrdersScreen() {
           >
             <p className={`text-lg font-bold md:text-2xl ${stat.color}`}>{stat.count}</p>
             <p className="text-[10px] text-coffee/50 md:text-xs">
-              {stat.key === "total" ? t("orders.total") : t(STATUS_KEYS[stat.key])}
+              {stat.key === "total" ? t("orders.total") : t(CUSTOMER_ORDER_STATUS_LABEL_KEY[stat.key])}
             </p>
           </motion.div>
         ))}
@@ -111,7 +87,7 @@ export function OrdersScreen() {
                   : "bg-beige/60 text-coffee hover:bg-beige"
               }`}
             >
-              {status === "all" ? t("common.all") : t(STATUS_KEYS[status])}
+              {status === "all" ? t("common.all") : t(CUSTOMER_ORDER_STATUS_LABEL_KEY[status])}
             </button>
           ))}
         </div>
@@ -171,8 +147,8 @@ export function OrdersScreen() {
                     </td>
                     <td className="px-4 py-3 text-sm text-coffee/70">{order.customerName}</td>
                     <td className="px-4 py-3">
-                      <Badge variant={STATUS_VARIANTS[order.status]}>
-                        {t(STATUS_KEYS[order.status])}
+                      <Badge variant={orderStatusBadgeVariant(order.status)}>
+                        {t(CUSTOMER_ORDER_STATUS_LABEL_KEY[order.status])}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
@@ -210,8 +186,8 @@ export function OrdersScreen() {
                     <p className="text-sm font-semibold text-dark-brown">{order.orderNumber}</p>
                     <p className="text-xs text-coffee/60">{order.customerName}</p>
                   </div>
-                  <Badge variant={STATUS_VARIANTS[order.status]}>
-                    {t(STATUS_KEYS[order.status])}
+                  <Badge variant={orderStatusBadgeVariant(order.status)}>
+                    {t(CUSTOMER_ORDER_STATUS_LABEL_KEY[order.status])}
                   </Badge>
                 </div>
                 <div className="mt-3 flex items-center justify-between">

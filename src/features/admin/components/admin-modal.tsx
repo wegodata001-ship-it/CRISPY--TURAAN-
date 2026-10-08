@@ -19,7 +19,7 @@ const MODAL_Z = {
 // ─────────────────────────────────────────────────────────────
 // SIZE TOKENS
 // ─────────────────────────────────────────────────────────────
-type AdminModalSize = "sm" | "md" | "lg" | "xl" | "product";
+type AdminModalSize = "sm" | "md" | "lg" | "xl" | "product" | "drawer";
 
 const SIZE_STYLES: Record<AdminModalSize, string> = {
   sm: "w-[min(520px,calc(100vw-24px))]",
@@ -27,6 +27,8 @@ const SIZE_STYLES: Record<AdminModalSize, string> = {
   lg: "w-[min(820px,calc(100vw-24px))] sm:w-[min(820px,calc(100vw-48px))]",
   xl: "w-[min(900px,calc(100vw-24px))] sm:w-[min(900px,calc(100vw-48px))]",
   product: "w-[min(900px,calc(100vw-24px))] sm:w-[min(900px,calc(100vw-48px))]",
+  drawer:
+    "h-[100dvh] max-h-[100dvh] w-full rounded-none sm:h-auto sm:max-h-[calc(100dvh-48px)] sm:w-[min(640px,calc(100vw-48px))] sm:rounded-[20px]",
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -234,7 +236,10 @@ export function AdminModal({
       {/* POSITIONER — centers the panel in viewport */}
       <div
         data-slot="admin-modal-positioner"
-        className="fixed inset-0 flex items-center justify-center overflow-y-auto p-2 sm:p-6"
+        className={cn(
+          "fixed inset-0 flex items-center justify-center overflow-y-auto",
+          size === "drawer" ? "p-0 sm:p-6" : "p-2 sm:p-6"
+        )}
         style={{ zIndex: MODAL_Z.panel }}
         onClick={handleOverlayClick}
         role="dialog"

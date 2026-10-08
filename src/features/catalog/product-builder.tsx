@@ -98,9 +98,18 @@ function ModifierGroupRenderer({
             {t("builder.required")}
           </Badge>
         )}
+        {group.selectionType === "single" && (
+          <span className="text-xs text-coffee/50">{t("builder.chooseOne")}</span>
+        )}
         {group.selectionType === "multiple" && maxSelections > 1 && (
-          <span className={cn("text-xs", reachedMax ? "font-medium text-turquoise" : "text-coffee/50")}>
-            {totalSelected}/{maxSelections}
+          <span className={cn("text-xs tabular-nums", reachedMax ? "font-medium text-turquoise" : "text-coffee/50")}>
+            {t("builder.chooseUpTo").replace("{max}", String(maxSelections))}
+            <span className="ms-1" dir="ltr">
+              ·{" "}
+              {t("builder.selectedOf")
+                .replace("{n}", String(totalSelected))
+                .replace("{max}", String(maxSelections))}
+            </span>
           </span>
         )}
       </div>
@@ -145,13 +154,21 @@ function ModifierGroupRenderer({
                     else selectSingle(option.id);
                   }}
                   className={cn(
-                    "rounded-xl border px-3 py-2 text-start text-sm transition-all",
+                    "flex items-center gap-2 rounded-xl border px-3 py-2 text-start text-sm transition-all",
                     isSelected
                       ? "border-turquoise bg-turquoise/10 text-dark-brown shadow-soft"
                       : "border-beige-dark/25 bg-warm-white/80 hover:border-turquoise/40",
                     isDisabled && "cursor-not-allowed opacity-40"
                   )}
                 >
+                  <span
+                    className={cn(
+                      "flex h-4 w-4 shrink-0 items-center justify-center border",
+                      group.selectionType === "single" ? "rounded-full" : "rounded-[4px]",
+                      isSelected ? "border-turquoise bg-turquoise" : "border-beige-dark/40"
+                    )}
+                    aria-hidden
+                  />
                   {group.displayType === "images" && option.image && (
                     <div className="relative mb-1.5 aspect-square w-full overflow-hidden rounded-lg">
                       <Image src={option.image} alt="" fill className="object-cover" sizes="80px" />
@@ -159,7 +176,7 @@ function ModifierGroupRenderer({
                   )}
                   <span className="font-medium">{localizedGroupName(option, locale)}</span>
                   {option.effectivePriceDelta > 0 && (
-                    <span className="ms-1 text-xs text-turquoise">
+                    <span className="ms-1 text-xs tabular-nums text-turquoise" dir="ltr">
                       +{formatPrice(option.effectivePriceDelta)}
                     </span>
                   )}

@@ -20,6 +20,7 @@ import { ClientSiteFooter } from "@/components/layout/client-site-footer";
 import { LocaleHtmlScript } from "@/components/providers/locale-html-sync";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { CartProvider } from "@/features/cart/cart-context";
+import { CatalogModifierPreviewProvider } from "@/features/catalog/catalog-modifier-preview-context";
 import { CartDrawer } from "@/features/cart/cart-drawer";
 import { FloatingCartButton } from "@/features/cart/floating-cart-button";
 import { MobileCartBar } from "@/features/cart/mobile-cart-bar";
@@ -119,17 +120,19 @@ export default async function RootLayout({
                 <FirebaseProvider>
                   <AuthProvider>
                     <CartProvider>
-                      <main id="main-content" className="min-w-0 flex-1" tabIndex={-1}>
-                        {children}
-                      </main>
-                      <ClientSiteFooter />
-                      <FloatingCartButton />
-                      <MobileCartBar />
-                      <CartDrawer />
-                      <BottomNav />
-                      <PwaManager />
-                      <AccessibilityCenter />
-                      <AssistantWidget />
+                      <CatalogModifierPreviewProvider>
+                        <main id="main-content" className="min-w-0 flex-1" tabIndex={-1}>
+                          {children}
+                        </main>
+                        <ClientSiteFooter />
+                        <FloatingCartButton />
+                        <MobileCartBar />
+                        <CartDrawer />
+                        <BottomNav />
+                        <PwaManager />
+                        <AccessibilityCenter />
+                        <AssistantWidget />
+                      </CatalogModifierPreviewProvider>
                     </CartProvider>
                   </AuthProvider>
                 </FirebaseProvider>

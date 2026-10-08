@@ -3,7 +3,7 @@
  * Never import this module from client components.
  */
 
-import { adminAbsoluteUrl } from "@/lib/public-urls";
+import { adminAbsoluteUrl, getCustomerUrl } from "@/lib/public-urls";
 
 export type MailProvider = "BREVO" | "NONE";
 
@@ -45,7 +45,7 @@ export function getBusinessAlertRecipients(): string[] {
 }
 
 export function getPublicSiteUrl(): string {
-  return env("NEXT_PUBLIC_ORDER_URL") || env("NEXT_PUBLIC_SITE_URL").replace(/\/$/, "");
+  return getCustomerUrl();
 }
 
 export function getPortalAdminOrderUrl(orderId: string): string {

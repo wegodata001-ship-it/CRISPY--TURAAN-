@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { getAdminQrLinks } from "@/lib/admin-qr-links";
 import {
   PRODUCTION_ADMIN_URL,
+  PRODUCTION_CUSTOMER_URL,
   PRODUCTION_MENU_URL,
   PRODUCTION_ORDER_URL,
+  getCustomerUrl,
   getMenuUrl,
   getOrderUrl,
   normalizePublicUrl,
@@ -43,7 +45,22 @@ describe("admin QR links", () => {
     expect(order?.url).toMatch(/^https:\/\//);
     expect(menu?.url).not.toMatch(/localhost/i);
     expect(order?.url).not.toMatch(/localhost/i);
-    expect(menu?.url).toContain("/menu-display");
-    expect(order?.url).toBe(PRODUCTION_ORDER_URL);
+    expect(menu?.url).toBe(PRODUCTION_MENU_URL);
+    expect(order?.url).toBe(PRODUCTION_CUSTOMER_URL);
+    expect(menu?.url).not.toMatch(/crispy-turaan\.vercel\.app/i);
+    expect(order?.url).not.toMatch(/crispy-turaan\.vercel\.app/i);
+    expect(menu?.url).not.toContain("/menu-display");
+  });
+
+  it("rejects retired Vercel customer hosts", () => {
+    expect(
+      normalizePublicUrl("https://crispy-turaan.vercel.app/menu-display", PRODUCTION_MENU_URL)
+    ).toBe(PRODUCTION_MENU_URL);
+    expect(normalizePublicUrl("https://crispy-turaan.vercel.app", PRODUCTION_CUSTOMER_URL)).toBe(
+      PRODUCTION_CUSTOMER_URL
+    );
+    expect(getMenuUrl()).toBe("https://menu.almostafachicken.com");
+    expect(getCustomerUrl()).toBe("https://almostafachicken.com");
+    expect(getOrderUrl()).toBe(getCustomerUrl());
   });
 });

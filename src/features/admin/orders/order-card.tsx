@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronDown, Clock, Copy, FileText, Layers, Loader2, Printer } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Clock, Copy, FileText, Layers, Loader2, MoreVertical, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,9 @@ import {
 import { useT } from "@/components/providers/locale-provider";
 import {
   ORDER_STATUSES,
+  ORDER_STATUS_LABEL_KEY,
   effectivePaymentStatus,
+  isTerminalOrderStatus,
   nextOrderStatus,
   orderAgeMinutes,
 } from "@/lib/orders/operations";
@@ -21,8 +24,7 @@ import { formatDate, formatPrice, cn } from "@/lib/utils";
 import type { Order, OrderStatus } from "@/types";
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
-  pending: "border-amber-300 bg-amber-50 text-amber-900",
-  confirmed: "border-amber-300 bg-gold/20 text-dark-brown",
+  received: "border-amber-300 bg-amber-50 text-amber-900",
   preparing: "border-orange-300 bg-orange-50 text-orange-800",
   ready: "border-emerald-300 bg-emerald-50 text-emerald-800",
   delivered: "border-beige-dark bg-cream text-dark-brown",
@@ -30,12 +32,11 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
 };
 
 const STATUS_BORDER: Record<OrderStatus, string> = {
-  pending: "border-s-gold",
-  confirmed: "border-s-gold",
+  received: "border-s-gold",
   preparing: "border-s-orange-500",
   ready: "border-s-[#2E9B55]",
   delivered: "border-s-dark-brown",
-  cancelled: "border-s-turquoise",
+  cancelled: "border-s-crispy-red",
 };
 
 function OrderItems({
@@ -48,6 +49,7 @@ function OrderItems({
   onEditItem?: (index: number) => void;
 }) {
   const items = expanded ? order.items : order.items.slice(0, 3);
+  const canEdit = expanded && onEditItem && !isTerminalOrderStatus(order.status);
 
   return (
     <div className="space-y-2">
@@ -57,7 +59,7 @@ function OrderItems({
             <p className="font-semibold text-dark-brown dark:text-warm-white">
               {item.quantity}× {item.productName}
             </p>
-            {expanded && onEditItem && order.status !== "delivered" && order.status !== "cancelled" && (
+            {canEdit && (
               <button
                 type="button"
                 onClick={() => onEditItem(index)}
@@ -119,8 +121,21 @@ export function OrderCard({
   const t = useT();
   const next = nextOrderStatus(order.status);
   const age = orderAgeMinutes(order);
-  const urgent = age >= 15 && order.status === "pending";
+  const urgent = age >= 15 && order.status === "received";
   const paymentStatus = effectivePaymentStatus(order);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menuOpen]);
 
   return (
     <article
@@ -135,7 +150,7 @@ export function OrderCard({
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-bold text-dark-brown dark:text-warm-white">{order.orderNumber}</span>
             <Badge variant="outline" className={STATUS_STYLE[order.status]}>
-              {t(`admin.status.${order.status}`)}
+              {t(ORDER_STATUS_LABEL_KEY[order.status])}
             </Badge>
             <Badge
               variant="outline"
@@ -151,16 +166,12 @@ export function OrderCard({
             >
               {t(`admin.payment.${paymentStatus}`)}
             </Badge>
-            <ChevronDown
-              className={cn("h-4 w-4 text-coffee/40 transition-transform", expanded && "rotate-180")}
-            />
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-coffee/55">
-            <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-coffee/55">
             <span className="font-medium text-coffee/80">{order.customerName}</span>
-            {order.customerPhone && <span dir="ltr">{order.customerPhone}</span>}
+            {order.customerPhone ? <span dir="ltr">• {order.customerPhone}</span> : null}
             <span>
-              {order.items.reduce((sum, item) => sum + item.quantity, 0)} {t("catalog.productsCount")}
+              • {new Date(order.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
             <span className={cn("inline-flex items-center gap-1", urgent && "font-bold text-amber-800")}>
               <Clock className="h-3.5 w-3.5" />
@@ -206,23 +217,6 @@ export function OrderCard({
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Select
-          value={order.status}
-          onValueChange={(value) => onStatusChange(value as OrderStatus)}
-          disabled={updating}
-        >
-          <SelectTrigger className="h-10 w-[145px]">
-            {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : <SelectValue />}
-          </SelectTrigger>
-          <SelectContent>
-            {ORDER_STATUSES.map((status) => (
-              <SelectItem key={status} value={status}>
-                {t(`admin.status.${status}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         {next && (
           <Button
             type="button"
@@ -230,38 +224,99 @@ export function OrderCard({
             disabled={updating}
             onClick={() => onStatusChange(next)}
           >
+            {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {t(`admin.orders.next.${order.status}`)}
           </Button>
         )}
 
-        <Button type="button" variant="outline" size="icon" onClick={onPrint} title={t("admin.orders.printTicket")}>
+        <Select
+          value={order.status}
+          onValueChange={(value) => onStatusChange(value as OrderStatus)}
+          disabled={updating}
+        >
+          <SelectTrigger className="h-10 w-[150px]">
+            {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : <SelectValue />}
+          </SelectTrigger>
+          <SelectContent>
+            {ORDER_STATUSES.map((status) => (
+              <SelectItem key={status} value={status}>
+                {t(ORDER_STATUS_LABEL_KEY[status])}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Button type="button" variant="outline" onClick={onPrint} title={t("admin.orders.printTicket")}>
           <Printer className="h-4 w-4" />
+          {t("admin.orders.printTicket")}
         </Button>
-        {onThermalReprint && (
+
+        <div className="relative" ref={menuRef}>
           <Button
             type="button"
-            variant="outline"
-            onClick={onThermalReprint}
-            title={t("admin.orders.thermalReprint", "הדפס מחדש")}
+            variant="ghost"
+            size="icon"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label={t("admin.orders.moreActions")}
           >
-            {t("admin.orders.thermalReprint", "הדפס מחדש")}
+            <MoreVertical className="h-4 w-4" />
           </Button>
-        )}
-        {expanded && onExportPdf && (
-          <Button type="button" variant="outline" size="icon" onClick={onExportPdf} title={t("admin.orders.exportPdf")}>
-            <FileText className="h-4 w-4" />
-          </Button>
-        )}
-        {expanded && onCopyNumber && (
-          <Button type="button" variant="outline" size="icon" onClick={onCopyNumber} title={t("admin.orders.copyNumber")}>
-            <Copy className="h-4 w-4" />
-          </Button>
-        )}
-        {order.status !== "cancelled" && order.status !== "delivered" && (
-          <Button type="button" variant="ghost" className="text-red-600" onClick={onCancel}>
-            {t("admin.orders.cancel")}
-          </Button>
-        )}
+          {menuOpen && (
+            <div className="absolute end-0 z-20 mt-1 min-w-44 rounded-xl border border-beige-dark/20 bg-warm-white p-1 shadow-soft">
+              {onThermalReprint && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm hover:bg-beige/40"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onThermalReprint();
+                  }}
+                >
+                  <Printer className="h-4 w-4" />
+                  {t("admin.orders.thermalReprint", "הדפס מחדש")}
+                </button>
+              )}
+              {onExportPdf && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm hover:bg-beige/40"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onExportPdf();
+                  }}
+                >
+                  <FileText className="h-4 w-4" />
+                  {t("admin.orders.exportPdf")}
+                </button>
+              )}
+              {onCopyNumber && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm hover:bg-beige/40"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onCopyNumber();
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                  {t("admin.orders.copyNumber")}
+                </button>
+              )}
+              {!isTerminalOrderStatus(order.status) && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm text-red-600 hover:bg-red-50"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onCancel();
+                  }}
+                >
+                  {t("admin.orders.cancel")}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </article>
   );

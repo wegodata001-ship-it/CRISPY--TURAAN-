@@ -83,7 +83,11 @@ export const orderSchema = z.object({
   customerId: z.string().min(1, "Customer is required"),
   customerName: z.string().min(1),
   items: z.array(orderItemSchema).min(1, "At least one item is required"),
-  status: z.enum(["pending", "confirmed", "preparing", "ready", "delivered", "cancelled"]),
+  status: z
+    .enum(["received", "preparing", "ready", "delivered", "cancelled", "pending", "confirmed"])
+    .transform((value) =>
+      value === "pending" ? "received" : value === "confirmed" ? "preparing" : value
+    ),
   subtotal: z.number().min(0),
   discount: z.number().min(0).default(0),
   delivery: z.number().min(0).default(0),

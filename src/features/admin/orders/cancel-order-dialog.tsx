@@ -47,6 +47,7 @@ export function CancelOrderDialog({
           </AdminModalTitle>
         </AdminModalHeader>
         <AdminModalBody className="space-y-3">
+          <p className="text-sm text-coffee/70">{t("admin.orders.cancelQuestion")}</p>
           {REASONS.map((value) => (
             <label
               key={value}

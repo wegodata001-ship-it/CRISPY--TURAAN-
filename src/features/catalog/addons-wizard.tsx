@@ -188,20 +188,20 @@ function GroupStep({
         <p className="mt-1 text-sm text-coffee/55">
           {group.selectionType === "multiple"
             ? exactRequired
-              ? locale === "ar" ? `اختر ${maxSel}` : locale === "he" ? `בחרו ${maxSel}` : `Choose ${maxSel}`
+              ? t("builder.chooseExactly").replace("{count}", String(maxSel))
               : maxSel > 1
-                ? `${t("builder.multipleHint")} · ${t("builder.maxHint").replace("{0}", String(maxSel))}`
+                ? t("builder.chooseUpTo").replace("{max}", String(maxSel))
                 : t("builder.multipleHint")
             : group.selectionType === "single"
-              ? t("builder.singleHint")
+              ? t("builder.chooseOne")
               : t("builder.quantityHint")}
           {group.requirement === "required"
             ? ` · ${t("builder.required")}`
             : ` · ${t("builder.optional")}`}
         </p>
         {group.selectionType === "multiple" && maxSel > 0 && (
-          <p className={cn("mt-1.5 text-sm font-semibold", atMax ? "text-turquoise" : "text-coffee/50")}>
-            {totalQty}/{maxSel}
+          <p className={cn("mt-1.5 text-sm font-semibold tabular-nums", atMax ? "text-turquoise" : "text-coffee/50")} dir="ltr">
+            {t("builder.selectedOf").replace("{n}", String(totalQty)).replace("{max}", String(maxSel))}
             {atMax && " ✓"}
             {!atMax && minSel > 0 && totalQty < minSel && (
               <span className="ms-2 text-xs font-normal text-amber-600">

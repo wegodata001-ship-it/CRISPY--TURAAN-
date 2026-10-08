@@ -1,4 +1,6 @@
-export const PRODUCTION_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
+import { PRODUCTION_CUSTOMER_URL, getCustomerUrl, isRetiredCustomerHost } from "@/lib/public-urls";
+
+export const PRODUCTION_SITE_URL = PRODUCTION_CUSTOMER_URL;
 
 function stripTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
@@ -26,6 +28,7 @@ export function isPublicCustomerUrl(value: string): boolean {
     const parsed = new URL(value);
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
     if (isPrivateOrLocalHost(parsed.hostname)) return false;
+    if (isRetiredCustomerHost(parsed.hostname)) return false;
     if (isVercelPreviewHost(parsed.hostname)) return false;
     return true;
   } catch {
@@ -44,13 +47,13 @@ function readConfiguredSiteUrl(): string {
   }
 }
 
-/** Canonical public storefront origin. Never localhost, LAN IP, or Vercel preview. */
+/** Canonical public storefront origin. Never localhost, LAN IP, or retired Vercel hosts. */
 export function getPublicSiteUrl(): string {
   const configured = readConfiguredSiteUrl();
   if (configured && isPublicCustomerUrl(configured)) {
     return stripTrailingSlash(configured);
   }
-  return PRODUCTION_SITE_URL;
+  return getCustomerUrl();
 }
 
 /** Customer order page — the live catalog homepage. */

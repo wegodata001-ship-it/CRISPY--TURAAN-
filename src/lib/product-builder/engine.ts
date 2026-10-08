@@ -14,6 +14,7 @@ import type {
   SelectedModifier,
 } from "@/types/modifiers";
 import type { Product } from "@/types";
+import { isEnabledFlag, isVisibleRecord } from "@/lib/product-builder/visibility";
 
 function localizedName(
   item: { name_he: string; name_ar: string; name_en: string },
@@ -43,17 +44,17 @@ export function buildProductBuilderConfig(input: {
   );
 
   const builderGroups: ProductBuilderGroup[] = productGroups
-    .filter((pg) => pg.productId === productId && pg.active)
+    .filter((pg) => pg.productId === productId && isEnabledFlag(pg.active))
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((link) => {
-      const group = groups.find((g) => g.id === link.groupId && g.active && !g.archived);
+      const group = groups.find((g) => g.id === link.groupId && isVisibleRecord(g));
       if (!group) return null;
 
       const groupOptions = options
-        .filter((o) => o.groupId === group.id && o.active && !o.archived)
+        .filter((o) => o.groupId === group.id && isVisibleRecord(o))
         .map((option) => {
           const override = productOptionByOptionId.get(option.id);
-          if (override && !override.active) return null;
+          if (override && override.active === false) return null;
 
           const inv = inventoryByOption.get(option.id);
           const inStock =
@@ -90,10 +91,10 @@ export function buildProductBuilderConfig(input: {
 
   return {
     productId,
-    groups: builderGroups,
+    groups: builderGroups.filter((group) => group.options.length > 0),
     rules: rules.filter((r) => r.enabled).sort((a, b) => a.priority - b.priority),
     suggestions: suggestions
-      .filter((s) => s.triggerProductId === productId && s.active)
+      .filter((s) => s.triggerProductId === productId && isEnabledFlag(s.active))
       .sort((a, b) => a.sortOrder - b.sortOrder),
   };
 }

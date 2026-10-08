@@ -1,8 +1,8 @@
 import type { Order, OrderStatus, PaymentStatus } from "@/types";
 
+/** Canonical order statuses — the only values the UI may show or write. */
 export const ORDER_STATUSES: OrderStatus[] = [
-  "pending",
-  "confirmed",
+  "received",
   "preparing",
   "ready",
   "delivered",
@@ -10,25 +10,66 @@ export const ORDER_STATUSES: OrderStatus[] = [
 ];
 
 export const ACTIVE_ORDER_STATUSES: OrderStatus[] = [
-  "pending",
-  "confirmed",
+  "received",
   "preparing",
   "ready",
 ];
 
+export const ORDER_STATUS_LABEL_KEY: Record<OrderStatus, string> = {
+  received: "admin.status.received",
+  preparing: "admin.status.preparing",
+  ready: "admin.status.ready",
+  delivered: "admin.status.delivered",
+  cancelled: "admin.status.cancelled",
+};
+
+export const CUSTOMER_ORDER_STATUS_LABEL_KEY: Record<OrderStatus, string> = {
+  received: "orders.status.received",
+  preparing: "orders.status.preparing",
+  ready: "orders.status.ready",
+  delivered: "orders.status.delivered",
+  cancelled: "orders.status.cancelled",
+};
+
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  pending: "confirmed",
-  confirmed: "preparing",
+  received: "preparing",
   preparing: "ready",
   ready: "delivered",
 };
 
-export function nextOrderStatus(status: OrderStatus): OrderStatus | null {
-  return NEXT_STATUS[status] ?? null;
+/**
+ * Read-time compatibility for stored values.
+ * pending → received, confirmed → preparing. Unknown values stay received.
+ */
+export function normalizeOrderStatus(value: unknown): OrderStatus {
+  if (value === "pending" || value === "received") return "received";
+  if (value === "confirmed" || value === "preparing") return "preparing";
+  if (value === "ready" || value === "delivered" || value === "cancelled") return value;
+  return "received";
 }
 
-export function isActiveOrder(order: Order): boolean {
-  return ACTIVE_ORDER_STATUSES.includes(order.status);
+export function nextOrderStatus(status: OrderStatus): OrderStatus | null {
+  return NEXT_STATUS[normalizeOrderStatus(status)] ?? null;
+}
+
+export function isActiveOrderStatus(status: OrderStatus): boolean {
+  return ACTIVE_ORDER_STATUSES.includes(normalizeOrderStatus(status));
+}
+
+export function isActiveOrder(order: Pick<Order, "status">): boolean {
+  return isActiveOrderStatus(order.status);
+}
+
+export function isTerminalOrderStatus(status: OrderStatus): boolean {
+  const canonical = normalizeOrderStatus(status);
+  return canonical === "delivered" || canonical === "cancelled";
+}
+
+export function orderStatusBadgeVariant(
+  status: OrderStatus
+): "pending" | "preparing" | "ready" | "delivered" | "cancelled" {
+  const canonical = normalizeOrderStatus(status);
+  return canonical === "received" ? "pending" : canonical;
 }
 
 export function isToday(value: string, now = new Date()): boolean {
@@ -40,7 +81,7 @@ export function isToday(value: string, now = new Date()): boolean {
   );
 }
 
-export function orderAgeMinutes(order: Order, now = Date.now()): number {
+export function orderAgeMinutes(order: Pick<Order, "createdAt">, now = Date.now()): number {
   return Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60_000));
 }
 
@@ -57,8 +98,15 @@ export function averagePreparationMinutes(orders: Order[]): number | null {
   return Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length);
 }
 
-export function effectivePaymentStatus(order: Order): PaymentStatus {
+export function effectivePaymentStatus(order: Pick<Order, "paymentStatus">): PaymentStatus {
   return order.paymentStatus ?? "pending";
+}
+
+export function countOrdersByStatus(
+  orders: Array<Pick<Order, "status">>,
+  status: OrderStatus
+): number {
+  return orders.filter((order) => normalizeOrderStatus(order.status) === status).length;
 }
 
 export function orderSearchText(order: Order): string {

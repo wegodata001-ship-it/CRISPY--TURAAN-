@@ -11,7 +11,7 @@ import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
 import { ProductImage } from "@/components/catalog/product-image";
 import { AddonsWizard } from "@/features/catalog/addons-wizard";
-import { useProductBuilderConfig } from "@/hooks/useModifiers";
+import { useProductAddonConfig } from "@/features/catalog/catalog-modifier-preview-context";
 import { calculateLineTotal } from "@/lib/product-builder/engine";
 import type { CartItem } from "@/types";
 import type { ProductBuilderConfig } from "@/types/modifiers";
@@ -31,7 +31,7 @@ function CartLineItem({
   const localized = useLocalizedProduct(item.product);
   const extras = item.selections.map((selection) => selection.optionName).join(" · ");
   const { config: modifierConfig, loading: loadingModifiers } =
-    useProductBuilderConfig(onEdit ? item.product.id : null);
+    useProductAddonConfig(onEdit ? item.product.id : null);
 
   return (
     <motion.div
