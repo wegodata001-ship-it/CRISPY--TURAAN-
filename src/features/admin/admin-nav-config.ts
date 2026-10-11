@@ -14,6 +14,7 @@ import {
   Settings,
   FileText,
   Printer,
+  Smartphone,
   QrCode,
   Calculator,
 } from "lucide-react";
@@ -71,6 +72,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { segment: "assistant", labelKey: "admin.assistantManager", icon: MessageSquare },
       { segment: "printer", labelKey: "admin.printer", icon: Printer },
+      { segment: "printer-app", labelKey: "admin.printerApp", icon: Smartphone },
       { segment: "users", labelKey: "admin.users", icon: UserCog, adminOnly: true },
       { segment: "settings", labelKey: "admin.settings", icon: Settings },
     ],
@@ -102,6 +104,7 @@ export const ADMIN_PAGE_TITLES: Record<string, string> = {
   "/admin/media": "admin.media.title",
   "/admin/assistant": "admin.assistant.title",
   "/admin/printer": "admin.printer.title",
+  "/admin/printer-app": "admin.printerApp.title",
   "/admin/printer-test": "admin.printerTest.title",
   "/admin/users": "admin.users.title",
   "/admin/settings": "admin.settings.title",

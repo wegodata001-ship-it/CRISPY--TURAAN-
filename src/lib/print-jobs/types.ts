@@ -56,6 +56,8 @@ export interface PrintAgentHeartbeat {
   routeConflict?: boolean | null;
   networkWarning?: string | null;
   platform?: "ANDROID" | "WINDOWS" | null;
+  appVersionName?: string | null;
+  appVersionCode?: number | null;
 }
 
 export interface ReceiptModifierLine {

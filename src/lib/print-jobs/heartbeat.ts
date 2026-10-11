@@ -23,6 +23,8 @@ export async function upsertAgentHeartbeat(input: {
   routeConflict?: boolean;
   networkWarning?: string | null;
   platform?: "ANDROID" | "WINDOWS" | null;
+  appVersionName?: string | null;
+  appVersionCode?: number | null;
 }): Promise<void> {
   const id = input.agentId.trim() || "default";
   await heartbeatsCol()
@@ -44,6 +46,11 @@ export async function upsertAgentHeartbeat(input: {
         routeConflict: input.routeConflict ?? null,
         networkWarning: input.networkWarning?.slice(0, 300) ?? null,
         platform: input.platform === "ANDROID" || input.platform === "WINDOWS" ? input.platform : null,
+        appVersionName: input.appVersionName?.slice(0, 40) ?? null,
+        appVersionCode:
+          typeof input.appVersionCode === "number" && Number.isFinite(input.appVersionCode)
+            ? Math.trunc(input.appVersionCode)
+            : null,
       },
       { merge: true }
     );
@@ -76,6 +83,8 @@ export function mapHeartbeat(
     routeConflict: typeof data.routeConflict === "boolean" ? data.routeConflict : null,
     networkWarning: typeof data.networkWarning === "string" ? data.networkWarning : null,
     platform: data.platform === "ANDROID" || data.platform === "WINDOWS" ? data.platform : null,
+    appVersionName: typeof data.appVersionName === "string" ? data.appVersionName : null,
+    appVersionCode: typeof data.appVersionCode === "number" ? data.appVersionCode : null,
   };
 }
 

@@ -1,0 +1,10 @@
+{
+  "versionCode": 4,
+  "versionName": "1.2.1",
+  "packageName": "com.crispy.turaan.printer",
+  "buildType": "release",
+  "debuggable": false,
+  "sha256": "3466026f740665852888b6d0a45fb48457d4592110a5214915c81fad8e102862",
+  "builtAt": "2026-10-10T22:17:48.896Z",
+  "certificateSha256": "1748c43f45648e157717b2891fe8e9f1d9e4f0b8e168fc0435173a7bb412d25b"
+}

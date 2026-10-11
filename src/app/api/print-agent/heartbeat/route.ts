@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
       routeConflict?: boolean;
       networkWarning?: string | null;
       platform?: "ANDROID" | "WINDOWS";
+      appVersionName?: string;
+      appVersionCode?: number;
     };
     const agentId = body.agentId?.trim();
     if (!agentId) {
@@ -46,6 +48,8 @@ export async function POST(request: NextRequest) {
       routeConflict: body.routeConflict,
       networkWarning: body.networkWarning,
       platform: body.platform === "ANDROID" || body.platform === "WINDOWS" ? body.platform : null,
+      appVersionName: body.appVersionName?.trim() || body.version?.trim() || null,
+      appVersionCode: typeof body.appVersionCode === "number" ? body.appVersionCode : null,
     });
 
     console.info("[PrintAgent] heartbeat", agentId);

@@ -10,6 +10,10 @@ class SecureConfig(context: Context) {
     private val publicPrefs: SharedPreferences =
         app.getSharedPreferences("crispy_printer_public", Context.MODE_PRIVATE)
 
+    init {
+        migrateBlockedPrinter()
+    }
+
     private val secretPrefs: SharedPreferences by lazy {
         val masterKey = MasterKey.Builder(app)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -21,6 +25,18 @@ class SecureConfig(context: Context) {
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
+    }
+
+    /** Stored .87 (or any other host) is rewritten. Printing always uses .80. */
+    private fun migrateBlockedPrinter() {
+        val stored = publicPrefs.getString(KEY_IP, ALLOWED_IP)?.trim().orEmpty()
+        val storedPort = publicPrefs.getInt(KEY_PORT, ALLOWED_PORT)
+        if (stored == BLOCKED_IP || stored != ALLOWED_IP || storedPort != ALLOWED_PORT) {
+            publicPrefs.edit()
+                .putString(KEY_IP, ALLOWED_IP)
+                .putInt(KEY_PORT, ALLOWED_PORT)
+                .apply()
+        }
     }
 
     fun printerIp(): String = ALLOWED_IP

@@ -23,7 +23,9 @@
     "email:test": "tsx scripts/send-test-email.mts",
     "email:e2e-order": "tsx scripts/email-new-order-e2e.mts",
     "email:matrix": "tsx scripts/email-notifications-matrix.mts",
-    "print-agent": "tsx printer-agent/index.mts"
+    "print-agent": "tsx printer-agent/index.mts",
+    "android:release": "node scripts/android-release.mjs",
+    "android:approve": "node scripts/android-approve.mjs"
   },
   "engines": {
     "node": ">=22"

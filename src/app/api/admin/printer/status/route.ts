@@ -55,6 +55,10 @@ export async function GET(request: NextRequest) {
         routeConflict: heartbeat?.routeConflict ?? null,
         networkWarning: heartbeat?.networkWarning ?? null,
         platform: heartbeat?.platform ?? null,
+        printerIp: heartbeat?.printerIp ?? null,
+        printerPort: heartbeat?.printerPort ?? null,
+        appVersionName: heartbeat?.appVersionName ?? heartbeat?.version ?? null,
+        appVersionCode: heartbeat?.appVersionCode ?? null,
       },
       signals: {
         agentOffline: !online,

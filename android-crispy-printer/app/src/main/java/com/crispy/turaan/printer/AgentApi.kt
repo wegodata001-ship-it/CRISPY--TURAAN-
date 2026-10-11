@@ -19,7 +19,8 @@ class AgentApi(
 
     fun heartbeat(
         agentId: String,
-        version: String,
+        versionName: String,
+        versionCode: Int,
         hostname: String,
         printerConnected: Boolean,
         printerIp: String,
@@ -28,7 +29,9 @@ class AgentApi(
         val body = JSONObject()
             .put("agentId", agentId)
             .put("hostname", hostname)
-            .put("version", version)
+            .put("version", versionName)
+            .put("appVersionName", versionName)
+            .put("appVersionCode", versionCode)
             .put("platform", "ANDROID")
             .put("printerConnectionStatus", if (printerConnected) "connected" else "disconnected")
             .put("printerIp", printerIp)

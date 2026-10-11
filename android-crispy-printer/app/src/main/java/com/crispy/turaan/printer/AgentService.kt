@@ -25,6 +25,7 @@ class AgentService : Service() {
     private val testRequested = AtomicBoolean(false)
     private val printer = PrinterClient()
     private var loopJob: Job? = null
+    private var updateJob: Job? = null
     private var lastHeartbeatAt = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -32,6 +33,12 @@ class AgentService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startInForeground()
         if (intent?.action == ACTION_TEST) testRequested.set(true)
+        if (intent?.action == ACTION_CHECK_UPDATE) {
+            scope.launch {
+                runCatching { AppUpdater.refresh(applicationContext, manual = true) }
+            }
+        }
+        ensureUpdateChecks()
         if (loopJob?.isActive != true) {
             running.set(true)
             loopJob = scope.launch {
@@ -48,6 +55,7 @@ class AgentService : Service() {
     override fun onDestroy() {
         running.set(false)
         loopJob?.cancel()
+        updateJob?.cancel()
         AgentStatus.update { it.copy(serviceActive = false) }
         super.onDestroy()
     }
@@ -102,7 +110,8 @@ class AgentService : Service() {
             val ok = runCatching {
                 api.heartbeat(
                     agentId = config.agentId(),
-                    version = VERSION,
+                    versionName = BuildConfig.VERSION_NAME,
+                    versionCode = BuildConfig.VERSION_CODE,
                     hostname = "${Build.MANUFACTURER} ${Build.MODEL}",
                     printerConnected = connected,
                     printerIp = ip,
@@ -162,12 +171,26 @@ class AgentService : Service() {
 
     private fun stamp(): String = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
 
+    /** Update checks never share the print loop and never change printer/server status. */
+    private fun ensureUpdateChecks() {
+        if (updateJob?.isActive == true) return
+        updateJob = scope.launch {
+            delay(UPDATE_FIRST_DELAY_MS)
+            while (running.get()) {
+                runCatching { AppUpdater.refresh(applicationContext, manual = false) }
+                delay(UPDATE_INTERVAL_MS)
+            }
+        }
+    }
+
     companion object {
         const val ACTION_TEST = "com.crispy.turaan.printer.TEST"
+        const val ACTION_CHECK_UPDATE = "com.crispy.turaan.printer.CHECK_UPDATE"
         private const val CHANNEL = "crispy_printer"
         private const val NOTIFICATION_ID = 87
         private const val POLL_MS = 5_000L
         private const val HEARTBEAT_MS = 30_000L
-        private const val VERSION = "1.2.0"
+        private const val UPDATE_FIRST_DELAY_MS = 30_000L
+        private const val UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000L
     }
 }

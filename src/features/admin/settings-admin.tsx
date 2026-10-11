@@ -81,6 +81,11 @@ export function SettingsAdmin() {
             {t("admin.settings.openPrinter", "הגדרות מדפסת")}
           </Link>
         </Button>
+        <Button asChild variant="outline" className="mt-3 rounded-xl">
+          <Link href="/admin/printer-app">
+            {t("admin.printerApp", "אפליקציית מדפסת")}
+          </Link>
+        </Button>
       </AdminCard>
 
       <div className="grid gap-6 lg:grid-cols-2">

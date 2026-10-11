@@ -7,15 +7,26 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.crispy.turaan.printer.databinding.ActivityMainBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var stopListening: (() -> Unit)? = null
+    private var stopUpdateListening: (() -> Unit)? = null
+    private val uiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var downloadedApk: File? = null
 
     private val notifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -32,9 +43,12 @@ class MainActivity : AppCompatActivity() {
         binding.inputApi.setText(config.apiUrl())
         if (config.token().isNotEmpty()) binding.inputToken.setText(TOKEN_MASK)
 
+        binding.statusVersion.text = "الإصدار: ${BuildConfig.VERSION_NAME}"
         binding.buttonSave.setOnClickListener { saveSettings() }
         binding.buttonTest.setOnClickListener { startAgent(AgentService.ACTION_TEST) }
         binding.buttonReconnect.setOnClickListener { startAgent(null) }
+        binding.buttonUpdate.setOnClickListener { startUpdate() }
+        binding.buttonCheckUpdate.setOnClickListener { startAgent(AgentService.ACTION_CHECK_UPDATE) }
         binding.buttonAdmin.setOnClickListener {
             startActivity(
                 Intent(Intent.ACTION_VIEW, Uri.parse("https://portal.almostafachicken.com/"))
@@ -54,12 +68,22 @@ class MainActivity : AppCompatActivity() {
         stopListening = AgentStatus.listen { snapshot ->
             runOnUiThread { render(snapshot) }
         }
+        stopUpdateListening = AppUpdater.listen { snapshot ->
+            runOnUiThread { renderUpdate(snapshot) }
+        }
     }
 
     override fun onStop() {
         stopListening?.invoke()
         stopListening = null
+        stopUpdateListening?.invoke()
+        stopUpdateListening = null
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        uiScope.cancel()
+        super.onDestroy()
     }
 
     private fun render(snapshot: Snapshot) {
@@ -75,6 +99,51 @@ class MainActivity : AppCompatActivity() {
             "الطباعة في الخلفية: متوقفة"
         }
         if (snapshot.note.isNotBlank()) binding.statusNote.text = snapshot.note
+    }
+
+    private fun renderUpdate(snapshot: UpdateSnapshot) {
+        val offer = snapshot.offer
+        val visible = offer != null || snapshot.message.isNotBlank() || snapshot.progress != null
+        binding.updateCard.visibility = if (visible) View.VISIBLE else View.GONE
+        if (offer != null) {
+            binding.updateTitle.text = "يتوفر تحديث جديد"
+            binding.updateCurrent.text = "الإصدار الحالي:\n${snapshot.currentName}"
+            binding.updateNew.text = "الإصدار الجديد:\n${offer.versionName}"
+            binding.buttonUpdate.isEnabled = !snapshot.checking && snapshot.progress == null
+        } else {
+            binding.updateTitle.text = "تحديث التطبيق"
+            binding.updateCurrent.text = "الإصدار الحالي:\n${BuildConfig.VERSION_NAME}"
+            binding.updateNew.text = ""
+            binding.buttonUpdate.isEnabled = false
+        }
+        val progress = snapshot.progress
+        binding.updateProgress.text = when {
+            progress != null -> "جاري تنزيل التحديث... $progress%"
+            snapshot.message.isNotBlank() -> snapshot.message
+            offer?.required == true -> "هذا التحديث مطلوب. لن يُحذف التطبيق تلقائيًا."
+            else -> ""
+        }
+    }
+
+    private fun startUpdate() {
+        if (AppUpdater.needsUnknownSourcesPermission(this)) {
+            AlertDialog.Builder(this)
+                .setTitle("CRISPY")
+                .setMessage("لتثبيت التحديث، اسمح لتطبيق CRISPY بتثبيت التطبيقات من هذا المصدر، ثم ارجع واضغط تحديث التطبيق. لن يتم التثبيت بصمت.")
+                .setPositiveButton("فتح الإعدادات") { _, _ ->
+                    runCatching { startActivity(AppUpdater.unknownSourcesSettings(this)) }
+                }
+                .setNegativeButton("لاحقًا", null)
+                .show()
+            return
+        }
+        uiScope.launch {
+            val apk = withContext(Dispatchers.IO) {
+                runCatching { AppUpdater.download(applicationContext) }.getOrNull()
+            } ?: return@launch
+            downloadedApk = apk
+            runCatching { startActivity(AppUpdater.installIntent(this@MainActivity, apk)) }
+        }
     }
 
     private fun saveSettings() {

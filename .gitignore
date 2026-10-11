@@ -33,6 +33,12 @@ yarn-error.log*
 .env
 .env*.local
 .firebase-admin-key.json
+
+# Android signing — never commit
+*.jks
+*.keystore
+android-crispy-printer/keystore.properties
+android-crispy-printer/local.properties
 printer-agent/.env
 printer-agent-standalone/.env
 printer-agent-standalone/node_modules/

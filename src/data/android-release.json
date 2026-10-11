@@ -1,0 +1,10 @@
+{
+  "approved": true,
+  "versionCode": 4,
+  "versionName": "1.2.1",
+  "required": false,
+  "sha256": "3466026f740665852888b6d0a45fb48457d4592110a5214915c81fad8e102862",
+  "releaseNotes": "إصدار إنتاج موقّع مع فحص تحديثات داخل التطبيق. الطباعة تبقى على 192.168.1.80:9100.",
+  "releasedAt": "2026-10-10T22:17:48.896Z",
+  "packageName": "com.crispy.turaan.printer"
+}
