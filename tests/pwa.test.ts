@@ -32,7 +32,9 @@ describe("PWA setup", () => {
 
   it("layout registers PWA manager without changing admin routes", () => {
     const layout = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf8");
+    const metadata = readFileSync(resolve(process.cwd(), "src/lib/domains/surface-metadata.ts"), "utf8");
     expect(layout).toMatch(/PwaManager/);
-    expect(layout).toMatch(/appleWebApp/);
+    expect(layout).toMatch(/getSurfaceMetadata/);
+    expect(metadata).toMatch(/appleWebApp/);
   });
 });

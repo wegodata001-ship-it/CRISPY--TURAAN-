@@ -43,7 +43,7 @@ class SecureConfig(context: Context) {
 
     fun printerPort(): Int = ALLOWED_PORT
 
-    fun apiUrl(): String = publicPrefs.getString(KEY_API, DEFAULT_API) ?: DEFAULT_API
+    fun apiUrl(): String = DEFAULT_API
 
     fun agentId(): String = publicPrefs.getString(KEY_AGENT, DEFAULT_AGENT) ?: DEFAULT_AGENT
 
@@ -68,7 +68,7 @@ class SecureConfig(context: Context) {
         publicPrefs.edit()
             .putString(KEY_IP, ALLOWED_IP)
             .putInt(KEY_PORT, ALLOWED_PORT)
-            .putString(KEY_API, apiUrl.trim().trimEnd('/'))
+            .putString(KEY_API, DEFAULT_API)
             .putString(KEY_AGENT, DEFAULT_AGENT)
             .putBoolean(KEY_ACTIVATED, activate || isActivated())
             .apply()

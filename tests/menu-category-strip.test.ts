@@ -17,7 +17,7 @@ describe("menu category strip mobile UX", () => {
   });
 
   it("highlights the selected category in yellow", () => {
-    expect(source).toMatch(/bg-gold/);
+    expect(source).toMatch(/#F6B800/);
   });
 });
 

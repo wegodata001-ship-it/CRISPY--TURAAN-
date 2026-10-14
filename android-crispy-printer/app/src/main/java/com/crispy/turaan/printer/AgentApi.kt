@@ -6,7 +6,21 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
+import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
+
+class AgentFailure(
+    val httpCode: Int,
+    val kind: String,
+    message: String
+) : IllegalStateException(message)
+
+class AgentResult(
+    val ok: Boolean,
+    val code: Int,
+    val kind: String
+)
 
 class AgentApi(
     private val baseUrl: String,
@@ -24,8 +38,10 @@ class AgentApi(
         hostname: String,
         printerConnected: Boolean,
         printerIp: String,
-        printerPort: Int
-    ): Boolean {
+        printerPort: Int,
+        tabletIp: String?,
+        onRestaurantLan: Boolean
+    ): AgentResult {
         val body = JSONObject()
             .put("agentId", agentId)
             .put("hostname", hostname)
@@ -37,17 +53,35 @@ class AgentApi(
             .put("printerIp", printerIp)
             .put("printerPort", printerPort)
             .put("tcp9100", if (printerConnected) "PASS" else "FAIL")
-        val response = post("/api/print-agent/heartbeat", body)
-        return response.isSuccessful
+            .put("ethernetIp", tabletIp ?: JSONObject.NULL)
+            .put("wifiSameSubnet", onRestaurantLan)
+            .put(
+                "networkWarning",
+                if (onRestaurantLan) JSONObject.NULL else "tablet is not on 192.168.1.x"
+            )
+        return try {
+            val response = post("/api/print-agent/heartbeat", body)
+            response.use {
+                AgentResult(it.isSuccessful, it.code, if (it.isSuccessful) "ok" else "http")
+            }
+        } catch (error: AgentFailure) {
+            AgentResult(false, error.httpCode, error.kind)
+        }
     }
 
     fun claim(agentId: String): ClaimedJob? {
         val response = post("/api/print-agent/jobs/claim", JSONObject().put("agentId", agentId))
-        if (!response.isSuccessful) {
-            throw IllegalStateException("claim HTTP ${response.code}")
+        val payload = response.use { http ->
+            if (http.code == 401) throw AgentFailure(401, "unauthorized", "unauthorized")
+            if (!http.isSuccessful) throw AgentFailure(http.code, "http", "claim HTTP ${http.code}")
+            http.body?.string().orEmpty()
         }
-        val json = JSONObject(response.body?.string().orEmpty())
+        val json = JSONObject(payload)
         if (!json.optBoolean("ok", false)) return null
+        val reason = json.optString("reason")
+        if (reason == "printer_not_allowed" || reason == "agent_not_allowed") {
+            throw AgentFailure(200, reason, reason)
+        }
         val job = json.optJSONObject("job") ?: return null
         val receipt = json.optJSONObject("receipt") ?: return null
         return ClaimedJob(
@@ -64,7 +98,10 @@ class AgentApi(
             .put("printerPort", printerPort)
         if (!cutterError.isNullOrBlank()) body.put("cutterError", cutterError)
         val response = post("/api/print-agent/jobs/$jobId/printed", body)
-        if (!response.isSuccessful) throw IllegalStateException("printed HTTP ${response.code}")
+        response.use {
+            if (it.code == 401) throw AgentFailure(401, "unauthorized", "unauthorized")
+            if (!it.isSuccessful) throw AgentFailure(it.code, "http", "printed HTTP ${it.code}")
+        }
     }
 
     fun markFailed(jobId: String, error: String) {
@@ -72,17 +109,28 @@ class AgentApi(
             "/api/print-agent/jobs/$jobId/failed",
             JSONObject().put("error", error.take(300))
         )
-        if (!response.isSuccessful) throw IllegalStateException("failed HTTP ${response.code}")
+        response.use {
+            if (it.code == 401) throw AgentFailure(401, "unauthorized", "unauthorized")
+            if (!it.isSuccessful) throw AgentFailure(it.code, "http", "failed HTTP ${it.code}")
+        }
     }
 
-    private fun post(path: String, body: JSONObject) = http.newCall(
-        Request.Builder()
-            .url(baseUrl.trimEnd('/') + path)
-            .header("Authorization", "Bearer $token")
-            .header("Content-Type", "application/json")
-            .post(body.toString().toRequestBody(jsonType))
-            .build()
-    ).execute()
+    private fun post(path: String, body: JSONObject): okhttp3.Response {
+        try {
+            return http.newCall(
+                Request.Builder()
+                    .url(baseUrl.trimEnd('/') + path)
+                    .header("Authorization", "Bearer $token")
+                    .header("Content-Type", "application/json")
+                    .post(body.toString().toRequestBody(jsonType))
+                    .build()
+            ).execute()
+        } catch (error: SocketTimeoutException) {
+            throw AgentFailure(0, "timeout", "timeout")
+        } catch (error: IOException) {
+            throw AgentFailure(0, "network", "network")
+        }
+    }
 
     private fun parseReceipt(json: JSONObject): Receipt {
         val itemsJson = json.optJSONArray("items") ?: JSONArray()

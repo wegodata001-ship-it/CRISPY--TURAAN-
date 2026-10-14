@@ -14,7 +14,7 @@ It does not contain the website, admin, checkout, or Firebase Admin keys.
 
 1. Copy this whole folder to C:\CRISPY-PRINTER
 2. Keep .env with:
-   PRINT_AGENT_API_URL=https://portal.crispy-turaan.vercel.app
+   PRINT_AGENT_API_URL=https://almostafachicken.com
    PRINTER_IP=192.168.1.80
    PRINTER_PORT=9100
 3. Double-click install-startup.cmd

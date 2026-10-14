@@ -1,4 +1,4 @@
-export const PRINT_JOB_STATUSES = ["PENDING", "PRINTING", "PRINTED", "FAILED"] as const;
+export const PRINT_JOB_STATUSES = ["PENDING", "PRINTING", "PRINTED", "FAILED", "DISMISSED"] as const;
 export type PrintJobStatus = (typeof PRINT_JOB_STATUSES)[number];
 
 export const PRINT_JOB_TYPES = ["NEW_ORDER", "REPRINT", "TEST"] as const;
@@ -38,6 +38,9 @@ export interface PrintJob {
   requestedBy?: string | null;
   requestedAt?: string | null;
   cutterError?: string | null;
+  adminApproved?: boolean;
+  /** Computed. Held jobs stay in history and are not claimed until an admin approves them. */
+  autoPrintHeld?: boolean;
 }
 
 export interface PrintAgentHeartbeat {

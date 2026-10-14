@@ -88,10 +88,13 @@ export function CostingAdmin() {
   const selectedProduct = products.find((product) => product.id === selectedProductId) ?? null;
   const selectedRecipe = selectedProductId ? byProductId.get(selectedProductId) ?? null : null;
 
-  const liveSettings = {
-    ...settings,
-    targetFoodCost: Math.min(0.9, Math.max(0.05, (Number(targetPct) || 30) / 100)),
-  };
+  const liveSettings = useMemo(
+    () => ({
+      ...settings,
+      targetFoodCost: Math.min(0.9, Math.max(0.05, (Number(targetPct) || 30) / 100)),
+    }),
+    [settings, targetPct]
+  );
 
   const dish = selectedProduct
     ? calculateDishCost({

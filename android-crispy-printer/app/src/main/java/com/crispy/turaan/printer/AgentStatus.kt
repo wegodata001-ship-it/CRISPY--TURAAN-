@@ -10,6 +10,7 @@ data class Snapshot(
     val lastOrder: String = "—",
     val lastPrint: String = "—",
     val serviceActive: Boolean = false,
+    val tabletIp: String = "—",
     val note: String = ""
 )
 

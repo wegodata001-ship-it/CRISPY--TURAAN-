@@ -2,6 +2,8 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { isAutoPrintNewOrdersEnabled, getPrintStoreId } from "@/lib/print-jobs/config";
+import { classifyPrintFailure } from "@/lib/print-jobs/failure";
+import { isAutoPrintHeld } from "@/lib/print-jobs/hold";
 import { automaticPrintSkipReason } from "@/lib/printer/destination";
 import { newOrderPrintJobId, parsePrintLocale, printJobUniqueKey } from "@/lib/print-jobs/ids";
 import { toIso, toMillis } from "@/lib/print-jobs/time";
@@ -76,6 +78,13 @@ export function mapPrintJob(id: string, data: FirebaseFirestore.DocumentData): P
     requestedBy: typeof data.requestedBy === "string" ? data.requestedBy : null,
     requestedAt: toIso(data.requestedAt),
     cutterError: typeof data.cutterError === "string" ? data.cutterError : null,
+    adminApproved: data.adminApproved === true,
+    autoPrintHeld: isAutoPrintHeld({
+      id,
+      status: typeof data.status === "string" ? data.status : "PENDING",
+      adminApproved: data.adminApproved === true,
+      createdAtMs: toMillis(data.createdAt),
+    }),
   };
 }
 
@@ -84,8 +93,19 @@ function delayAfterFailedAttempt(attempts: number): number {
   return PRINT_RETRY_DELAYS_MS[2];
 }
 
-function isReadyToClaim(data: FirebaseFirestore.DocumentData, now: number): boolean {
+function isReadyToClaim(id: string, data: FirebaseFirestore.DocumentData, now: number): boolean {
   const status = data.status as PrintJobStatus;
+  if (
+    isAutoPrintHeld({
+      id,
+      status,
+      adminApproved: data.adminApproved === true,
+      createdAtMs: toMillis(data.createdAt),
+      now,
+    })
+  ) {
+    return false;
+  }
   if (status === "PENDING") {
     const retryAt = toMillis(data.nextRetryAt);
     return retryAt == null || retryAt <= now;
@@ -199,7 +219,7 @@ export async function listClaimableJobs(limit = 20): Promise<PrintJob[]> {
   ]);
 
   return [...pending.docs, ...printing.docs]
-    .filter((doc) => isReadyToClaim(doc.data(), now))
+    .filter((doc) => isReadyToClaim(doc.id, doc.data(), now))
     .map((doc) => mapPrintJob(doc.id, doc.data()))
     .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
 }
@@ -217,7 +237,7 @@ export async function claimPrintJob(jobId: string, agentId: string): Promise<Cla
     if (data.status === "PRINTED") {
       return { status: "conflict" as const, reason: "already_printed" };
     }
-    if (!isReadyToClaim(data, now)) {
+    if (!isReadyToClaim(jobId, data, now)) {
       return { status: "conflict" as const, reason: "not_claimable" };
     }
 
@@ -278,6 +298,28 @@ export async function markPrintJobFailed(jobId: string, error: string): Promise<
     const data = snap.data() as FirebaseFirestore.DocumentData;
     const attempts = typeof data.attempts === "number" ? data.attempts : 1;
     const message = error.slice(0, 300);
+    const disposition = classifyPrintFailure(message);
+
+    if (disposition === "partial_send") {
+      tx.update(ref, {
+        status: "FAILED",
+        lastError: message,
+        nextRetryAt: null,
+      });
+      return "FAILED" as const;
+    }
+
+    if (disposition === "retry_offline") {
+      tx.update(ref, {
+        status: "PENDING",
+        lastError: message,
+        nextRetryAt: Timestamp.fromMillis(Date.now() + 15_000),
+        claimedAt: null,
+        claimedBy: null,
+        attempts: Math.max(0, attempts - 1),
+      });
+      return "PENDING" as const;
+    }
 
     if (attempts >= MAX_PRINT_ATTEMPTS) {
       tx.update(ref, {
@@ -298,6 +340,42 @@ export async function markPrintJobFailed(jobId: string, error: string): Promise<
     });
     return "PENDING" as const;
   });
+}
+
+export async function dismissPrintJob(jobId: string): Promise<EnqueueResult> {
+  const ref = jobsCol().doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return { status: "skipped", reason: "job_not_found" };
+  const data = snap.data() as FirebaseFirestore.DocumentData;
+  if (data.status === "PRINTED") return { status: "skipped", reason: "already_printed" };
+  if (data.status === "DISMISSED") return { status: "already_exists", jobId };
+  await ref.update({
+    status: "DISMISSED",
+    adminApproved: false,
+    lastError: "not_relevant",
+    nextRetryAt: null,
+    dismissedAt: FieldValue.serverTimestamp(),
+  });
+  return { status: "created", jobId };
+}
+
+export async function approvePrintJob(jobId: string): Promise<EnqueueResult> {
+  const ref = jobsCol().doc(jobId);
+  const snap = await ref.get();
+  if (!snap.exists) return { status: "skipped", reason: "job_not_found" };
+  const data = snap.data() as FirebaseFirestore.DocumentData;
+  if (data.status === "PRINTED") return { status: "skipped", reason: "already_printed" };
+  if (data.status === "PRINTING") return { status: "skipped", reason: "already_printing" };
+  await ref.update({
+    status: "PENDING",
+    adminApproved: true,
+    attempts: 0,
+    lastError: null,
+    nextRetryAt: null,
+    claimedAt: null,
+    claimedBy: null,
+  });
+  return { status: "created", jobId };
 }
 
 export async function retryFailedPrintJob(jobId: string): Promise<EnqueueResult> {
@@ -342,18 +420,21 @@ export async function countJobsByStatus(): Promise<{
   printing: number;
   printed: number;
   failed: number;
+  dismissed: number;
 }> {
-  const [pending, printing, printed, failed] = await Promise.all([
+  const [pending, printing, printed, failed, dismissed] = await Promise.all([
     jobsCol().where("status", "==", "PENDING").limit(100).get(),
     jobsCol().where("status", "==", "PRINTING").limit(100).get(),
     jobsCol().where("status", "==", "PRINTED").limit(100).get(),
     jobsCol().where("status", "==", "FAILED").limit(100).get(),
+    jobsCol().where("status", "==", "DISMISSED").limit(100).get(),
   ]);
   return {
     pending: pending.size,
     printing: printing.size,
     printed: printed.size,
     failed: failed.size,
+    dismissed: dismissed.size,
   };
 }
 

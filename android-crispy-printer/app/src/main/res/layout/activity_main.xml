@@ -105,6 +105,15 @@
             android:textSize="18sp" />
 
         <TextView
+            android:id="@+id/statusLan"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="6dp"
+            android:text="شبكة الجهاز: —"
+            android:textDirection="ltr"
+            android:textSize="18sp" />
+
+        <TextView
             android:id="@+id/statusPrinter"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -211,6 +220,7 @@
             android:id="@+id/inputApi"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:enabled="false"
             android:hint="API URL"
             android:inputType="textUri"
             android:text="https://almostafachicken.com"

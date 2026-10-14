@@ -1,5 +1,4 @@
-import fs from "fs";
-import path from "path";
+import approvedReleaseFile from "@/data/android-release.json";
 import { PRODUCTION_CUSTOMER_URL } from "@/lib/public-urls";
 
 export const CRISPY_APK_PATH = "/downloads/crispy-printer/CRISPY-Printer.apk";
@@ -36,18 +35,8 @@ export function isTrustedCrispyApkUrl(raw: string): boolean {
   }
 }
 
-export function readApprovedAndroidRelease(
-  root = process.cwd()
-): ApprovedAndroidRelease | null {
-  const metaPath = path.join(root, "src", "data", "android-release.json");
-  const apkPath = path.join(root, "public", "downloads", "crispy-printer", "CRISPY-Printer.apk");
-  if (!fs.existsSync(metaPath)) return null;
-  let raw: Record<string, unknown>;
-  try {
-    raw = JSON.parse(fs.readFileSync(metaPath, "utf8")) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+export function readApprovedAndroidRelease(): ApprovedAndroidRelease | null {
+  const raw = approvedReleaseFile;
   if (raw.approved !== true) return null;
   const versionCode = raw.versionCode;
   const versionName = raw.versionName;
@@ -60,15 +49,14 @@ export function readApprovedAndroidRelease(
   const apkUrl = crispyApkUrl();
   if (!isTrustedCrispyApkUrl(apkUrl)) return null;
   if (PRODUCTION_CUSTOMER_URL !== `https://${CRISPY_UPDATE_HOST}`) return null;
-  const available = fs.existsSync(apkPath);
   return {
     versionCode,
     versionName: versionName.trim(),
     required: raw.required === true,
-    apkUrl: available ? apkUrl : "",
+    apkUrl,
     sha256,
     releaseNotes: typeof raw.releaseNotes === "string" ? raw.releaseNotes : "",
     releasedAt: typeof raw.releasedAt === "string" ? raw.releasedAt : "",
-    available,
+    available: true,
   };
 }

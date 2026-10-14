@@ -14,7 +14,7 @@ const CHROME_CANDIDATES = [
 
 const ARABIC_SAMPLES = ["مشروبات ساخنة", "نسكافيه", "إسبريسو", "الشوكولاتة الساخنة", "القهوة", "الشاي"];
 
-function chromePath(): string {
+function chromePath() {
   for (const candidate of CHROME_CANDIDATES) {
     try {
       accessSync(candidate, constants.X_OK);

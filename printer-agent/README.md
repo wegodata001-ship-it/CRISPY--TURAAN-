@@ -1,6 +1,8 @@
-# MISHKAH local print agent
+# CRISPY local print agent
 
-This process runs on the **restaurant Windows PC**. It is the only component that opens TCP `PRINTER_IP:9100`.
+This process is not the customer tablet. CRISPY kitchen tickets are claimed only by the Android app `crispy-android-tablet`.
+
+This process runs on a **restaurant Windows PC**. It is not the Mishkah agent and it must not use another project's server or printer.
 
 Do **not** run it on Vercel. The cloud only creates `PrintJob` documents.
 
@@ -11,8 +13,8 @@ Copy this file to `printer-agent/.env` (or add the same keys to the repo `.env`)
 ```
 PRINT_AGENT_ENABLED=true
 PRINT_AGENT_TOKEN=replace-with-a-long-random-secret
-PRINT_AGENT_API_URL=https://mishkatcafe.dev
-PRINT_AGENT_ID=mishkah-kitchen-pc
+PRINT_AGENT_API_URL=https://almostafachicken.com
+PRINT_AGENT_ID=crispy-kitchen-pc
 
 PRINTER_IP=192.168.1.80
 PRINTER_PORT=9100

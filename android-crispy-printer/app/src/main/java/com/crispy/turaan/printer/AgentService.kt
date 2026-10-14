@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -27,12 +29,16 @@ class AgentService : Service() {
     private var loopJob: Job? = null
     private var updateJob: Job? = null
     private var lastHeartbeatAt = 0L
+    private var lastHeartbeatOk = false
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startInForeground()
         if (intent?.action == ACTION_TEST) testRequested.set(true)
+        if (intent?.action == ACTION_RECONNECT) lastHeartbeatAt = 0L
+        watchNetwork()
         if (intent?.action == ACTION_CHECK_UPDATE) {
             scope.launch {
                 runCatching { AppUpdater.refresh(applicationContext, manual = true) }
@@ -56,8 +62,24 @@ class AgentService : Service() {
         running.set(false)
         loopJob?.cancel()
         updateJob?.cancel()
+        networkCallback?.let { callback ->
+            runCatching { getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(callback) }
+        }
+        networkCallback = null
         AgentStatus.update { it.copy(serviceActive = false) }
         super.onDestroy()
+    }
+
+    private fun watchNetwork() {
+        if (networkCallback != null) return
+        val manager = getSystemService(ConnectivityManager::class.java) ?: return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                lastHeartbeatAt = 0L
+            }
+        }
+        runCatching { manager.registerDefaultNetworkCallback(callback) }
+            .onSuccess { networkCallback = callback }
     }
 
     private fun startInForeground() {
@@ -84,48 +106,69 @@ class AgentService : Service() {
         val config = SecureConfig(this)
         val ip = config.printerIp()
         val port = config.printerPort()
-        val connected = printer.probe(ip, port)
+        val lan = LanNetwork.snapshot()
+        val connected = printer.probe(ip, port, 2000)
+        val printerNote = when {
+            connected -> ""
+            !lan.onRestaurantLan -> "الجهاز ليس على شبكة المطعم 192.168.1. اتصل بتلك الشبكة، ثم تعود الطباعة تلقائيًا."
+            else -> "الطابعة 192.168.1.80:9100 غير متاحة على الشبكة الحالية."
+        }
         AgentStatus.update {
             it.copy(
                 ip = ip,
                 port = port,
+                tabletIp = lan.address ?: "—",
                 printer = if (connected) "متصلة" else "غير متصلة",
                 lastOrder = config.lastOrder(),
                 lastPrint = config.lastPrint(),
                 serviceActive = true,
-                note = if (connected) "" else "الطابعة غير متصلة"
+                note = printerNote
             )
         }
         if (testRequested.getAndSet(false)) {
             printLocalTest(config, ip, port)
         }
-        val token = config.token()
+        val token = runCatching { config.token() }.getOrElse {
+            AgentStatus.update {
+                it.copy(server = "غير متصل", note = "تعذر قراءة الرمز المحفوظ. أدخل Agent Token واضغط حفظ.")
+            }
+            return
+        }
         if (token.isBlank()) {
-            AgentStatus.update { it.copy(server = "غير متصل") }
+            AgentStatus.update {
+                it.copy(server = "غير متصل", note = "الرمز غير محفوظ. أدخل Agent Token واضغط حفظ. لن يُرسل Heartbeat قبل ذلك.")
+            }
             return
         }
         val api = AgentApi(config.apiUrl(), token)
         val now = System.currentTimeMillis()
         if (now - lastHeartbeatAt >= HEARTBEAT_MS) {
-            val ok = runCatching {
-                api.heartbeat(
-                    agentId = config.agentId(),
-                    versionName = BuildConfig.VERSION_NAME,
-                    versionCode = BuildConfig.VERSION_CODE,
-                    hostname = "${Build.MANUFACTURER} ${Build.MODEL}",
-                    printerConnected = connected,
-                    printerIp = ip,
-                    printerPort = port
-                )
-            }.getOrDefault(false)
-            lastHeartbeatAt = now
+            val beat = api.heartbeat(
+                agentId = config.agentId(),
+                versionName = BuildConfig.VERSION_NAME,
+                versionCode = BuildConfig.VERSION_CODE,
+                hostname = "${Build.MANUFACTURER} ${Build.MODEL}",
+                printerConnected = connected,
+                printerIp = ip,
+                printerPort = port,
+                tabletIp = lan.address,
+                onRestaurantLan = lan.onRestaurantLan
+            )
+            lastHeartbeatOk = beat.ok
+            lastHeartbeatAt = if (beat.ok || beat.code == 401) now else now - HEARTBEAT_MS + 5_000L
             AgentStatus.update {
-                it.copy(server = if (ok) "متصل" else "غير متصل", note = if (ok) it.note else "الخادم غير متصل")
+                it.copy(
+                    server = if (beat.ok) "متصل" else "غير متصل",
+                    note = serverNote(beat, printerNote)
+                )
             }
+            if (!beat.ok) return
         }
-        if (!connected) return
-        val job = runCatching { api.claim(config.agentId()) }.getOrElse {
-            AgentStatus.update { state -> state.copy(server = "غير متصل", note = "الخادم غير متصل") }
+        if (!lastHeartbeatOk || !connected) return
+        val job = runCatching { api.claim(config.agentId()) }.getOrElse { error ->
+            AgentStatus.update { state ->
+                state.copy(server = "غير متصل", note = claimNote(error, printerNote))
+            }
             return
         } ?: return
         val label = job.receipt.orderNumber.ifBlank { job.orderId ?: job.type }
@@ -140,6 +183,28 @@ class AgentService : Service() {
         } catch (error: Exception) {
             runCatching { api.markFailed(job.id, error.message ?: "print failed") }
             AgentStatus.update { it.copy(note = "فشلت الطباعة") }
+        }
+    }
+
+    private fun serverNote(beat: AgentResult, printerNote: String): String {
+        return when {
+            beat.ok -> printerNote
+            beat.code == 401 -> "الرمز غير صالح. أدخل الرمز الصحيح واضغط حفظ."
+            beat.kind == "timeout" -> "انتهت مهلة الاتصال بالخادم. ستتم إعادة المحاولة تلقائيًا."
+            beat.kind == "network" -> "انقطع الاتصال بالخادم. ستتم إعادة المحاولة عند عودة الشبكة."
+            else -> "الخادم رفض الاتصال (${beat.code}). ستتم إعادة المحاولة تلقائيًا."
+        }
+    }
+
+    private fun claimNote(error: Throwable, printerNote: String): String {
+        val failure = error as? AgentFailure
+        return when (failure?.kind) {
+            "unauthorized" -> "الرمز غير صالح. أدخل الرمز الصحيح واضغط حفظ."
+            "timeout" -> "انتهت مهلة سحب الطابور. ستتم إعادة المحاولة تلقائيًا."
+            "network" -> "انقطع الاتصال أثناء سحب الطابور. ستتم إعادة المحاولة تلقائيًا."
+            "printer_not_allowed" -> "الخادم رفض الطابعة. المسموح فقط 192.168.1.80:9100."
+            "agent_not_allowed" -> "هذا الجهاز غير مخوّل بسحب أعمال الطباعة."
+            else -> printerNote.ifBlank { "تعذر سحب عمل الطباعة. ستتم إعادة المحاولة تلقائيًا." }
         }
     }
 
@@ -185,6 +250,7 @@ class AgentService : Service() {
 
     companion object {
         const val ACTION_TEST = "com.crispy.turaan.printer.TEST"
+        const val ACTION_RECONNECT = "com.crispy.turaan.printer.RECONNECT"
         const val ACTION_CHECK_UPDATE = "com.crispy.turaan.printer.CHECK_UPDATE"
         private const val CHANNEL = "crispy_printer"
         private const val NOTIFICATION_ID = 87

@@ -38,6 +38,8 @@ export interface Product {
   isNew: boolean;
   available: boolean;
   active: boolean;
+  /** Hidden from customers until an admin confirms the price. */
+  needsReview?: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

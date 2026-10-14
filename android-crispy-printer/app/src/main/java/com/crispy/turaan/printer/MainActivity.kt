@@ -40,13 +40,14 @@ class MainActivity : AppCompatActivity() {
         binding.inputIp.isEnabled = false
         binding.inputPort.setText(SecureConfig.ALLOWED_PORT.toString())
         binding.inputPort.isEnabled = false
-        binding.inputApi.setText(config.apiUrl())
+        binding.inputApi.setText(SecureConfig.DEFAULT_API)
+        binding.inputApi.isEnabled = false
         if (config.token().isNotEmpty()) binding.inputToken.setText(TOKEN_MASK)
 
         binding.statusVersion.text = "الإصدار: ${BuildConfig.VERSION_NAME}"
         binding.buttonSave.setOnClickListener { saveSettings() }
         binding.buttonTest.setOnClickListener { startAgent(AgentService.ACTION_TEST) }
-        binding.buttonReconnect.setOnClickListener { startAgent(null) }
+        binding.buttonReconnect.setOnClickListener { startAgent(AgentService.ACTION_RECONNECT) }
         binding.buttonUpdate.setOnClickListener { startUpdate() }
         binding.buttonCheckUpdate.setOnClickListener { startAgent(AgentService.ACTION_CHECK_UPDATE) }
         binding.buttonAdmin.setOnClickListener {
@@ -88,6 +89,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun render(snapshot: Snapshot) {
         binding.statusServer.text = "الخادم: ${snapshot.server}"
+        binding.statusLan.text = "شبكة الجهاز: ${snapshot.tabletIp}"
         binding.statusPrinter.text = "الطابعة: ${snapshot.printer}"
         binding.statusIp.text = "عنوان الطابعة: ${snapshot.ip}"
         binding.statusPort.text = "المنفذ: ${snapshot.port}"

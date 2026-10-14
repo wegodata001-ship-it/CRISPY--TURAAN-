@@ -15,11 +15,14 @@ import {
 import { buildTestReceiptModel } from "@/lib/print-jobs/test-receipt";
 import { wrapRasterReceipt } from "@/lib/printer/raster";
 import { escCut } from "@/lib/printer/escpos";
+import { classifyPrintFailure } from "@/lib/print-jobs/failure";
+import { isAutoPrintHeld, STALE_AUTO_PRINT_MS, STALE_PRINT_JOB_IDS } from "@/lib/print-jobs/hold";
 import {
   automaticPrintSkipReason,
   isAndroidPrintAgent,
   isBlockedPrinterHost,
   isExternalPrinter,
+  kitchenClaimBlockReason,
 } from "@/lib/printer/destination";
 
 const sampleOrder = {
@@ -83,6 +86,9 @@ describe("external printer lock", () => {
     expect(isExternalPrinter("192.168.1.87", 9100)).toBe(false);
     expect(isExternalPrinter("192.168.1.80", 9101)).toBe(false);
     expect(isBlockedPrinterHost("192.168.1.87")).toBe(true);
+    expect(kitchenClaimBlockReason({ printerIp: "192.168.1.87", printerPort: 9100, printerConnectionStatus: "connected" })).toBe("printer_not_allowed");
+    expect(kitchenClaimBlockReason({ printerIp: "192.168.1.80", printerPort: 9100, printerConnectionStatus: "disconnected" })).toBe("printer_offline");
+    expect(kitchenClaimBlockReason({ printerIp: "192.168.1.80", printerPort: 9100, printerConnectionStatus: "connected" })).toBeNull();
     expect(isAndroidPrintAgent("crispy-android-tablet")).toBe(true);
     expect(isAndroidPrintAgent("crispy-kitchen-pc")).toBe(false);
   });
@@ -99,6 +105,29 @@ describe("external printer lock", () => {
     expect(automaticPrintSkipReason({ status: "received", paymentStatus: "refunded" })).toBe(
       "payment_not_collectable"
     );
+  });
+});
+
+describe("print failure disposition", () => {
+  it("keeps Android and Node connect failures in the queue", () => {
+    expect(classifyPrintFailure("ECONNREFUSED")).toBe("retry_offline");
+    expect(classifyPrintFailure("connect ETIMEDOUT 192.168.1.80:9100")).toBe("retry_offline");
+    expect(classifyPrintFailure("Connect timed out")).toBe("retry_offline");
+    expect(
+      classifyPrintFailure("failed to connect to /192.168.1.80 (port 9100) after 8000ms")
+    ).toBe("retry_offline");
+    expect(classifyPrintFailure("Connection refused")).toBe("retry_offline");
+  });
+
+  it("does not auto-retry a ticket after the socket drops mid-send", () => {
+    expect(classifyPrintFailure("Connection reset")).toBe("partial_send");
+    expect(classifyPrintFailure("Broken pipe")).toBe("partial_send");
+    expect(classifyPrintFailure("write EPIPE")).toBe("partial_send");
+    expect(classifyPrintFailure("write ECONNRESET")).toBe("partial_send");
+  });
+
+  it("still limits unrelated printer errors", () => {
+    expect(classifyPrintFailure("paper jam")).toBe("retry_limited");
   });
 });
 
@@ -175,6 +204,50 @@ describe("receipt model", () => {
   it("parses locale with Arabic default", () => {
     expect(parsePrintLocale("he")).toBe("he");
     expect(parsePrintLocale("nope")).toBe("ar");
+  });
+});
+
+describe("stale print jobs stay out of the automatic queue", () => {
+  const now = Date.parse("2026-10-13T19:00:00Z");
+
+  it("holds the 8 Oct jobs until an admin approves them", () => {
+    for (const id of STALE_PRINT_JOB_IDS) {
+      expect(isAutoPrintHeld({ id, status: "PENDING", createdAtMs: Date.parse("2026-10-08T11:53:00Z"), now })).toBe(true);
+      expect(isAutoPrintHeld({ id, status: "PENDING", adminApproved: true, createdAtMs: Date.parse("2026-10-08T11:53:00Z"), now })).toBe(false);
+    }
+    expect(STALE_PRINT_JOB_IDS).toEqual([
+      "NEW_ORDER_RX7fosRqYO1pQUI6sGIQ",
+      "NEW_ORDER_yaZ7ZMAN5hj34vQKIDGq",
+    ]);
+  });
+
+  it("holds any pending job older than 18 hours and leaves a new order claimable", () => {
+    expect(
+      isAutoPrintHeld({
+        id: "NEW_ORDER_fresh",
+        status: "PENDING",
+        createdAtMs: now - STALE_AUTO_PRINT_MS - 1,
+        now,
+      })
+    ).toBe(true);
+    expect(
+      isAutoPrintHeld({
+        id: "NEW_ORDER_fresh",
+        status: "PENDING",
+        createdAtMs: now - 60_000,
+        now,
+      })
+    ).toBe(false);
+    expect(isAutoPrintHeld({ id: "NEW_ORDER_fresh", status: "DISMISSED", createdAtMs: now - 60_000, now })).toBe(true);
+  });
+
+  it("dismiss keeps the print job and does not delete the order", () => {
+    const src = readFileSync(resolve(process.cwd(), "src/lib/print-jobs/jobs.ts"), "utf8");
+    expect(src).toContain('status: "DISMISSED"');
+    expect(src).toContain("isAutoPrintHeld");
+    const dismiss = src.slice(src.indexOf("export async function dismissPrintJob"), src.indexOf("export async function approvePrintJob"));
+    expect(dismiss).not.toMatch(/orders/);
+    expect(dismiss).not.toMatch(/\.delete\(/);
   });
 });
 

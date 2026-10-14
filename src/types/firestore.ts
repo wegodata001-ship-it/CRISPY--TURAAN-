@@ -41,6 +41,10 @@ export interface FirestoreProduct {
   popular: boolean;
   newProduct: boolean;
   active: boolean;
+  needsReview?: boolean;
+  visible?: boolean;
+  currency?: "ILS";
+  modifierGroupIds?: string[];
   sortOrder: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;

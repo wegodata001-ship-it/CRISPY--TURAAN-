@@ -42,7 +42,7 @@ type StatusPayload = {
     printJobFailed?: boolean;
   };
   lastSuccessfulPrintAt?: string | null;
-  counts?: { pending: number; printing: number; printed: number; failed: number };
+  counts?: { pending: number; printing: number; printed: number; failed: number; dismissed?: number };
   autoPrintNewOrders?: boolean;
   jobs?: PrintJob[];
 };
@@ -227,6 +227,10 @@ export function PrinterAdmin() {
             <dd className="font-medium text-dark-brown">{data?.counts?.failed ?? "—"}</dd>
           </div>
           <div>
+            <dt className="text-coffee/50">{t("admin.printer.dismissed", "לא רלוונטי")}</dt>
+            <dd className="font-medium text-dark-brown">{data?.counts?.dismissed ?? "—"}</dd>
+          </div>
+          <div>
             <dt className="text-coffee/50">{t("admin.printer.hostname", "Agent host")}</dt>
             <dd className="text-dark-brown" dir="ltr">
               {data?.agent?.hostname || "—"}
@@ -407,7 +411,8 @@ export function PrinterAdmin() {
                           job.status === "PRINTED" && "bg-emerald-50 text-emerald-700",
                           job.status === "PENDING" && "bg-amber-50 text-amber-800",
                           job.status === "PRINTING" && "bg-sky-50 text-sky-800",
-                          job.status === "FAILED" && "bg-red-50 text-red-700"
+                          job.status === "FAILED" && "bg-red-50 text-red-700",
+                          job.status === "DISMISSED" && "bg-stone-100 text-stone-700"
                         )}
                       >
                         {job.status}
@@ -419,6 +424,36 @@ export function PrinterAdmin() {
                     <td className="py-2 pe-3">{job.attempts}</td>
                     <td className="py-2 pe-3 text-xs text-coffee/60">{formatStamp(job.createdAt)}</td>
                     <td className="py-2 text-end">
+                      {job.status === "PENDING" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={Boolean(busy)}
+                          onClick={() =>
+                            void run(`dismiss-${job.id}`, "/api/admin/printer/dismiss-job", {
+                              jobId: job.id,
+                            })
+                          }
+                        >
+                          {t("admin.printer.dismiss", "לא רלוונטי")}
+                        </Button>
+                      )}
+                      {(job.status === "DISMISSED" || job.autoPrintHeld) && job.status !== "PRINTED" && job.status !== "PRINTING" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={Boolean(busy)}
+                          onClick={() =>
+                            void run(`approve-${job.id}`, "/api/admin/printer/approve-job", {
+                              jobId: job.id,
+                            })
+                          }
+                        >
+                          {t("admin.printer.approve", "אשר להדפסה")}
+                        </Button>
+                      )}
                       {job.status === "FAILED" && (
                         <Button
                           type="button"

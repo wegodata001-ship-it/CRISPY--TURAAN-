@@ -1094,6 +1094,7 @@ export const ProductModifiersPanel = forwardRef<
   }, [productId]);
 
   const optionActiveById = useMemo(() => {
+    void overrideTick;
     const map = new Map<string, boolean>();
     for (const option of loadedOptionOverrides) {
       map.set(option.optionId, option.active);
@@ -1106,6 +1107,7 @@ export const ProductModifiersPanel = forwardRef<
 
   const getLinkSettings = useCallback(
     (group: ModifierGroup) => {
+      void overrideTick;
       const pending = pendingLinkOverrides.current.get(group.id);
       const existing = existingLinks.find((link) => link.groupId === group.id);
       const rawSelection =

@@ -20,6 +20,17 @@ export function isAndroidPrintAgent(agentId: string | null | undefined): boolean
   return (agentId || "").trim() === ANDROID_PRINT_AGENT_ID;
 }
 
+/** The tablet may claim only after it has reached the CRISPY printer. */
+export function kitchenClaimBlockReason(heartbeat: {
+  printerIp?: string | null;
+  printerPort?: number | null;
+  printerConnectionStatus?: string | null;
+} | null): "printer_not_allowed" | "printer_offline" | null {
+  if (!isExternalPrinter(heartbeat?.printerIp, heartbeat?.printerPort)) return "printer_not_allowed";
+  if (heartbeat?.printerConnectionStatus !== "connected") return "printer_offline";
+  return null;
+}
+
 /** Cash and pay-at-counter orders print while payment is still pending. */
 export function automaticPrintSkipReason(order: {
   status?: string | null;

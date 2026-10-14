@@ -17,5 +17,5 @@
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "scripts", "printer-agent-standalone"]
+  "exclude": ["node_modules", "scripts", "printer-agent-standalone", "tmp"]
 }

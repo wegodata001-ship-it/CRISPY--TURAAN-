@@ -3,7 +3,7 @@ import { requirePrintAgent } from "@/lib/print-jobs/auth";
 import { getAgentHeartbeat } from "@/lib/print-jobs/heartbeat";
 import { claimNextPrintJob } from "@/lib/print-jobs/jobs";
 import { loadReceiptForJob } from "@/lib/print-jobs/load-receipt";
-import { isAndroidPrintAgent, isExternalPrinter } from "@/lib/printer/destination";
+import { isAndroidPrintAgent, kitchenClaimBlockReason } from "@/lib/printer/destination";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,8 +22,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, job: null, reason: "agent_not_allowed" });
     }
     const heartbeat = await getAgentHeartbeat(agentId);
-    if (!isExternalPrinter(heartbeat?.printerIp, heartbeat?.printerPort)) {
-      return NextResponse.json({ ok: true, job: null, reason: "printer_not_allowed" });
+    const blocked = kitchenClaimBlockReason(heartbeat);
+    if (blocked) {
+      return NextResponse.json({ ok: true, job: null, reason: blocked });
     }
 
     const result = await claimNextPrintJob(agentId);

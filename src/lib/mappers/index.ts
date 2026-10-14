@@ -87,6 +87,7 @@ export function mapProduct(doc: FirestoreDoc<FirestoreProduct>): Product {
     isNew: doc.newProduct,
     available: doc.available,
     active: doc.active ?? true,
+    needsReview: doc.needsReview === true,
     sortOrder: doc.sortOrder,
     createdAt: timestampToIso(doc.createdAt),
     updatedAt: timestampToIso(doc.updatedAt),

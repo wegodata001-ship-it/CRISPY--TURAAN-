@@ -350,7 +350,10 @@ export function ProductsAdmin() {
                 <ProductImage image={product.image} categoryId={product.categoryId} alt="" thumbnail />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium dark:text-warm-white" dir="rtl">{product.name_ar}</p>
+                <p className="truncate text-sm font-medium dark:text-warm-white" dir="rtl">
+                  {product.name_ar}
+                  {product.needsReview ? " · לבדיקה" : ""}
+                </p>
                 <p className="text-xs text-coffee/50">{formatPrice(product.price)}</p>
               </div>
             </div>
@@ -431,7 +434,10 @@ export function ProductsAdmin() {
                 )}
               </div>
               <div className="p-3">
-                <p className="truncate text-sm font-semibold dark:text-warm-white" dir="rtl">{product.name_ar}</p>
+                <p className="truncate text-sm font-semibold dark:text-warm-white" dir="rtl">
+                  {product.name_ar}
+                  {product.needsReview ? " · לבדיקה" : ""}
+                </p>
                 <p className="truncate text-xs text-coffee/50">{product.name_en}</p>
                 <Input
                   type="number"
@@ -479,7 +485,14 @@ export function ProductsAdmin() {
                         <ProductImage image={product.image} categoryId={product.categoryId} alt="" thumbnail />
                       </div>
                       <div>
-                        <p className="text-sm font-medium dark:text-warm-white" dir="rtl">{product.name_ar}</p>
+                        <p className="text-sm font-medium dark:text-warm-white" dir="rtl">
+                          {product.name_ar}
+                          {product.needsReview ? (
+                            <span className="ms-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                              לבדיקה
+                            </span>
+                          ) : null}
+                        </p>
                         <p className="text-xs text-coffee/50">{product.name_en}</p>
                       </div>
                     </div>
