@@ -64,7 +64,182 @@ type DrawOp =
       bold?: boolean;
       align?: Align;
       dir?: "rtl" | "ltr";
-    };
+    }
+  | ItemTableOp;
+
+const TABLE = {
+  pad: 20,
+  gutter: 16,
+  minDetails: 320,
+  minQty: 96,
+  qtySize: 52,
+  nameSize: 40,
+  headerSize: 28,
+  extraSize: 28,
+} as const;
+
+type TextMeasurer = {
+  font: string;
+  measureText: (value: string) => { width: number };
+};
+
+type TableCols = {
+  detailsLeft: number;
+  detailsWidth: number;
+  qtyLeft: number;
+  qtyWidth: number;
+};
+
+type TableRow = {
+  quantity: string;
+  nameLines: string[];
+  extraLines: string[];
+  height: number;
+};
+
+type ItemTableOp = {
+  kind: "itemTable";
+  rtl: boolean;
+  qtyHeader: string;
+  detailsHeader: string;
+  cols: TableCols;
+  rows: TableRow[];
+  height: number;
+};
+
+function wrapToWidth(ctx: TextMeasurer, value: string, maxWidth: number, maxLines: number): string[] {
+  const source = value.replace(/\s+/g, " ").trim();
+  if (!source) return [];
+  const lines: string[] = [];
+  let current = "";
+  const take = (line: string) => {
+    if (line && lines.length < maxLines) lines.push(line);
+  };
+  for (const part of source.split(" ")) {
+    if (lines.length >= maxLines) break;
+    const candidate = current ? `${current} ${part}` : part;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+    if (current) {
+      take(current);
+      current = "";
+      if (lines.length >= maxLines) break;
+    }
+    if (ctx.measureText(part).width <= maxWidth) {
+      current = part;
+      continue;
+    }
+    let chunk = "";
+    for (const ch of Array.from(part)) {
+      if (lines.length >= maxLines) break;
+      const next = chunk + ch;
+      if (ctx.measureText(next).width <= maxWidth) chunk = next;
+      else {
+        take(chunk);
+        chunk = ch;
+      }
+    }
+    current = lines.length >= maxLines ? "" : chunk;
+  }
+  if (current && lines.length < maxLines) lines.push(current);
+  return lines.length ? lines : [source];
+}
+
+function tableColumns(
+  ctx: TextMeasurer,
+  fontFamily: string,
+  quantities: string[],
+  qtyHeader: string
+): TableCols {
+  const contentLeft = TABLE.pad;
+  const contentRight = RECEIPT_WIDTH_PX - TABLE.pad;
+  const contentWidth = contentRight - contentLeft;
+  ctx.font = `bold ${TABLE.qtySize}px "${fontFamily}"`;
+  let widest = 0;
+  for (const qty of quantities) widest = Math.max(widest, ctx.measureText(qty).width);
+  ctx.font = `bold ${TABLE.headerSize}px "${fontFamily}"`;
+  widest = Math.max(widest, ctx.measureText(qtyHeader).width);
+  const maxQty = contentWidth - TABLE.gutter - TABLE.minDetails;
+  const qtyWidth = Math.min(Math.max(Math.ceil(widest + 20), TABLE.minQty), maxQty);
+  const detailsWidth = contentWidth - TABLE.gutter - qtyWidth;
+  const qtyLeft = contentRight - qtyWidth;
+  const detailsLeft = contentLeft;
+  if (detailsLeft + detailsWidth + TABLE.gutter > qtyLeft) {
+    throw new Error("receipt columns overlap");
+  }
+  if (qtyLeft + qtyWidth > contentRight) {
+    throw new Error("quantity column exceeds paper");
+  }
+  return { detailsLeft, detailsWidth, qtyLeft, qtyWidth };
+}
+
+type TableCanvas = TextMeasurer & {
+  fillStyle: string;
+  textAlign: "left" | "right" | "center" | "start" | "end";
+  textBaseline: "alphabetic" | "top" | "middle" | "bottom";
+  direction: "ltr" | "rtl" | "inherit";
+  fillText: (text: string, x: number, y: number, maxWidth?: number) => void;
+  fillRect: (x: number, y: number, w: number, h: number) => void;
+};
+
+function drawItemTable(ctx: TableCanvas, op: ItemTableOp, yStart: number, fontFamily: string): number {
+  const headerHeight = TABLE.headerSize + 18;
+  ctx.fillStyle = "#000000";
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `bold ${TABLE.headerSize}px "${fontFamily}"`;
+  ctx.direction = op.rtl ? "rtl" : "ltr";
+  ctx.textAlign = op.rtl ? "right" : "left";
+  const detailsX = op.rtl ? op.cols.detailsLeft + op.cols.detailsWidth : op.cols.detailsLeft;
+  ctx.fillText(op.detailsHeader, detailsX, yStart + TABLE.headerSize, op.cols.detailsWidth);
+  ctx.direction = "ltr";
+  ctx.textAlign = "center";
+  if (ctx.measureText(op.qtyHeader).width > op.cols.qtyWidth) {
+    throw new Error("quantity header exceeds its column");
+  }
+  ctx.fillText(op.qtyHeader, op.cols.qtyLeft + op.cols.qtyWidth / 2, yStart + TABLE.headerSize);
+  const headerRule = 260;
+  ctx.fillRect(RECEIPT_WIDTH_PX - TABLE.pad - headerRule, yStart + TABLE.headerSize + 8, headerRule, 2);
+
+  let y = yStart + headerHeight;
+  op.rows.forEach((row, index) => {
+    ctx.font = `bold ${TABLE.nameSize}px "${fontFamily}"`;
+    ctx.direction = op.rtl ? "rtl" : "ltr";
+    ctx.textAlign = op.rtl ? "right" : "left";
+    let lineY = y + TABLE.nameSize;
+    for (const line of row.nameLines) {
+      if (ctx.measureText(line).width > op.cols.detailsWidth + 1) {
+        throw new Error("product name exceeds details column");
+      }
+      ctx.fillText(line, detailsX, lineY, op.cols.detailsWidth);
+      lineY += TABLE.nameSize + 6;
+    }
+    ctx.font = `${TABLE.extraSize}px "${fontFamily}"`;
+    for (const line of row.extraLines) {
+      if (ctx.measureText(line).width > op.cols.detailsWidth + 1) {
+        throw new Error("item detail exceeds details column");
+      }
+      ctx.fillText(line, detailsX, lineY, op.cols.detailsWidth);
+      lineY += TABLE.extraSize + 6;
+    }
+    ctx.font = `bold ${TABLE.qtySize}px "${fontFamily}"`;
+    ctx.direction = "ltr";
+    ctx.textAlign = "center";
+    if (ctx.measureText(row.quantity).width > op.cols.qtyWidth) {
+      throw new Error("quantity exceeds its column");
+    }
+    const qtyBaseline = y + TABLE.qtySize * 0.82;
+    ctx.fillText(row.quantity, op.cols.qtyLeft + op.cols.qtyWidth / 2, qtyBaseline);
+    y += row.height;
+    if (index < op.rows.length - 1) {
+      const itemRule = 220;
+      ctx.fillRect(RECEIPT_WIDTH_PX - TABLE.pad - itemRule, y + 4, itemRule, 1);
+      y += 10;
+    }
+  });
+  return y;
+}
 
 function isRtl(locale: ReceiptModel["locale"]): boolean {
   return locale === "ar" || locale === "he";
@@ -110,8 +285,8 @@ export async function renderReceiptRaster(
   const labels = receiptUiLabels(model.locale);
   const rtl = isRtl(model.locale);
   const dir: "rtl" | "ltr" = rtl ? "rtl" : "ltr";
-  const priceAlign: Align = rtl ? "start" : "end";
   const ops: DrawOp[] = [];
+  const measure = createCanvas(RECEIPT_WIDTH_PX, 32).getContext("2d");
 
   if (model.isTest) {
     ops.push(text(labels.testBanner, FONT.banner, { bold: true, align: "center" }));
@@ -165,61 +340,45 @@ export async function renderReceiptRaster(
     ops.push(text(model.address, FONT.customerName, { bold: true, align: "start" }));
   }
 
-  ops.push(gap(SECTION_GAP_MEDIUM));
-  ops.push(rule());
-  ops.push(gap(SECTION_GAP_SMALL));
-  ops.push(text(labels.items, FONT.itemsHeader, { bold: true, align: "center" }));
-  ops.push(gap(SECTION_GAP_SMALL));
-  ops.push(rule());
-
-  model.items.forEach((item, index) => {
-    ops.push(gap(SECTION_GAP_MEDIUM));
-    ops.push(
-      text(`${item.quantity} × ${item.name}`, FONT.productName, {
-        bold: true,
-        align: "start",
-      })
-    );
-
-    if (item.modifiers.length > 0) {
-      ops.push(gap(SECTION_GAP_SMALL));
-      for (const mod of item.modifiers) {
-        ops.push(text(`  - ${mod.label}`, FONT.modifier, { align: "start" }));
-      }
-    }
-
-    if (item.notes) {
-      ops.push(gap(SECTION_GAP_SMALL));
-      ops.push(text(`  ${item.notes}`, FONT.itemNote, { bold: true, align: "start" }));
-    }
-
-    if (item.unitPrice != null) {
-      ops.push(gap(6));
-      ops.push(
-        text(`${labels.unitPrice}: ${formatMoney(item.unitPrice)}`, FONT.modifier, {
-          align: "start",
-          dir: "ltr",
-        })
-      );
-    }
-
+  if (model.items.length > 0) {
     ops.push(gap(SECTION_GAP_SMALL));
-    ops.push(
-      text(formatMoney(item.lineTotal), FONT.itemPrice, {
-        bold: true,
-        align: priceAlign,
-        dir: "ltr",
-      })
+    const cols = tableColumns(
+      measure,
+      fontFamily,
+      model.items.map((item) => String(item.quantity)),
+      labels.qty
     );
+    const rows: TableRow[] = model.items.map((item) => {
+      measure.font = `bold ${TABLE.nameSize}px "${fontFamily}"`;
+      const nameLines = wrapToWidth(measure, item.name, cols.detailsWidth, 2);
+      measure.font = `${TABLE.extraSize}px "${fontFamily}"`;
+      const extras = [
+        ...item.modifiers.map((mod) => mod.label),
+        ...(item.notes?.trim() ? [`${labels.itemNote}: ${item.notes.trim()}`] : []),
+      ];
+      const extraLines = extras.flatMap((line) => wrapToWidth(measure, line, cols.detailsWidth, 3));
+      const block =
+        nameLines.length * (TABLE.nameSize + 6) + extraLines.length * (TABLE.extraSize + 6);
+      return {
+        quantity: String(item.quantity),
+        nameLines,
+        extraLines,
+        height: Math.max(block, TABLE.qtySize + 12) + 4,
+      };
+    });
+    const headerHeight = TABLE.headerSize + 18;
+    const separators = Math.max(0, rows.length - 1) * 10;
+    ops.push({
+      kind: "itemTable",
+      rtl,
+      qtyHeader: labels.qty,
+      detailsHeader: labels.details,
+      cols,
+      rows,
+      height: headerHeight + rows.reduce((sum, row) => sum + row.height, 0) + separators,
+    });
     ops.push(gap(SECTION_GAP_SMALL));
-
-    if (index < model.items.length - 1) {
-      ops.push(rule());
-    }
-  });
-
-  ops.push(gap(SECTION_GAP_SMALL));
-  ops.push(rule());
+  }
 
   if (model.notes) {
     ops.push(gap(SECTION_GAP_MEDIUM));
@@ -310,6 +469,7 @@ export async function renderReceiptRaster(
   for (const op of ops) {
     if (op.kind === "gap") height += op.h;
     else if (op.kind === "rule") height += FONT.ruleThickness + 12;
+    else if (op.kind === "itemTable") height += op.height;
     else height += op.size + LINE_GAP;
   }
 
@@ -368,6 +528,10 @@ export async function renderReceiptRaster(
         }
       }
       y += thickness + 6;
+      continue;
+    }
+    if (op.kind === "itemTable") {
+      y = drawItemTable(ctx as TableCanvas, op, y, fontFamily);
       continue;
     }
     y += op.size;

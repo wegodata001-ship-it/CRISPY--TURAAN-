@@ -1,12 +1,12 @@
 CRISPY Printer — Android tablet
 ================================
 
-Current version: 1.2.4
-versionCode: 7
-Build date: 2026-10-14T11:31:36.951Z
+Current version: 1.2.6
+versionCode: 9
+Build date: 2026-10-14T13:09:18.499Z
 Package name: com.crispy.turaan.printer
 Build type: release
-SHA-256: b8752991770d27afbcddf58d03d4c3e3a4edc28a9d3c5cd2180a69a8a1556cc0
+SHA-256: f2d358d993a5ed3e6ba8c9d2a4a6fecf81be27ebd2ca795bba469c494ee032b2
 
 Install the file:
 

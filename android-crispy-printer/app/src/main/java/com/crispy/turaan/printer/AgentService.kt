@@ -130,15 +130,15 @@ class AgentService : Service() {
             printLocalTest(config, ip, port)
         }
         val token = runCatching { config.token() }.getOrElse {
-            AgentStatus.update {
-                it.copy(server = "غير متصل", note = "تعذر قراءة الرمز المحفوظ. أدخل Agent Token واضغط حفظ.")
-            }
+            val note = "تعذر قراءة الرمز المحفوظ. أدخل Agent Token واضغط حفظ."
+            AgentStatus.update { it.copy(server = "غير متصل", note = note) }
+            history(note)
             return
         }
         if (token.isBlank()) {
-            AgentStatus.update {
-                it.copy(server = "غير متصل", note = "الرمز غير محفوظ. أدخل Agent Token واضغط حفظ. لن يُرسل Heartbeat قبل ذلك.")
-            }
+            val note = "الرمز غير محفوظ. أدخل Agent Token واضغط حفظ. لن يُرسل Heartbeat قبل ذلك."
+            AgentStatus.update { it.copy(server = "غير متصل", note = note) }
+            history(note)
             return
         }
         val api = AgentApi(config.apiUrl(), token)
@@ -157,42 +157,76 @@ class AgentService : Service() {
             )
             lastHeartbeatOk = beat.ok
             lastHeartbeatAt = if (beat.ok || beat.code == 401) now else now - HEARTBEAT_MS + 5_000L
+            val note = serverNote(beat, printerNote)
             AgentStatus.update {
-                it.copy(
-                    server = if (beat.ok) "متصل" else "غير متصل",
-                    note = serverNote(beat, printerNote)
-                )
+                it.copy(server = if (beat.ok) "متصل" else "غير متصل", note = note)
             }
-            if (!beat.ok) return
+            if (!beat.ok) {
+                history(note)
+                return
+            }
         }
-        if (!lastHeartbeatOk || !connected) return
-        val job = runCatching { api.claim(config.agentId()) }.getOrElse { error ->
-            AgentStatus.update { state ->
-                state.copy(server = "غير متصل", note = claimNote(error, printerNote))
-            }
+        if (!lastHeartbeatOk || !connected) {
+            history(skipReason(lastHeartbeatOk, connected, lan))
             return
-        } ?: return
+        }
+        val job = runCatching { api.claim(config.agentId()) }.getOrElse { error ->
+            val note = claimNote(error, printerNote)
+            AgentStatus.update { state -> state.copy(server = "غير متصل", note = note) }
+            history(note)
+            return
+        }
+        if (job == null) {
+            history("الخادم متصل والطابعة متصلة. لا توجد مهام جديدة.")
+            return
+        }
         val label = job.receipt.orderNumber.ifBlank { job.orderId ?: job.type }
         config.rememberOrder(label)
         AgentStatus.update { it.copy(lastOrder = label, server = "متصل") }
+        history("وصل من الخادم: $label (${job.type})")
         if (config.wasFlushed(job.id)) {
-            reportFlushed(api, config, job.id, ip, port, "تم إرسال هذا الإيصال مسبقًا. لا تُعاد طباعته.")
+            reportFlushed(api, config, job.id, ip, port, "وصل $label مرة أخرى. أُرسل سابقًا ولن يُطبع مرة أخرى.")
             return
         }
         try {
             sendReceipt(ip, port, job.receipt)
         } catch (error: PrinterConnectException) {
             runCatching { api.markFailed(job.id, "printer_connect: ${error.message}") }
-            AgentStatus.update { it.copy(printer = "غير متصلة", note = "الطابعة غير متصلة. تبقى المهمة في الطابور.") }
+            val note = "وصل $label. الطابعة غير متصلة. بقيت المهمة في الطابور."
+            AgentStatus.update { it.copy(printer = "غير متصلة", note = note) }
+            history(note)
             return
         } catch (error: PrinterPartialException) {
             config.rememberFlushed(job.id)
             runCatching { api.markFailed(job.id, "printer_partial: ${error.message}") }
-            AgentStatus.update { it.copy(note = "انقطع الإرسال أثناء الطباعة. لن تُعاد تلقائيًا.") }
+            val note = "وصل $label. انقطع الإرسال ولن يُعاد تلقائيًا."
+            AgentStatus.update { it.copy(note = note) }
+            history(note)
             return
         }
         config.rememberFlushed(job.id)
-        reportFlushed(api, config, job.id, ip, port, "تم إرسال الإيصال إلى الطابعة. خروج الورق يحتاج تأكيدًا بصريًا.")
+        reportFlushed(
+            api,
+            config,
+            job.id,
+            ip,
+            port,
+            "أُرسل $label إلى الطابعة 192.168.1.80. خروج الورق يحتاج تأكيدًا بصريًا."
+        )
+    }
+
+    private fun history(message: String) {
+        PrintHistory.record(this, message)
+    }
+
+    private fun skipReason(serverOk: Boolean, printerConnected: Boolean, lan: LanSnapshot): String {
+        return when {
+            !serverOk -> "لم يُسحب الطابور. الخادم غير متصل."
+            !lan.onRestaurantLan ->
+                "لم يُسحب أي طلب. الجهاز على ${lan.address ?: "شبكة أخرى"} وليس على شبكة المطعم 192.168.1."
+            !printerConnected -> "لم يُسحب أي طلب. الطابعة 192.168.1.80:9100 غير متصلة من هذا الجهاز."
+            else -> "لم يُسحب الطابور."
+        }
     }
 
     private fun reportFlushed(
@@ -204,12 +238,16 @@ class AgentService : Service() {
         note: String
     ) {
         val reported = runCatching { api.markPrinted(jobId, ip, port, null) }
-        if (reported.isFailure) {
+        val shown = if (reported.isFailure) {
             runCatching { api.markFailed(jobId, "printer_partial: status update failed after flush") }
+            "$note الخادم لم يسجّل حالة الإرسال."
+        } else {
+            note
         }
         val stamp = stamp()
         config.rememberPrint(stamp)
-        AgentStatus.update { it.copy(lastPrint = stamp, note = note) }
+        AgentStatus.update { it.copy(lastPrint = stamp, note = shown) }
+        history(shown)
     }
 
     private fun serverNote(beat: AgentResult, printerNote: String): String {
@@ -238,18 +276,18 @@ class AgentService : Service() {
         try {
             sendReceipt(ip, port, ReceiptRaster.localTestReceipt())
             val stamp = stamp()
+            val note = "اختبار: أُرسل إلى الطابعة. تأكد من خروج الورق."
             config.rememberPrint(stamp)
-            AgentStatus.update {
-                it.copy(
-                    lastPrint = stamp,
-                    printer = "متصلة",
-                    note = "تم إرسال اختبار الطباعة. تأكد من خروج الورق."
-                )
-            }
+            AgentStatus.update { it.copy(lastPrint = stamp, printer = "متصلة", note = note) }
+            history(note)
         } catch (_: PrinterConnectException) {
-            AgentStatus.update { it.copy(printer = "غير متصلة", note = "تعذر الاتصال بالطابعة 192.168.1.80:9100") }
+            val note = "اختبار: تعذر الاتصال بالطابعة 192.168.1.80:9100"
+            AgentStatus.update { it.copy(printer = "غير متصلة", note = note) }
+            history(note)
         } catch (_: PrinterPartialException) {
-            AgentStatus.update { it.copy(note = "انقطع إرسال الاختبار. لا تضغط الاختبار مرة أخرى قبل فحص الطابعة.") }
+            val note = "اختبار: انقطع الإرسال. لا تضغط الاختبار مرة أخرى قبل فحص الطابعة."
+            AgentStatus.update { it.copy(note = note) }
+            history(note)
         }
     }
 

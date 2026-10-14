@@ -9,6 +9,7 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextDirectionHeuristics
 import android.text.TextPaint
+import android.text.TextUtils
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -18,6 +19,12 @@ object ReceiptRaster {
     const val WIDTH = 576
     private const val PAD = 20
     private const val STRIP = 256
+    private const val QTY_SIZE = 52f
+    private const val NAME_SIZE = 40f
+    private const val HEADER_SIZE = 28f
+    private const val EXTRA_SIZE = 28f
+    private const val SHORT_RULE = 10
+    private const val ITEM_RULE = 10
 
     private data class Line(
         val text: String,
@@ -25,7 +32,17 @@ object ReceiptRaster {
         val bold: Boolean,
         val center: Boolean,
         val rtl: Boolean,
-        val rule: Boolean = false
+        val rule: Boolean = false,
+        val items: List<ReceiptItem>? = null,
+        val locale: String = "ar"
+    )
+
+    /** Pixel columns on a 576-dot, 80mm ticket. Quantity stays on the right. */
+    private data class TableCols(
+        val detailsLeft: Int,
+        val detailsWidth: Int,
+        val qtyLeft: Int,
+        val qtyWidth: Int
     )
 
     fun localTestReceipt(now: Date = Date()): Receipt {
@@ -93,15 +110,17 @@ object ReceiptRaster {
         if (!receipt.customerPhone.isNullOrBlank()) text(receipt.customerPhone, 32f, forceLtr = true)
         if (!receipt.address.isNullOrBlank()) text(receipt.address, 32f, bold = true)
         if (receipt.items.isNotEmpty()) {
-            rule()
-            receipt.items.forEachIndexed { index, item ->
-                text("${item.quantity} × ${item.name}", 42f, bold = true)
-                item.modifiers.forEach { mod -> text(mod.label, 30f) }
-                if (!item.notes.isNullOrBlank()) text("ملاحظة: ${item.notes}", 32f, bold = true)
-                if (item.unitPrice != null) text(money(item.unitPrice), 28f, forceLtr = true)
-                if (item.lineTotal != null) text(money(item.lineTotal), 36f, bold = true, forceLtr = true)
-                if (index < receipt.items.lastIndex) rule()
-            }
+            lines.add(
+                Line(
+                    text = "",
+                    size = 0f,
+                    bold = false,
+                    center = false,
+                    rtl = rtl,
+                    items = receipt.items,
+                    locale = receipt.locale
+                )
+            )
         }
         if (!receipt.notes.isNullOrBlank()) {
             rule()
@@ -124,41 +143,208 @@ object ReceiptRaster {
 
     private fun money(amount: Double): String = String.format(Locale.US, "%.2f ₪", amount)
 
+    private fun qtyHeader(locale: String): String = when (locale) {
+        "he" -> "כמות"
+        "en" -> "Qty"
+        else -> "كمية"
+    }
+
+    private fun detailsHeader(locale: String): String = when (locale) {
+        "he" -> "פרטים"
+        "en" -> "Details"
+        else -> "تفاصيل"
+    }
+
+    private fun notePrefix(locale: String): String = when (locale) {
+        "he" -> "הערה"
+        "en" -> "Note"
+        else -> "ملاحظة"
+    }
+
+    private fun tableCols(items: List<ReceiptItem>, locale: String): TableCols {
+        val contentLeft = PAD
+        val contentRight = WIDTH - PAD
+        val contentWidth = contentRight - contentLeft
+        val gutter = 16
+        val minDetails = 320
+        val digitPaint = textPaint(QTY_SIZE, bold = true)
+        val headerPaint = textPaint(HEADER_SIZE, bold = true)
+        val widestQty = maxOf(
+            items.maxOf { digitPaint.measureText(it.quantity.toString()) },
+            headerPaint.measureText(qtyHeader(locale))
+        )
+        val qtyWidth = (widestQty + 20f).toInt().coerceIn(96, contentWidth - gutter - minDetails)
+        val detailsWidth = contentWidth - gutter - qtyWidth
+        val qtyLeft = contentRight - qtyWidth
+        val detailsLeft = contentLeft
+        check(detailsLeft + detailsWidth + gutter <= qtyLeft) { "receipt columns overlap" }
+        check(qtyLeft + qtyWidth <= contentRight) { "quantity column exceeds paper" }
+        return TableCols(detailsLeft, detailsWidth, qtyLeft, qtyWidth)
+    }
+
+    private fun fitWidth(paint: TextPaint, value: String, maxWidth: Float) {
+        while (paint.measureText(value) > maxWidth && paint.textSize > 18f) {
+            paint.textSize -= 1f
+        }
+    }
+
+    private fun textPaint(size: Float, bold: Boolean): TextPaint {
+        return TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.BLACK
+            textSize = size
+            typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        }
+    }
+
+    private fun layoutText(
+        value: String,
+        size: Float,
+        bold: Boolean,
+        width: Int,
+        rtl: Boolean,
+        center: Boolean = false,
+        maxLines: Int = Int.MAX_VALUE
+    ): StaticLayout {
+        val builder = StaticLayout.Builder.obtain(value, 0, value.length, textPaint(size, bold), width)
+            .setAlignment(if (center) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL)
+            .setTextDirection(if (rtl) TextDirectionHeuristics.RTL else TextDirectionHeuristics.LTR)
+            .setIncludePad(false)
+        if (maxLines < Int.MAX_VALUE) {
+            builder.setMaxLines(maxLines).setEllipsize(TextUtils.TruncateAt.END)
+        }
+        return builder.build()
+    }
+
+    private fun itemDetails(item: ReceiptItem, locale: String): List<String> {
+        val lines = mutableListOf<String>()
+        item.modifiers.forEach { mod -> if (mod.label.isNotBlank()) lines.add(mod.label) }
+        val note = item.notes?.trim().orEmpty()
+        if (note.isNotEmpty()) lines.add("${notePrefix(locale)}: $note")
+        return lines
+    }
+
+    private fun tableHeight(items: List<ReceiptItem>, locale: String, rtl: Boolean, cols: TableCols): Int {
+        var height = headerBand(locale, rtl, cols)
+        items.forEachIndexed { index, item ->
+            height += rowHeight(item, locale, rtl, cols)
+            if (index < items.lastIndex) height += ITEM_RULE
+        }
+        return height
+    }
+
+    private fun headerBand(locale: String, rtl: Boolean, cols: TableCols): Int {
+        val details = layoutText(detailsHeader(locale), HEADER_SIZE, true, cols.detailsWidth, rtl, maxLines = 1)
+        val qty = textPaint(HEADER_SIZE, bold = true).fontSpacing.toInt()
+        return maxOf(qty, details.height) + 6 + SHORT_RULE
+    }
+
+    private fun rowHeight(item: ReceiptItem, locale: String, rtl: Boolean, cols: TableCols): Int {
+        val name = layoutText(item.name, NAME_SIZE, true, cols.detailsWidth, rtl, maxLines = 2)
+        val extras = itemDetails(item, locale).sumOf { extra ->
+            4 + layoutText(extra, EXTRA_SIZE, false, cols.detailsWidth, rtl).height
+        }
+        val qtyHeight = textPaint(QTY_SIZE, bold = true).fontSpacing.toInt()
+        return maxOf(name.height + extras, qtyHeight) + 8
+    }
+
+    private fun drawTable(canvas: Canvas, top: Float, items: List<ReceiptItem>, locale: String, rtl: Boolean): Float {
+        val cols = tableCols(items, locale)
+        var y = top
+        val detailsHead = layoutText(detailsHeader(locale), HEADER_SIZE, true, cols.detailsWidth, rtl, maxLines = 1)
+        val qtyHeadPaint = textPaint(HEADER_SIZE, bold = true)
+        val qtyHead = qtyHeader(locale)
+        fitWidth(qtyHeadPaint, qtyHead, cols.qtyWidth.toFloat())
+        val qtyHeadWidth = qtyHeadPaint.measureText(qtyHead)
+        drawLayout(canvas, detailsHead, cols.detailsLeft.toFloat(), y)
+        canvas.drawText(
+            qtyHead,
+            cols.qtyLeft + (cols.qtyWidth - qtyHeadWidth) / 2f,
+            y - qtyHeadPaint.ascent(),
+            qtyHeadPaint
+        )
+        y += maxOf(qtyHeadPaint.fontSpacing.toInt(), detailsHead.height) + 6
+        shortRule(canvas, y, widthPx = 260f, stroke = 2f)
+        y += SHORT_RULE
+        items.forEachIndexed { index, item ->
+            val name = layoutText(item.name, NAME_SIZE, true, cols.detailsWidth, rtl, maxLines = 2)
+            val extras = itemDetails(item, locale).map { extra ->
+                layoutText(extra, EXTRA_SIZE, false, cols.detailsWidth, rtl)
+            }
+            val blockHeight = name.height + extras.sumOf { it.height + 4 }
+            val qty = item.quantity.toString()
+            val qtyPaint = textPaint(QTY_SIZE, bold = true)
+            fitWidth(qtyPaint, qty, cols.qtyWidth.toFloat())
+            val qtyWidth = qtyPaint.measureText(qty)
+            val qtyHeight = qtyPaint.fontSpacing
+            val rowHeight = maxOf(blockHeight, qtyHeight.toInt())
+            val qtyX = cols.qtyLeft + (cols.qtyWidth - qtyWidth) / 2f
+            val qtyY = y - qtyPaint.ascent()
+            canvas.drawText(qty, qtyX, qtyY, qtyPaint)
+            drawLayout(canvas, name, cols.detailsLeft.toFloat(), y)
+            var extraY = y + name.height + 4
+            extras.forEach { extra ->
+                drawLayout(canvas, extra, cols.detailsLeft.toFloat(), extraY)
+                extraY += extra.height + 4
+            }
+            y += rowHeight + 8
+            if (index < items.lastIndex) {
+                shortRule(canvas, y, widthPx = 220f, stroke = 1.5f)
+                y += ITEM_RULE
+            }
+        }
+        return y - top
+    }
+
+    private fun drawLayout(canvas: Canvas, layout: StaticLayout, x: Float, y: Float) {
+        canvas.save()
+        canvas.translate(x, y)
+        layout.draw(canvas)
+        canvas.restore()
+    }
+
+    private fun shortRule(canvas: Canvas, y: Float, widthPx: Float, stroke: Float) {
+        val paint = Paint().apply {
+            color = Color.BLACK
+            strokeWidth = stroke
+        }
+        val right = (WIDTH - PAD).toFloat()
+        canvas.drawLine(right - widthPx, y, right, y, paint)
+    }
+
     private fun draw(lines: List<Line>): Bitmap {
         val contentWidth = WIDTH - PAD * 2
         val layouts = lines.map { line ->
-            if (line.rule) return@map null
-            val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.BLACK
-                textSize = line.size
-                typeface = if (line.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-            }
-            StaticLayout.Builder.obtain(line.text, 0, line.text.length, paint, contentWidth)
-                .setAlignment(if (line.center) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL)
-                .setTextDirection(if (line.rtl) TextDirectionHeuristics.RTL else TextDirectionHeuristics.LTR)
-                .setIncludePad(false)
-                .build()
+            if (line.rule || line.items != null) return@map null
+            layoutText(line.text, line.size, line.bold, contentWidth, line.rtl, center = line.center)
         }
         var height = 24
-        layouts.forEachIndexed { index, layout ->
-            height += if (lines[index].rule) 18 else (layout?.height ?: 0) + 10
+        lines.forEachIndexed { index, line ->
+            height += when {
+                line.items != null -> tableHeight(line.items, line.locale, line.rtl, tableCols(line.items, line.locale)) + 8
+                line.rule -> 18
+                else -> (layouts[index]?.height ?: 0) + 10
+            }
         }
         height += 24
         val bitmap = Bitmap.createBitmap(WIDTH, height.coerceAtLeast(64), Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
         var y = 24f
-        layouts.forEachIndexed { index, layout ->
-            if (lines[index].rule) {
-                val paint = Paint().apply { color = Color.BLACK; strokeWidth = 4f }
-                canvas.drawLine(PAD.toFloat(), y + 6f, (WIDTH - PAD).toFloat(), y + 6f, paint)
-                y += 18f
-            } else if (layout != null) {
-                canvas.save()
-                canvas.translate(PAD.toFloat(), y)
-                layout.draw(canvas)
-                canvas.restore()
-                y += layout.height + 10
+        lines.forEachIndexed { index, line ->
+            val items = line.items
+            when {
+                items != null -> {
+                    y += drawTable(canvas, y, items, line.locale, line.rtl) + 8f
+                }
+                line.rule -> {
+                    val paint = Paint().apply { color = Color.BLACK; strokeWidth = 3f }
+                    canvas.drawLine(PAD.toFloat(), y + 6f, (WIDTH - PAD).toFloat(), y + 6f, paint)
+                    y += 18f
+                }
+                layouts[index] != null -> {
+                    drawLayout(canvas, layouts[index]!!, PAD.toFloat(), y)
+                    y += layouts[index]!!.height + 10
+                }
             }
         }
         return bitmap

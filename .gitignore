@@ -49,3 +49,4 @@ printer-agent-standalone/vendor/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.vercel

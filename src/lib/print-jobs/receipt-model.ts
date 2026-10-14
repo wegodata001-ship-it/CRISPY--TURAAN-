@@ -268,6 +268,9 @@ export function receiptUiLabels(locale: PrintLocale) {
       address: "כתובת",
       orderType: "סוג הזמנה",
       unitPrice: "מחיר",
+      qty: "כמות",
+      details: "פרטים",
+      itemNote: "הערה",
     };
   }
   if (locale === "en") {
@@ -289,6 +292,9 @@ export function receiptUiLabels(locale: PrintLocale) {
       address: "Address",
       orderType: "Order type",
       unitPrice: "Price",
+      qty: "Qty",
+      details: "Details",
+      itemNote: "Note",
     };
   }
   return {
@@ -309,5 +315,8 @@ export function receiptUiLabels(locale: PrintLocale) {
     address: "العنوان",
     orderType: "نوع الطلب",
     unitPrice: "السعر",
+    qty: "كمية",
+    details: "تفاصيل",
+    itemNote: "ملاحظة",
   };
 }

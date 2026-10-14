@@ -25,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var stopListening: (() -> Unit)? = null
     private var stopUpdateListening: (() -> Unit)? = null
+    private var stopHistoryListening: (() -> Unit)? = null
     private val uiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var downloadedApk: File? = null
 
@@ -50,6 +51,7 @@ class MainActivity : AppCompatActivity() {
         binding.buttonReconnect.setOnClickListener { startAgent(AgentService.ACTION_RECONNECT) }
         binding.buttonUpdate.setOnClickListener { startUpdate() }
         binding.buttonCheckUpdate.setOnClickListener { startAgent(AgentService.ACTION_CHECK_UPDATE) }
+        binding.buttonClearHistory.setOnClickListener { PrintHistory.clear(this) }
         binding.buttonAdmin.setOnClickListener {
             startActivity(
                 Intent(Intent.ACTION_VIEW, Uri.parse("https://portal.almostafachicken.com/"))
@@ -72,6 +74,9 @@ class MainActivity : AppCompatActivity() {
         stopUpdateListening = AppUpdater.listen { snapshot ->
             runOnUiThread { renderUpdate(snapshot) }
         }
+        stopHistoryListening = PrintHistory.listen(this) { lines ->
+            runOnUiThread { renderHistory(lines) }
+        }
     }
 
     override fun onStop() {
@@ -79,6 +84,8 @@ class MainActivity : AppCompatActivity() {
         stopListening = null
         stopUpdateListening?.invoke()
         stopUpdateListening = null
+        stopHistoryListening?.invoke()
+        stopHistoryListening = null
         super.onStop()
     }
 
@@ -101,6 +108,14 @@ class MainActivity : AppCompatActivity() {
             "الطباعة في الخلفية: متوقفة"
         }
         if (snapshot.note.isNotBlank()) binding.statusNote.text = snapshot.note
+    }
+
+    private fun renderHistory(lines: List<String>) {
+        binding.statusHistory.text = if (lines.isEmpty()) {
+            "لا توجد أحداث بعد. سيظهر هنا كل طلب يصل من الخادم، وكل إرسال إلى الطابعة، وسبب التوقف."
+        } else {
+            lines.joinToString("\n\n")
+        }
     }
 
     private fun renderUpdate(snapshot: UpdateSnapshot) {

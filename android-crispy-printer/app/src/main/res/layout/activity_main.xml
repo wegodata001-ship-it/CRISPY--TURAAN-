@@ -162,6 +162,33 @@
             android:text="نجاح الإرسال عبر الشبكة لا يثبت خروج الورق."
             android:textSize="14sp" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="20dp"
+            android:text="سجل الوصول والطباعة"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/statusHistory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/cream"
+            android:padding="12dp"
+            android:text="لا توجد أحداث بعد."
+            android:textIsSelectable="true"
+            android:textSize="15sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonClearHistory"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="مسح السجل"
+            android:textSize="16sp" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonTest"
             android:layout_width="match_parent"

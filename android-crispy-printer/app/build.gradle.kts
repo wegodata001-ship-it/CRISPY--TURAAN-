@@ -13,8 +13,8 @@ android {
         applicationId = "com.crispy.turaan.printer"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.2.4"
+        versionCode = 9
+        versionName = "1.2.6"
     }
 
     val keystorePropertiesFile = rootProject.file("keystore.properties")
