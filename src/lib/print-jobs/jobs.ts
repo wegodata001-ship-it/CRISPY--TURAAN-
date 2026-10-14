@@ -3,7 +3,7 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { isAutoPrintNewOrdersEnabled, getPrintStoreId } from "@/lib/print-jobs/config";
 import { classifyPrintFailure } from "@/lib/print-jobs/failure";
-import { isAutoPrintHeld } from "@/lib/print-jobs/hold";
+import { isAutoPrintHeld, isClaimablePrintStatus } from "@/lib/print-jobs/hold";
 import { automaticPrintSkipReason } from "@/lib/printer/destination";
 import { newOrderPrintJobId, parsePrintLocale, printJobUniqueKey } from "@/lib/print-jobs/ids";
 import { toIso, toMillis } from "@/lib/print-jobs/time";
@@ -95,6 +95,7 @@ function delayAfterFailedAttempt(attempts: number): number {
 
 function isReadyToClaim(id: string, data: FirebaseFirestore.DocumentData, now: number): boolean {
   const status = data.status as PrintJobStatus;
+  if (!isClaimablePrintStatus(status)) return false;
   if (
     isAutoPrintHeld({
       id,
@@ -273,19 +274,28 @@ export async function claimNextPrintJob(agentId: string): Promise<ClaimResult> {
 
 export async function markPrintJobPrinted(
   jobId: string,
-  meta?: { printerIp?: string; printerPort?: number; cutterError?: string; beepError?: string }
-): Promise<void> {
+  meta?: {
+    printerIp?: string;
+    printerPort?: number;
+    cutterError?: string;
+    beepError?: string;
+    physicalConfirmed?: boolean;
+  }
+): Promise<"SENT" | "PRINTED"> {
+  const status = meta?.physicalConfirmed === true ? "PRINTED" : "SENT";
   const patch: Record<string, unknown> = {
-    status: "PRINTED",
+    status,
     printedAt: FieldValue.serverTimestamp(),
     lastError: null,
     nextRetryAt: null,
+    physicalConfirmed: meta?.physicalConfirmed === true,
   };
   if (meta?.printerIp) patch.printerIp = meta.printerIp;
   if (meta?.printerPort) patch.printerPort = meta.printerPort;
   if (meta?.cutterError) patch.cutterError = meta.cutterError.slice(0, 300);
   if (meta?.beepError) patch.beepError = meta.beepError.slice(0, 300);
   await jobsCol().doc(jobId).update(patch);
+  return status;
 }
 
 export async function markPrintJobFailed(jobId: string, error: string): Promise<PrintJobStatus> {
@@ -419,13 +429,15 @@ export async function countJobsByStatus(): Promise<{
   pending: number;
   printing: number;
   printed: number;
+  sent: number;
   failed: number;
   dismissed: number;
 }> {
-  const [pending, printing, printed, failed, dismissed] = await Promise.all([
+  const [pending, printing, printed, sent, failed, dismissed] = await Promise.all([
     jobsCol().where("status", "==", "PENDING").limit(100).get(),
     jobsCol().where("status", "==", "PRINTING").limit(100).get(),
     jobsCol().where("status", "==", "PRINTED").limit(100).get(),
+    jobsCol().where("status", "==", "SENT").limit(100).get(),
     jobsCol().where("status", "==", "FAILED").limit(100).get(),
     jobsCol().where("status", "==", "DISMISSED").limit(100).get(),
   ]);
@@ -433,6 +445,7 @@ export async function countJobsByStatus(): Promise<{
     pending: pending.size,
     printing: printing.size,
     printed: printed.size,
+    sent: sent.size,
     failed: failed.size,
     dismissed: dismissed.size,
   };

@@ -16,7 +16,7 @@ import { buildTestReceiptModel } from "@/lib/print-jobs/test-receipt";
 import { wrapRasterReceipt } from "@/lib/printer/raster";
 import { escCut } from "@/lib/printer/escpos";
 import { classifyPrintFailure } from "@/lib/print-jobs/failure";
-import { isAutoPrintHeld, STALE_AUTO_PRINT_MS, STALE_PRINT_JOB_IDS } from "@/lib/print-jobs/hold";
+import { isAutoPrintHeld, isClaimablePrintStatus, STALE_AUTO_PRINT_MS, STALE_PRINT_JOB_IDS } from "@/lib/print-jobs/hold";
 import {
   automaticPrintSkipReason,
   isAndroidPrintAgent,
@@ -124,10 +124,25 @@ describe("print failure disposition", () => {
     expect(classifyPrintFailure("Broken pipe")).toBe("partial_send");
     expect(classifyPrintFailure("write EPIPE")).toBe("partial_send");
     expect(classifyPrintFailure("write ECONNRESET")).toBe("partial_send");
+    expect(classifyPrintFailure("printer_partial: Connection reset")).toBe("partial_send");
+  });
+
+  it("retries when the tablet could not open the printer socket", () => {
+    expect(classifyPrintFailure("printer_connect: failed to connect to /192.168.1.80 (port 9100)")).toBe(
+      "retry_offline"
+    );
   });
 
   it("still limits unrelated printer errors", () => {
     expect(classifyPrintFailure("paper jam")).toBe("retry_limited");
+  });
+
+  it("does not claim a ticket again after the bytes were flushed", () => {
+    expect(isClaimablePrintStatus("PENDING")).toBe(true);
+    expect(isClaimablePrintStatus("PRINTING")).toBe(true);
+    expect(isClaimablePrintStatus("SENT")).toBe(false);
+    expect(isClaimablePrintStatus("PRINTED")).toBe(false);
+    expect(isClaimablePrintStatus("FAILED")).toBe(false);
   });
 });
 
@@ -257,6 +272,8 @@ describe("raster cut option", () => {
     const withCut = wrapRasterReceipt(raster, "full");
     const noCut = wrapRasterReceipt(raster, "none");
     expect(withCut.includes(escCut("full"))).toBe(true);
+    expect(withCut.indexOf(raster)).toBeGreaterThanOrEqual(0);
+    expect(withCut.indexOf(escCut("full"))).toBeGreaterThan(withCut.indexOf(raster));
     expect(noCut.includes(escCut("full"))).toBe(false);
   });
 });

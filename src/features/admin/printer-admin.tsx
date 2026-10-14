@@ -42,7 +42,7 @@ type StatusPayload = {
     printJobFailed?: boolean;
   };
   lastSuccessfulPrintAt?: string | null;
-  counts?: { pending: number; printing: number; printed: number; failed: number; dismissed?: number };
+  counts?: { pending: number; printing: number; printed: number; sent?: number; failed: number; dismissed?: number };
   autoPrintNewOrders?: boolean;
   jobs?: PrintJob[];
 };
@@ -300,7 +300,7 @@ export function PrinterAdmin() {
         <p className="mt-2 text-xs text-coffee/55">
           {t(
             "admin.printer.sentNotPaper",
-            "PRINTED = הסוכן שלח את הקבלה ל-TCP. זה לא אימות שנייר יצא פיזית."
+            "SENT = הבתים נשלחו למדפסת. זה לא אימות שנייר יצא. PRINTED נשמר רק אחרי אישור פיזי."
           )}
         </p>
 
@@ -409,6 +409,7 @@ export function PrinterAdmin() {
                         className={cn(
                           "rounded-full px-2 py-0.5 text-xs font-semibold",
                           job.status === "PRINTED" && "bg-emerald-50 text-emerald-700",
+                          job.status === "SENT" && "bg-emerald-50 text-emerald-700",
                           job.status === "PENDING" && "bg-amber-50 text-amber-800",
                           job.status === "PRINTING" && "bg-sky-50 text-sky-800",
                           job.status === "FAILED" && "bg-red-50 text-red-700",

@@ -23,6 +23,7 @@ import { orderSchema, type OrderInput } from "@/lib/validation/schemas";
 import { forcePickupForNewOrder, NEW_ORDER_FULFILLMENT } from "@/lib/orders/fulfillment";
 import { isViewOnlyMenuSurface } from "@/lib/domains/host-routing";
 import {
+  requestNewOrderPrintJob,
   requestOrderCancelledEmailNotification,
   requestOrderUpdatedEmailNotification,
 } from "@/lib/email/client-notify";
@@ -259,6 +260,7 @@ export async function createOrder(input: OrderInput): Promise<ServiceResult<Orde
     const orderData = sanitizeFirestoreData(rawOrder);
 
     const ref = await addDoc(collection(db, COLLECTIONS.orders), orderData);
+    await requestNewOrderPrintJob(ref.id);
     return success(mapOrder({ id: ref.id, ...orderData } as FirestoreDoc<FirestoreOrder>));
   } catch (error) {
     console.error("[createOrder] failed:", error);

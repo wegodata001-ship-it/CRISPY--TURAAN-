@@ -16,6 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -174,16 +175,41 @@ class AgentService : Service() {
         val label = job.receipt.orderNumber.ifBlank { job.orderId ?: job.type }
         config.rememberOrder(label)
         AgentStatus.update { it.copy(lastOrder = label, server = "متصل") }
-        try {
-            val cutter = sendReceipt(ip, port, job.receipt)
-            api.markPrinted(job.id, ip, port, cutter)
-            val stamp = stamp()
-            config.rememberPrint(stamp)
-            AgentStatus.update { it.copy(lastPrint = stamp, note = "تم إرسال الإيصال. خروج الورق يحتاج تأكيدًا بصريًا.") }
-        } catch (error: Exception) {
-            runCatching { api.markFailed(job.id, error.message ?: "print failed") }
-            AgentStatus.update { it.copy(note = "فشلت الطباعة") }
+        if (config.wasFlushed(job.id)) {
+            reportFlushed(api, config, job.id, ip, port, "تم إرسال هذا الإيصال مسبقًا. لا تُعاد طباعته.")
+            return
         }
+        try {
+            sendReceipt(ip, port, job.receipt)
+        } catch (error: PrinterConnectException) {
+            runCatching { api.markFailed(job.id, "printer_connect: ${error.message}") }
+            AgentStatus.update { it.copy(printer = "غير متصلة", note = "الطابعة غير متصلة. تبقى المهمة في الطابور.") }
+            return
+        } catch (error: PrinterPartialException) {
+            config.rememberFlushed(job.id)
+            runCatching { api.markFailed(job.id, "printer_partial: ${error.message}") }
+            AgentStatus.update { it.copy(note = "انقطع الإرسال أثناء الطباعة. لن تُعاد تلقائيًا.") }
+            return
+        }
+        config.rememberFlushed(job.id)
+        reportFlushed(api, config, job.id, ip, port, "تم إرسال الإيصال إلى الطابعة. خروج الورق يحتاج تأكيدًا بصريًا.")
+    }
+
+    private fun reportFlushed(
+        api: AgentApi,
+        config: SecureConfig,
+        jobId: String,
+        ip: String,
+        port: Int,
+        note: String
+    ) {
+        val reported = runCatching { api.markPrinted(jobId, ip, port, null) }
+        if (reported.isFailure) {
+            runCatching { api.markFailed(jobId, "printer_partial: status update failed after flush") }
+        }
+        val stamp = stamp()
+        config.rememberPrint(stamp)
+        AgentStatus.update { it.copy(lastPrint = stamp, note = note) }
     }
 
     private fun serverNote(beat: AgentResult, printerNote: String): String {
@@ -210,28 +236,28 @@ class AgentService : Service() {
 
     private fun printLocalTest(config: SecureConfig, ip: String, port: Int) {
         try {
-            val cutter = sendReceipt(ip, port, ReceiptRaster.localTestReceipt())
+            sendReceipt(ip, port, ReceiptRaster.localTestReceipt())
             val stamp = stamp()
             config.rememberPrint(stamp)
-            val note = if (cutter == null) {
-                "تم إرسال اختبار الطباعة. تأكد من خروج الورق."
-            } else {
-                "تم إرسال الاختبار. CUT_UNSUPPORTED"
+            AgentStatus.update {
+                it.copy(
+                    lastPrint = stamp,
+                    printer = "متصلة",
+                    note = "تم إرسال اختبار الطباعة. تأكد من خروج الورق."
+                )
             }
-            AgentStatus.update { it.copy(lastPrint = stamp, note = note, printer = "متصلة") }
-        } catch (_: Exception) {
-            AgentStatus.update { it.copy(printer = "غير متصلة", note = "الطابعة غير متصلة") }
+        } catch (_: PrinterConnectException) {
+            AgentStatus.update { it.copy(printer = "غير متصلة", note = "تعذر الاتصال بالطابعة 192.168.1.80:9100") }
+        } catch (_: PrinterPartialException) {
+            AgentStatus.update { it.copy(note = "انقطع إرسال الاختبار. لا تضغط الاختبار مرة أخرى قبل فحص الطابعة.") }
         }
     }
 
-    private fun sendReceipt(ip: String, port: Int, receipt: Receipt): String? {
-        printer.send(ip, port, ReceiptRaster.receiptBytes(receipt))
-        return try {
-            printer.send(ip, port, ReceiptRaster.cutBytes())
-            null
-        } catch (_: Exception) {
-            "CUT_UNSUPPORTED"
-        }
+    private fun sendReceipt(ip: String, port: Int, receipt: Receipt) {
+        val payload = ByteArrayOutputStream()
+        payload.write(ReceiptRaster.receiptBytes(receipt))
+        payload.write(ReceiptRaster.cutBytes())
+        printer.send(ip, port, payload.toByteArray())
     }
 
     private fun stamp(): String = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())

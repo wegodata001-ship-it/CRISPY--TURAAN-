@@ -6,6 +6,8 @@ export type PrintFailureDisposition = "retry_offline" | "partial_send" | "retry_
  */
 export function classifyPrintFailure(message: string): PrintFailureDisposition {
   const text = message.toLowerCase();
+  if (text.includes("printer_partial")) return "partial_send";
+  if (text.includes("printer_connect")) return "retry_offline";
   if (
     /econnreset|epipe|broken pipe|connection reset|connection aborted|software caused connection abort/.test(
       text

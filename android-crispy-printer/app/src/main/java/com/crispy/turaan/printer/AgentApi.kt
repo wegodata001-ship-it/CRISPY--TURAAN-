@@ -96,6 +96,7 @@ class AgentApi(
         val body = JSONObject()
             .put("printerIp", printerIp)
             .put("printerPort", printerPort)
+            .put("physicalConfirmed", false)
         if (!cutterError.isNullOrBlank()) body.put("cutterError", cutterError)
         val response = post("/api/print-agent/jobs/$jobId/printed", body)
         response.use {

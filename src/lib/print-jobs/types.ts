@@ -1,4 +1,4 @@
-export const PRINT_JOB_STATUSES = ["PENDING", "PRINTING", "PRINTED", "FAILED", "DISMISSED"] as const;
+export const PRINT_JOB_STATUSES = ["PENDING", "PRINTING", "SENT", "PRINTED", "FAILED", "DISMISSED"] as const;
 export type PrintJobStatus = (typeof PRINT_JOB_STATUSES)[number];
 
 export const PRINT_JOB_TYPES = ["NEW_ORDER", "REPRINT", "TEST"] as const;

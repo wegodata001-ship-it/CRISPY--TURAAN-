@@ -10,6 +10,11 @@ export const STALE_PRINT_JOB_IDS = [
   "NEW_ORDER_yaZ7ZMAN5hj34vQKIDGq",
 ] as const;
 
+/** Bytes already flushed, printed, failed, or dismissed are not claimed again. */
+export function isClaimablePrintStatus(status: string | null | undefined): boolean {
+  return status === "PENDING" || status === "PRINTING";
+}
+
 export function isAutoPrintHeld(input: {
   id?: string | null;
   status?: string | null;

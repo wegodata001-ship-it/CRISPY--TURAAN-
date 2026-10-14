@@ -21,6 +21,7 @@ export async function POST(
       printerPort?: number;
       cutterError?: string;
       beepError?: string;
+      physicalConfirmed?: boolean;
     };
     const status = await markPrintJobPrinted(id, body);
     return NextResponse.json({ ok: true, status });

@@ -89,6 +89,19 @@ class SecureConfig(context: Context) {
         publicPrefs.edit().putString(KEY_LAST_PRINT, label).apply()
     }
 
+    fun wasFlushed(jobId: String): Boolean {
+        return flushedIds().contains(jobId)
+    }
+
+    fun rememberFlushed(jobId: String) {
+        val next = (flushedIds().filterNot { it == jobId } + jobId).takeLast(50)
+        publicPrefs.edit().putString(KEY_FLUSHED, next.joinToString("\n")).apply()
+    }
+
+    private fun flushedIds(): List<String> {
+        return publicPrefs.getString(KEY_FLUSHED, "").orEmpty().lineSequence().filter { it.isNotBlank() }.toList()
+    }
+
     companion object {
         const val ALLOWED_IP = "192.168.1.80"
         const val ALLOWED_PORT = 9100
@@ -105,5 +118,6 @@ class SecureConfig(context: Context) {
         private const val KEY_ACTIVATED = "activated"
         private const val KEY_LAST_ORDER = "last_order"
         private const val KEY_LAST_PRINT = "last_print"
+        private const val KEY_FLUSHED = "flushed_job_ids"
     }
 }

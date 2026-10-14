@@ -25,14 +25,21 @@ export function readPrintAgentToken(request: NextRequest): string | null {
   return custom || null;
 }
 
+export function printAgentAuthStatus(provided: string | null | undefined): 200 | 401 | 503 {
+  if (!getConfiguredPrintAgentToken()) return 503;
+  if (!isValidPrintAgentToken(provided)) return 401;
+  return 200;
+}
+
 export function requirePrintAgent(request: NextRequest): true | Response {
-  if (!getConfiguredPrintAgentToken()) {
+  const status = printAgentAuthStatus(readPrintAgentToken(request));
+  if (status === 503) {
     return Response.json(
       { error: "Print agent is not configured (PRINT_AGENT_TOKEN missing)" },
       { status: 503 }
     );
   }
-  if (!isValidPrintAgentToken(readPrintAgentToken(request))) {
+  if (status === 401) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   return true;
