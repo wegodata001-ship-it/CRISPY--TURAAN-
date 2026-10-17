@@ -248,6 +248,10 @@ export async function createOrder(input: OrderInput): Promise<ServiceResult<Orde
     // New orders are pickup-only; never persist delivery / address / delivery fee.
     const parsed = forcePickupForNewOrder(orderSchema.parse(input));
     const db = getDb();
+    const settingsSnap = await getDoc(doc(db, COLLECTIONS.settings, "app"));
+    if (settingsSnap.exists() && settingsSnap.data()?.orderingPaused === true) {
+      return failure(new ServiceError("Ordering is paused", "ORDERING_PAUSED"));
+    }
     const orderNumber = await generateOrderNumber();
     const now = nowTimestamp();
 

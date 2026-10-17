@@ -30,6 +30,7 @@ import {
   isToday,
   orderSearchText,
 } from "@/lib/orders/operations";
+import { countsTowardFinance } from "@/lib/finance/books";
 import { kitchenTicketHtml, printKitchenTicket } from "@/lib/orders/kitchen-ticket";
 import { exportHtmlAsPdf } from "@/lib/export-pdf";
 import { useT } from "@/components/providers/locale-provider";
@@ -110,7 +111,7 @@ export function OrdersAdmin() {
   const todayRevenue = useMemo(
     () =>
       todayOrders
-        .filter((order) => order.status !== "cancelled")
+        .filter((order) => order.status !== "cancelled" && countsTowardFinance(order.createdAt))
         .reduce((sum, order) => sum + order.total, 0),
     [todayOrders]
   );

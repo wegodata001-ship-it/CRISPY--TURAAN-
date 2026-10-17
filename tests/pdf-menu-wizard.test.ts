@@ -80,6 +80,8 @@ const settings: AppSettings = {
   social: { instagram: "", facebook: "", whatsapp: "" },
   mapsUrl: "",
   faviconUrl: "",
+  orderingPaused: false,
+  orderingPauseReason: "",
 };
 
 function draft(over: Partial<PdfMenuDraft> = {}): PdfMenuDraft {

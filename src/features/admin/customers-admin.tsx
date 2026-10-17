@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { getInitials, formatDateShort, formatPrice } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
+import { countsTowardFinance } from "@/lib/finance/books";
 import { ORDER_STATUS_LABEL_KEY, orderStatusBadgeVariant } from "@/lib/orders/operations";
 import type { Customer, OrderStatus } from "@/types";
 
@@ -53,7 +54,9 @@ export function CustomersAdmin() {
 
   const totalSpending = useMemo(() => {
     if (!profile) return 0;
-    return customerOrders.reduce((s, o) => s + o.total, 0);
+    return customerOrders
+      .filter((order) => countsTowardFinance(order.createdAt))
+      .reduce((s, o) => s + o.total, 0);
   }, [customerOrders, profile]);
 
   const openCreate = () => {
@@ -159,7 +162,7 @@ export function CustomersAdmin() {
                     <td className="hidden px-4 py-3 text-sm text-coffee/60 md:table-cell">{customer.phone}</td>
                     <td className="px-4 py-3 text-sm font-medium text-coffee">{customer.ordersCount}</td>
                     <td className="hidden px-4 py-3 text-sm text-coffee sm:table-cell">
-                      {formatPrice(customer.totalSpending || totalSpendingFor(customer, orders))}
+                      {formatPrice(totalSpendingFor(customer, orders))}
                     </td>
                     <td className="hidden px-4 py-3 text-sm text-coffee/50 lg:table-cell">
                       {formatDateShort(customer.lastOrder)}
@@ -204,7 +207,7 @@ export function CustomersAdmin() {
                 </div>
                 <div className="rounded-xl bg-beige/30 p-3 dark:bg-white/5">
                   <p className="text-xs text-coffee/50">{t("admin.customers.totalSpending")}</p>
-                  <p className="text-xl font-bold text-coffee">{formatPrice(totalSpending || profile.totalSpending)}</p>
+                  <p className="text-xl font-bold text-coffee">{formatPrice(totalSpending)}</p>
                 </div>
               </div>
               <div className="space-y-2 text-sm">
@@ -300,6 +303,11 @@ export function CustomersAdmin() {
   );
 }
 
-function totalSpendingFor(customer: Customer, orders: { customerId: string; total: number }[]) {
-  return orders.filter((o) => o.customerId === customer.id).reduce((s, o) => s + o.total, 0);
+function totalSpendingFor(
+  customer: Customer,
+  orders: { customerId: string; total: number; createdAt: string }[]
+) {
+  return orders
+    .filter((order) => order.customerId === customer.id && countsTowardFinance(order.createdAt))
+    .reduce((sum, order) => sum + order.total, 0);
 }

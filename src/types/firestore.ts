@@ -203,6 +203,8 @@ export interface FirestoreSettings {
   mapsUrl?: string;
   faviconUrl?: string;
   showProductThumbnails?: boolean;
+  orderingPaused?: boolean;
+  orderingPauseReason?: string;
   updatedAt: Timestamp;
 }
 

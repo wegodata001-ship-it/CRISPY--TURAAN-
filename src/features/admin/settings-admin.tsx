@@ -18,6 +18,7 @@ import {
   deleteImageByUrl,
 } from "@/services/storageService";
 import { SystemStatusCard } from "@/features/admin/system-status-card";
+import { OrderingPausePanel } from "./ordering-pause-panel";
 import { useT } from "@/components/providers/locale-provider";
 import { AdminPageHeader } from "./components/admin-page-header";
 import { AdminCard } from "./components/admin-card";
@@ -67,6 +68,8 @@ export function SettingsAdmin() {
           </Button>
         }
       />
+
+      <OrderingPausePanel />
 
       <AdminCard title={t("admin.printer.title", "מדפסת")}>
         <p className="text-sm text-coffee/60">

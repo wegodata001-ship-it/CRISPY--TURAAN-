@@ -39,9 +39,14 @@ service cloud.firestore {
       allow delete: if isStaff();
     }
 
+    function orderingIsOpen() {
+      let settings = /databases/$(database)/documents/settings/app;
+      return !exists(settings) || get(settings).data.get('orderingPaused', false) != true;
+    }
+
     match /orders/{id} {
       allow read: if isStaff();
-      allow create: if true;
+      allow create: if isStaff() || orderingIsOpen();
       allow update, delete: if isStaff();
     }
 

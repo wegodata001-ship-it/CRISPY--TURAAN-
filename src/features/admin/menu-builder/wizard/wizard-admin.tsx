@@ -54,6 +54,8 @@ const FALLBACK_SETTINGS: AppSettings = {
   social: { instagram: "", facebook: "", whatsapp: "" },
   mapsUrl: "",
   faviconUrl: BRAND.logo,
+  orderingPaused: false,
+  orderingPauseReason: "",
 };
 
 export function PdfMenuWizard() {

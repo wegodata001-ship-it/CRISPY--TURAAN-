@@ -27,6 +27,7 @@ import { MobileCartBar } from "@/features/cart/mobile-cart-bar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { PwaManager } from "@/components/pwa/pwa-manager";
 import { BrandSplash } from "@/components/brand/brand-splash";
+import { StorePauseGate } from "@/features/store/store-pause-gate";
 import { HostSurfaceProvider } from "@/components/providers/host-surface-provider";
 import { isMenuHost, isPortalHost } from "@/lib/domains/host-routing";
 import { BRAND } from "@/lib/brand";
@@ -121,17 +122,19 @@ export default async function RootLayout({
                   <AuthProvider>
                     <CartProvider>
                       <CatalogModifierPreviewProvider>
-                        <main id="main-content" className="min-w-0 flex-1" tabIndex={-1}>
-                          {children}
-                        </main>
-                        <ClientSiteFooter />
-                        <FloatingCartButton />
-                        <MobileCartBar />
-                        <CartDrawer />
-                        <BottomNav />
-                        <PwaManager />
-                        <AccessibilityCenter />
-                        <AssistantWidget />
+                        <StorePauseGate>
+                          <main id="main-content" className="min-w-0 flex-1" tabIndex={-1}>
+                            {children}
+                          </main>
+                          <ClientSiteFooter />
+                          <FloatingCartButton />
+                          <MobileCartBar />
+                          <CartDrawer />
+                          <BottomNav />
+                          <PwaManager />
+                          <AccessibilityCenter />
+                          <AssistantWidget />
+                        </StorePauseGate>
                       </CatalogModifierPreviewProvider>
                     </CartProvider>
                   </AuthProvider>

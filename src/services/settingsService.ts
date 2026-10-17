@@ -32,6 +32,8 @@ export interface AppSettings {
   social: { instagram: string; facebook: string; whatsapp: string };
   mapsUrl: string;
   faviconUrl: string;
+  orderingPaused: boolean;
+  orderingPauseReason: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -52,6 +54,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   social: { instagram: "", facebook: "", whatsapp: "" },
   mapsUrl: "",
   faviconUrl: BRAND.logo,
+  orderingPaused: false,
+  orderingPauseReason: "",
 };
 
 function mapSettings(data: FirestoreSettings | undefined): AppSettings {
@@ -70,6 +74,8 @@ function mapSettings(data: FirestoreSettings | undefined): AppSettings {
     social: data.social ?? DEFAULT_SETTINGS.social,
     mapsUrl: data.mapsUrl ?? "",
     faviconUrl: data.faviconUrl ?? DEFAULT_SETTINGS.faviconUrl,
+    orderingPaused: data.orderingPaused === true,
+    orderingPauseReason: data.orderingPauseReason?.trim() ?? "",
   };
 }
 
