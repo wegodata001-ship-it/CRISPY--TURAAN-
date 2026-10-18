@@ -26,6 +26,7 @@ data class Receipt(
     val notes: String?,
     val subtotal: Double?,
     val discount: Double?,
+    val couponLine: String?,
     val deliveryFee: Double?,
     val total: Double,
     val paymentLabel: String,

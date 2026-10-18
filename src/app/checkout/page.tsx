@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -23,10 +23,70 @@ import { Textarea } from "@/components/ui/textarea";
 import { useT, useLocale } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
+import { CouponEntry } from "@/features/cart/coupon-entry";
 import { createOrderFromCart, getOrCreateGuestCustomer, GUEST_CUSTOMER_ID } from "@/services";
 import { requestNewOrderEmailNotification, requestCriticalCheckoutFailureNotification } from "@/lib/email/client-notify";
 import { formatPrice } from "@/lib/utils";
-import { calculateLineTotal } from "@/lib/product-builder/engine";
+import { calculateLineTotal, collectKitchenNotes } from "@/lib/product-builder/engine";
+import { getLocalizedName } from "@/lib/i18n/localized-content";
+
+async function checkoutWithCoupon(input: {
+  requestId: string;
+  couponCode: string;
+  customerName: string;
+  customerPhone: string;
+  notes?: string;
+  locale: "ar" | "he" | "en";
+  paymentMethod: string;
+  items: import("@/types").CartItem[];
+}) {
+  const response = await fetch("/api/coupons/checkout", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      requestId: input.requestId,
+      couponCode: input.couponCode,
+      customerId: GUEST_CUSTOMER_ID,
+      customerName: input.customerName,
+      customerPhone: input.customerPhone,
+      notes: input.notes,
+      locale: input.locale,
+      paymentMethod: input.paymentMethod,
+      paymentStatus: "pending",
+      items: input.items.map((item) => {
+        const kitchenNotes = collectKitchenNotes(item.selections);
+        return {
+          productId: item.product.id,
+          productName: getLocalizedName(item.product, input.locale),
+          quantity: item.quantity,
+          price: item.unitPrice,
+          basePrice: item.product.price,
+          notes: item.notes?.trim() || undefined,
+          modifiers: item.selections.length > 0 ? item.selections : undefined,
+          kitchenNotes: kitchenNotes.length > 0 ? kitchenNotes : undefined,
+        };
+      }),
+    }),
+  });
+  const payload = (await response.json().catch(() => null)) as {
+    ok?: boolean;
+    message?: string;
+    code?: string;
+    orderId?: string;
+    orderNumber?: string;
+  } | null;
+  if (!response.ok || !payload?.ok || !payload.orderId || !payload.orderNumber) {
+    return {
+      success: false as const,
+      error: payload?.message || "الكوبون غير صالح",
+      code: payload?.code,
+    };
+  }
+  return {
+    success: true as const,
+    data: { id: payload.orderId, orderNumber: payload.orderNumber },
+  };
+}
 
 function OrderLineItem({ item }: { item: import("@/types").CartItem }) {
   const localized = useLocalizedProduct(item.product);
@@ -52,7 +112,7 @@ export default function CheckoutPage() {
   const { locale } = useLocale();
   const router = useRouter();
   const {
-    items, subtotal, discount, total,
+    items, subtotal, discount, total, coupon,
     clearCart,
   } = useCart();
   const [name, setName] = useState("");
@@ -62,6 +122,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const couponRequestIds = useRef<Record<string, string>>({});
   const [placedOrderNumber, setPlacedOrderNumber] = useState("");
 
   if (items.length === 0 && !success) {
@@ -99,15 +160,32 @@ export default function CheckoutPage() {
         .filter(Boolean)
         .join("\n");
 
-      const result = await createOrderFromCart(items, GUEST_CUSTOMER_ID, name, {
-        subtotal,
-        discount,
-        total,
-        paymentMethod: payment,
-        customerPhone: phone.trim(),
-        notes: orderNotes || undefined,
-        locale,
-      });
+      const checkoutLocale = locale === "he" || locale === "en" ? locale : "ar";
+      const result = coupon
+        ? await checkoutWithCoupon({
+            requestId:
+              couponRequestIds.current[coupon.code] ||
+              (couponRequestIds.current[coupon.code] =
+                typeof crypto !== "undefined" && crypto.randomUUID
+                  ? crypto.randomUUID()
+                  : `coupon-${coupon.code}-${Date.now()}`),
+            couponCode: coupon.code,
+            customerName: name,
+            customerPhone: phone.trim(),
+            notes: orderNotes || undefined,
+            locale: checkoutLocale,
+            paymentMethod: payment,
+            items,
+          })
+        : await createOrderFromCart(items, GUEST_CUSTOMER_ID, name, {
+            subtotal,
+            discount: 0,
+            total: subtotal,
+            paymentMethod: payment,
+            customerPhone: phone.trim(),
+            notes: orderNotes || undefined,
+            locale,
+          });
       if (!result.success) {
         console.error("[checkout] order failed:", result.error, result.code);
         if (result.code === "ORDER_SAVE_FAILED") {
@@ -116,7 +194,7 @@ export default function CheckoutPage() {
             code: result.code,
           });
         }
-        setError(t("checkout.orderSaveError"));
+        setError(result.error || t("checkout.orderSaveError"));
         return;
       }
 
@@ -232,6 +310,9 @@ export default function CheckoutPage() {
                   {items.map((item) => (
                     <OrderLineItem key={item.lineId} item={item} />
                   ))}
+                </div>
+                <div className="mt-4">
+                  <CouponEntry />
                 </div>
                 <div className="mt-4 space-y-1.5 border-t border-beige-dark/20 pt-3 text-sm">
                   <div className="flex justify-between text-coffee-light">

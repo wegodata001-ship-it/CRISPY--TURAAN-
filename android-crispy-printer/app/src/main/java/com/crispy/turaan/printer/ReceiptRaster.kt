@@ -63,6 +63,7 @@ object ReceiptRaster {
             notes = "اختبار الطباعة",
             subtotal = null,
             discount = null,
+            couponLine = null,
             deliveryFee = null,
             total = 0.0,
             paymentLabel = "",
@@ -129,7 +130,8 @@ object ReceiptRaster {
         if (!receipt.isTest || receipt.paymentLabel.isNotBlank() || receipt.total > 0) {
             rule()
             if (receipt.subtotal != null) text(money(receipt.subtotal), 28f, forceLtr = true)
-            if (receipt.discount != null) text(money(receipt.discount), 28f, forceLtr = true)
+            if (!receipt.couponLine.isNullOrBlank()) text(receipt.couponLine, 30f, bold = true)
+            else if (receipt.discount != null) text(money(receipt.discount), 28f, forceLtr = true)
             if (receipt.deliveryFee != null) text(money(receipt.deliveryFee), 28f, forceLtr = true)
             if (receipt.total > 0) text(money(receipt.total), 52f, bold = true, center = true, forceLtr = true)
             if (receipt.paymentLabel.isNotBlank()) text(receipt.paymentLabel, 36f, bold = true, center = true)

@@ -70,6 +70,21 @@ export function OrdersAdmin() {
   }, [searchInput]);
 
   useEffect(() => {
+    const orderNumber = new URLSearchParams(window.location.search).get("order");
+    if (!orderNumber) return;
+    setSearchInput(orderNumber);
+    setDateFilter("all");
+    setTab("history");
+  }, []);
+
+  useEffect(() => {
+    const orderNumber = new URLSearchParams(window.location.search).get("order");
+    if (!orderNumber) return;
+    const match = orders.find((order) => order.orderNumber === orderNumber);
+    if (match) setExpanded(match.id);
+  }, [orders]);
+
+  useEffect(() => {
     if (!realtimeReady.current) {
       knownOrderIds.current = new Set(orders.map((order) => order.id));
       if (!loading) realtimeReady.current = true;
@@ -161,6 +176,17 @@ export function OrdersAdmin() {
       });
       pushToast(t("admin.orders.statusError"), "error");
     } else {
+      if (status === "cancelled" && order.couponCode) {
+        try {
+          await authFetch("/api/admin/coupons/restore", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ orderId: order.id }),
+          });
+        } catch {
+          // Cancelling the order already succeeded. Restoring the coupon can be retried.
+        }
+      }
       pushToast(t("admin.orders.statusSaved"));
     }
     setUpdatingIds((current) => {

@@ -90,6 +90,7 @@ export interface ReceiptModel {
   notes?: string;
   subtotal?: number;
   discount?: number;
+  couponLine?: string;
   deliveryFee?: number;
   total: number;
   paymentLabel: string;

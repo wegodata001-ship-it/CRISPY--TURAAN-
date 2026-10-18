@@ -9,6 +9,7 @@ import { cn, formatPrice } from "@/lib/utils";
 import { useT } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
+import { CouponEntry } from "@/features/cart/coupon-entry";
 import { ProductImage } from "@/components/catalog/product-image";
 import { AddonsWizard } from "@/features/catalog/addons-wizard";
 import { useProductAddonConfig } from "@/features/catalog/catalog-modifier-preview-context";
@@ -196,6 +197,7 @@ export function CartPanel({ onCheckout, className }: CartPanelProps) {
                 <span>{formatPrice(extrasTotal)}</span>
               </div>
             )}
+            <CouponEntry />
             {discount > 0 && (
               <div className="flex justify-between text-turquoise">
                 <span>{t("cart.discount")}</span>

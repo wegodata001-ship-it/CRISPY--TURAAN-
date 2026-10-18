@@ -55,6 +55,22 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    match /coupons/{id} {
+      allow read, write: if false;
+    }
+
+    match /couponRedemptions/{id} {
+      allow read, write: if false;
+    }
+
+    match /couponCheckoutRequests/{id} {
+      allow read, write: if false;
+    }
+
+    match /couponCustomerUses/{id} {
+      allow read, write: if false;
+    }
+
     match /settings/{id} {
       allow read: if true;
       allow write: if isStaff();

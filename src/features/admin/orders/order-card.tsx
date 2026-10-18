@@ -206,6 +206,13 @@ export function OrderCard({
             <p className="font-semibold">{t("orders.date")}</p>
             <p>{formatDate(order.createdAt)}</p>
             <p>{t("admin.orders.paymentMethod")}: {order.paymentMethod || "—"}</p>
+            {order.couponCode ? (
+              <p>
+                {t("admin.coupons.discount")}: {order.couponCode}
+                {order.couponDiscountType === "percent" ? ` (${order.couponDiscountValue}%)` : ""}
+                {(order.discount ?? 0) > 0 ? ` −${formatPrice(order.discount ?? 0)}` : ""}
+              </p>
+            ) : null}
           </div>
           {order.notes && (
             <div className="rounded-xl bg-amber-50 p-3 text-amber-900 md:col-span-2">

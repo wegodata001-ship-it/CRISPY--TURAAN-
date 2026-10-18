@@ -17,6 +17,7 @@ import {
   Smartphone,
   QrCode,
   Calculator,
+  Ticket,
 } from "lucide-react";
 import { adminPath, toInternalAdminPath } from "@/lib/domains/host-routing";
 import type { AdminSurface } from "@/lib/domains/host-routing";
@@ -56,6 +57,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     labelKey: "admin.nav.group.sales",
     items: [
       { segment: "orders", labelKey: "admin.orders", icon: ClipboardList },
+      { segment: "coupons", labelKey: "admin.nav.coupons", icon: Ticket, adminOnly: true },
       { segment: "customers", labelKey: "admin.customers", icon: Users },
     ],
   },
@@ -97,6 +99,7 @@ export const ADMIN_PAGE_TITLES: Record<string, string> = {
   "/admin/product-builder": "admin.productAssignments",
   "/admin/business-rules": "admin.selectionRules",
   "/admin/orders": "admin.orders.title",
+  "/admin/coupons": "admin.nav.coupons",
   "/admin/customers": "admin.customers.title",
   "/admin/banners": "admin.banners.title",
   "/admin/menu-builder": "admin.menuBuilder",

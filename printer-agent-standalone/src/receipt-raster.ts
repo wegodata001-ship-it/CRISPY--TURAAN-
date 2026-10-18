@@ -398,7 +398,9 @@ export async function renderReceiptRaster(
       text(`${labels.subtotal}: ${formatMoney(model.subtotal)}`, FONT.subtotal, { align: "start" })
     );
   }
-  if (model.discount != null) {
+  if (model.couponLine) {
+    ops.push(text(model.couponLine, FONT.subtotal, { align: "start", dir: "rtl" }));
+  } else if (model.discount != null) {
     ops.push(text(`${labels.discount}: ${formatMoney(model.discount)}`, FONT.subtotal, { align: "start" }));
   }
   if (model.deliveryFee != null) {

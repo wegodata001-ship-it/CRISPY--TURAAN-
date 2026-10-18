@@ -28,6 +28,10 @@ export const COLLECTIONS = {
   ingredientPriceHistory: "ingredientPriceHistory",
   productRecipes: "productRecipes",
   costingSettings: "costingSettings",
+  coupons: "coupons",
+  couponRedemptions: "couponRedemptions",
+  couponCheckoutRequests: "couponCheckoutRequests",
+  couponCustomerUses: "couponCustomerUses",
 } as const;
 
 export const DEFAULT_STORE_ID = "crispy";

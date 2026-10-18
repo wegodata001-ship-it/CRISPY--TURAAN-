@@ -18,12 +18,18 @@ import {
 } from "@/lib/product-builder/engine";
 import { NEW_ORDER_FULFILLMENT } from "@/lib/orders/fulfillment";
 import { isViewOnlyMenuSurface } from "@/lib/domains/host-routing";
+import { quoteDiscount, type CouponDiscountType } from "@/lib/coupons/engine";
+
+export type AppliedCoupon = {
+  code: string;
+  discountType: CouponDiscountType;
+  discountValue: number;
+};
 
 interface CartState {
   items: CartItem[];
   isOpen: boolean;
-  couponCode: string;
-  couponDiscount: number;
+  coupon: AppliedCoupon | null;
 }
 
 type CartAction =
@@ -51,7 +57,7 @@ type CartAction =
   | { type: "OPEN_CART" }
   | { type: "CLOSE_CART" }
   | { type: "TOGGLE_CART" }
-  | { type: "SET_COUPON"; code: string; discount: number };
+  | { type: "SET_COUPON"; coupon: AppliedCoupon | null };
 
 interface AddItemOptions {
   selections?: SelectedModifier[];
@@ -70,7 +76,7 @@ interface CartContextValue {
   /** Always 0 — business is pickup-only. Kept for UI compatibility. */
   deliveryFee: number;
   total: number;
-  couponCode: string;
+  coupon: AppliedCoupon | null;
   /** Always pickup — business does not offer delivery. */
   orderType: typeof NEW_ORDER_FULFILLMENT;
   addItem: (product: Product, options?: AddItemOptions) => void;
@@ -81,7 +87,11 @@ interface CartContextValue {
     options: Required<Pick<AddItemOptions, "selections" | "unitPrice" | "quantity">> &
       Pick<AddItemOptions, "notes">
   ) => void;
-  applyCoupon: (code: string) => boolean;
+  applyCoupon: (
+    code: string,
+    locale: "ar" | "he" | "en"
+  ) => Promise<{ ok: true } | { ok: false; message: string }>;
+  removeCoupon: () => void;
   clearCart: () => void;
   openCart: () => void;
   closeCart: () => void;
@@ -178,12 +188,11 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       return {
         ...state,
         items: Array.isArray(action.state.items) ? action.state.items : state.items,
-        couponCode: action.state.couponCode ?? state.couponCode,
-        couponDiscount: action.state.couponDiscount ?? state.couponDiscount,
+        coupon: action.state.coupon?.code ? action.state.coupon : null,
         isOpen: false,
       };
     case "CLEAR_CART":
-      return { ...state, items: [] };
+      return { ...state, items: [], coupon: null };
     case "OPEN_CART":
       return { ...state, isOpen: true };
     case "CLOSE_CART":
@@ -191,7 +200,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     case "TOGGLE_CART":
       return { ...state, isOpen: !state.isOpen };
     case "SET_COUPON":
-      return { ...state, couponCode: action.code, couponDiscount: action.discount };
+      return { ...state, coupon: action.coupon };
     default:
       return state;
   }
@@ -201,8 +210,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(cartReducer, {
     items: [],
     isOpen: false,
-    couponCode: "",
-    couponDiscount: 0,
+    coupon: null,
   });
   const [hydrated, setHydrated] = useState(false);
 
@@ -228,11 +236,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       CART_STORAGE_KEY,
       JSON.stringify({
         items: state.items,
-        couponCode: state.couponCode,
-        couponDiscount: state.couponDiscount,
+        coupon: state.coupon,
       })
     );
-  }, [hydrated, state.couponCode, state.couponDiscount, state.items]);
+  }, [hydrated, state.coupon, state.items]);
 
   const addItem = useCallback((product: Product, options?: AddItemOptions) => {
     if (
@@ -304,24 +311,47 @@ export function CartProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "TOGGLE_CART" });
   }, []);
 
-  const applyCoupon = useCallback((code: string) => {
-    const normalized = code.trim().toUpperCase();
-    if (normalized === "WELCOME15") {
-      dispatch({ type: "SET_COUPON", code: normalized, discount: 0.15 });
-      return true;
-    }
-    return false;
-  }, []);
-
   const itemCount = state.items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = state.items.reduce(
     (sum, item) =>
       sum + calculateLineTotal(item.unitPrice, item.quantity),
     0
   );
-  const discount = subtotal * state.couponDiscount;
+  const priced = state.coupon
+    ? quoteDiscount(subtotal, state.coupon.discountType, state.coupon.discountValue)
+    : { discountAmount: 0, total: subtotal };
+  const discount = priced.discountAmount;
   const deliveryFee = 0;
-  const total = subtotal - discount;
+  const total = priced.total;
+
+  const applyCoupon = useCallback(async (code: string, locale: "ar" | "he" | "en") => {
+    const response = await fetch("/api/coupons/quote", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code, subtotal, locale }),
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      message?: string;
+      quote?: { code: string; discountType: CouponDiscountType; discountValue: number };
+    } | null;
+    if (!response.ok || !payload?.ok || !payload.quote) {
+      return { ok: false as const, message: payload?.message || "الكوبون غير صالح" };
+    }
+    dispatch({
+      type: "SET_COUPON",
+      coupon: {
+        code: payload.quote.code,
+        discountType: payload.quote.discountType,
+        discountValue: payload.quote.discountValue,
+      },
+    });
+    return { ok: true as const };
+  }, [subtotal]);
+
+  const removeCoupon = useCallback(() => {
+    dispatch({ type: "SET_COUPON", coupon: null });
+  }, []);
 
   return (
     <CartContext.Provider
@@ -333,13 +363,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         discount,
         deliveryFee,
         total,
-        couponCode: state.couponCode,
+        coupon: state.coupon,
         orderType: NEW_ORDER_FULFILLMENT,
         addItem,
         removeItem,
         updateQuantity,
         updateConfiguredItem,
         applyCoupon,
+        removeCoupon,
         clearCart,
         openCart,
         closeCart,

@@ -173,6 +173,7 @@ class AgentApi(
             notes = json.optString("notes").ifBlank { null },
             subtotal = json.optDoubleOrNull("subtotal"),
             discount = json.optDoubleOrNull("discount"),
+            couponLine = json.optString("couponLine").ifBlank { null },
             deliveryFee = json.optDoubleOrNull("deliveryFee"),
             total = json.optDouble("total", 0.0),
             paymentLabel = json.optString("paymentLabel"),

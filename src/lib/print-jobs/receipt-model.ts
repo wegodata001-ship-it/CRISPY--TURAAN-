@@ -1,3 +1,4 @@
+import { couponReceiptLine } from "@/lib/coupons/engine";
 import { calculateLineTotal } from "@/lib/product-builder/engine";
 import type { PrintLocale, ReceiptItemLine, ReceiptModel } from "@/lib/print-jobs/types";
 import { parsePrintLocale } from "@/lib/print-jobs/ids";
@@ -161,6 +162,9 @@ type OrderLike = {
   total: number;
   subtotal?: number;
   discount?: number;
+  couponCode?: string;
+  couponDiscountType?: "percent" | "fixed";
+  couponDiscountValue?: number;
   delivery?: number;
   paymentMethod?: string;
   locale?: string;
@@ -177,6 +181,15 @@ export function buildReceiptModelFromOrder(
   const copy = COPY[locale];
   const { date, time } = formatReceiptDateParts(order.createdAt, locale);
   const discount = order.discount && order.discount > 0 ? order.discount : undefined;
+  const couponLine =
+    discount && order.couponCode && order.couponDiscountType && order.couponDiscountValue != null
+      ? couponReceiptLine({
+          locale,
+          discountType: order.couponDiscountType,
+          discountValue: order.couponDiscountValue,
+          discountAmount: discount,
+        })
+      : undefined;
   const orderType = order.orderType === "delivery" ? "delivery" : "pickup";
   const deliveryFee =
     orderType === "delivery" && order.delivery && order.delivery > 0 ? order.delivery : undefined;
@@ -199,6 +212,7 @@ export function buildReceiptModelFromOrder(
     notes: customerNotes(order.notes, order.customerPhone),
     subtotal,
     discount,
+    couponLine,
     deliveryFee,
     total: order.total,
     paymentLabel: paymentMethodLabel(order.paymentMethod, locale),
@@ -225,6 +239,9 @@ export function buildReceiptModelFromFirestoreOrder(
       total: data.total,
       subtotal: data.subtotal,
       discount: data.discount,
+      couponCode: data.couponCode,
+      couponDiscountType: data.couponDiscountType,
+      couponDiscountValue: data.couponDiscountValue,
       paymentMethod: data.paymentMethod,
       locale: data.locale,
       createdAt: createdAtIso,
