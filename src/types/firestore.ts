@@ -87,6 +87,8 @@ export interface FirestoreOrder {
   paymentMethod: string;
   paymentStatus?: PaymentStatus;
   customerPhone?: string;
+  phoneVerified?: boolean;
+  phoneVerifiedAt?: Timestamp | null;
   orderType?: "pickup" | "delivery";
   deliveryAddress?: string;
   notes: string;

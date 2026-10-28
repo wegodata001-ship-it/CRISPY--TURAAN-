@@ -1,7 +1,9 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
-import { maybeEnqueueNewOrderPrint } from "@/lib/print-jobs/enqueue-new-order";
+import { confirmKitchenPrint } from "@/lib/orders/place-verified-order";
+import { claimPhoneProof, phoneVerificationRef, proofStateFrom } from "@/lib/phone-otp/server";
+import { parseIsraeliMobile } from "@/lib/phone-otp/engine";
 import {
   customerCouponKey,
   evaluateCoupon,
@@ -192,6 +194,7 @@ type CheckoutItem = {
 export async function checkoutWithCoupon(input: {
   requestId: string;
   couponCode: string;
+  phoneProof: string;
   customerId: string;
   customerName: string;
   customerPhone?: string;
@@ -208,14 +211,17 @@ export async function checkoutWithCoupon(input: {
   }
   const code = normalizeCouponCode(input.couponCode);
   const requestId = input.requestId.trim();
-  if (!requestId || !code || input.items.length === 0) {
-    return { ok: false as const, code: "INVALID" as const };
+  const proofId = input.phoneProof.trim();
+  const phone = parseIsraeliMobile(input.customerPhone || "");
+  if (!requestId || !code || !proofId || !phone || input.items.length === 0) {
+    return { ok: false as const, code: !proofId || !phone ? ("PHONE_NOT_VERIFIED" as const) : ("INVALID" as const) };
   }
 
   const result = await db.runTransaction(async (tx) => {
     const requestRef = db.collection(COLLECTIONS.couponCheckoutRequests).doc(requestId);
     const couponRef = coupons().doc(code);
-    const customerKey = customerCouponKey(input.customerPhone, input.customerId);
+    const proofRef = phoneVerificationRef(proofId);
+    const customerKey = customerCouponKey(phone.local, input.customerId);
     const useRef = db.collection(COLLECTIONS.couponCustomerUses).doc(`${code}_${customerKey}`);
     const requestSnap = await tx.get(requestRef);
     if (requestSnap.exists) {
@@ -229,8 +235,17 @@ export async function checkoutWithCoupon(input: {
         subtotal: Number(requestSnap.data()?.subtotal) || 0,
       };
     }
+    const proofSnap = await tx.get(proofRef);
     const couponSnap = await tx.get(couponRef);
     const useSnap = await tx.get(useRef);
+    const proof = claimPhoneProof({
+      proof: proofStateFrom(proofSnap.data()),
+      phone: phone.local,
+      requestId,
+    });
+    if (!proof.ok) return proof;
+    if (proof.alreadyUsedByRequest) return { ok: false as const, code: "PHONE_NOT_VERIFIED" as const };
+    const verifiedPhone = proofStateFrom(proofSnap.data())?.phoneLocal || phone.local;
     const coupon = couponSnap.exists ? asCoupon(couponSnap.id, couponSnap.data() || {}) : null;
     const decision = evaluateCoupon({
       coupon,
@@ -248,7 +263,9 @@ export async function checkoutWithCoupon(input: {
       orderNumber,
       customerId: input.customerId,
       customerName: input.customerName.trim(),
-      customerPhone: input.customerPhone?.trim() || null,
+      customerPhone: verifiedPhone,
+      phoneVerified: true,
+      phoneVerifiedAt: Timestamp.now(),
       items: input.items,
       status: "received",
       subtotal: quote.subtotal,
@@ -266,6 +283,12 @@ export async function checkoutWithCoupon(input: {
       createdAt: Timestamp.now(),
     };
     tx.set(orderRef, order);
+    tx.update(proofRef, {
+      used: true,
+      usedByRequestId: requestId,
+      orderId: orderRef.id,
+      usedAt: FieldValue.serverTimestamp(),
+    });
     tx.set(redemptionRef, {
       couponId: code,
       couponCode: code,
@@ -307,17 +330,18 @@ export async function checkoutWithCoupon(input: {
     };
   });
 
-  if (result.ok && !result.replayed) {
-    try {
-      await maybeEnqueueNewOrderPrint(result.orderId);
-    } catch (error) {
-      console.error("[PrintJob] coupon order enqueue failed", {
-        orderId: result.orderId,
-        error: error instanceof Error ? error.message : "enqueue_failed",
-      });
-    }
+  if (!result.ok) return result;
+  const print = await confirmKitchenPrint(result.orderId);
+  if (!print.queued) {
+    return {
+      ok: false as const,
+      code: "PRINT_NOT_QUEUED" as const,
+      orderSaved: true as const,
+      orderId: result.orderId,
+      orderNumber: result.orderNumber,
+    };
   }
-  return result;
+  return { ...result, printQueued: true as const };
 }
 
 export async function restoreCouponForCancelledOrder(orderId: string) {

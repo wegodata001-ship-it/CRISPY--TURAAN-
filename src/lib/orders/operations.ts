@@ -110,10 +110,14 @@ export function countOrdersByStatus(
 }
 
 export function orderSearchText(order: Order): string {
+  const digits = (order.customerPhone || "").replace(/\D/g, "");
+  const local = digits.startsWith("972") ? `0${digits.slice(3)}` : digits;
   return [
     order.orderNumber,
     order.customerName,
     order.customerPhone,
+    digits,
+    local,
     order.notes,
     ...order.items.flatMap((item) => [
       item.productName,

@@ -92,6 +92,8 @@ export interface Order {
   paymentMethod?: string;
   paymentStatus?: PaymentStatus;
   customerPhone?: string;
+  phoneVerified?: boolean;
+  phoneVerifiedAt?: string | null;
   orderType?: "pickup" | "delivery";
   deliveryAddress?: string;
   notes?: string;

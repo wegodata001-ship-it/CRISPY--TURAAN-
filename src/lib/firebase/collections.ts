@@ -32,6 +32,11 @@ export const COLLECTIONS = {
   couponRedemptions: "couponRedemptions",
   couponCheckoutRequests: "couponCheckoutRequests",
   couponCustomerUses: "couponCustomerUses",
+  phoneOtps: "phoneOtps",
+  phoneOtpIndex: "phoneOtpIndex",
+  phoneOtpIps: "phoneOtpIps",
+  phoneVerifications: "phoneVerifications",
+  orderCheckoutRequests: "orderCheckoutRequests",
 } as const;
 
 export const DEFAULT_STORE_ID = "crispy";

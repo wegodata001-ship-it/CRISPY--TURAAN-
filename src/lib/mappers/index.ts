@@ -134,6 +134,8 @@ export function mapOrder(doc: FirestoreDoc<FirestoreOrder>): Order {
     paymentMethod: doc.paymentMethod,
     paymentStatus: doc.paymentStatus ?? "pending",
     customerPhone: doc.customerPhone,
+    phoneVerified: doc.phoneVerified === true,
+    phoneVerifiedAt: doc.phoneVerifiedAt ? timestampToIso(doc.phoneVerifiedAt) : null,
     orderType: doc.orderType,
     deliveryAddress: doc.deliveryAddress,
     notes: doc.notes,

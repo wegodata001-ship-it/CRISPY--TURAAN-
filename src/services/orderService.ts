@@ -21,6 +21,7 @@ import { mapOrder } from "@/lib/mappers";
 import { selectedModifierToFirestore } from "@/lib/mappers/modifier-mappers";
 import { orderSchema, type OrderInput } from "@/lib/validation/schemas";
 import { forcePickupForNewOrder, NEW_ORDER_FULFILLMENT } from "@/lib/orders/fulfillment";
+import { generateOrderNumber as nextOrderNumber } from "@/lib/orders/order-number";
 import { isViewOnlyMenuSurface } from "@/lib/domains/host-routing";
 import {
   requestNewOrderPrintJob,
@@ -128,9 +129,7 @@ function filterOrders(
 }
 
 async function generateOrderNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const tail = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
-  return `MC-${year}-${tail.slice(-8)}`;
+  return nextOrderNumber();
 }
 
 export async function getOrders(filters?: {

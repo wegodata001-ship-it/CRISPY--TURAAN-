@@ -46,8 +46,28 @@ service cloud.firestore {
 
     match /orders/{id} {
       allow read: if isStaff();
-      allow create: if isStaff() || orderingIsOpen();
-      allow update, delete: if isStaff();
+      // Guests cannot create orders. Verified checkout is written by the Admin SDK.
+      allow create, update, delete: if isStaff();
+    }
+
+    match /phoneOtps/{id} {
+      allow read, write: if false;
+    }
+
+    match /phoneOtpIndex/{id} {
+      allow read, write: if false;
+    }
+
+    match /phoneOtpIps/{id} {
+      allow read, write: if false;
+    }
+
+    match /phoneVerifications/{id} {
+      allow read, write: if false;
+    }
+
+    match /orderCheckoutRequests/{id} {
+      allow read, write: if false;
     }
 
     match /banners/{id} {

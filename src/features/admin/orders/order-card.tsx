@@ -199,7 +199,12 @@ export function OrderCard({
           <div className="space-y-1">
             <p className="font-semibold">{t("orders.customer")}</p>
             <p>{order.customerName}</p>
-            {order.customerPhone && <p dir="ltr" className="text-start">{order.customerPhone}</p>}
+            {order.customerPhone && (
+              <p dir="ltr" className="text-start">
+                <a className="font-semibold text-[#A90F16]" href={`tel:${order.customerPhone}`}>{order.customerPhone}</a>
+              </p>
+            )}
+            <p>{order.phoneVerified ? t("admin.orders.phoneVerified", "الهاتف مؤكد") : t("admin.orders.phoneUnverified", "الهاتف غير مؤكد")}</p>
             {order.deliveryAddress && <p>{order.deliveryAddress}</p>}
           </div>
           <div className="space-y-1">
