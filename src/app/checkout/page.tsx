@@ -24,16 +24,37 @@ import { useT, useLocale } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
 import { CouponEntry } from "@/features/cart/coupon-entry";
-import { PhoneOtpDialog } from "@/features/checkout/phone-otp-dialog";
 import { getOrCreateGuestCustomer, GUEST_CUSTOMER_ID } from "@/services";
-import { parseIsraeliMobile } from "@/lib/phone-otp/engine";
+import { invalidPhoneMessage, parseIsraeliMobile } from "@/lib/phone/israeli-mobile";
+import { interpretCheckoutApiPayload } from "@/lib/orders/checkout-client-result";
 import { requestNewOrderEmailNotification, requestCriticalCheckoutFailureNotification } from "@/lib/email/client-notify";
 import { formatPrice } from "@/lib/utils";
 import { calculateLineTotal } from "@/lib/product-builder/engine";
 
+function checkoutLinePayload(items: import("@/types").CartItem[]) {
+  return items.map((item) => {
+    const line: {
+      productId: string;
+      quantity: number;
+      notes?: string;
+      selections: Array<{ groupId: string; optionId: string; quantity: number }>;
+    } = {
+      productId: item.product.id,
+      quantity: item.quantity,
+      selections: item.selections.map((selection) => ({
+        groupId: selection.groupId,
+        optionId: selection.optionId,
+        quantity: selection.quantity,
+      })),
+    };
+    const notes = item.notes?.trim();
+    if (notes) line.notes = notes;
+    return line;
+  });
+}
+
 async function checkoutWithCoupon(input: {
   requestId: string;
-  phoneProof: string;
   couponCode: string;
   customerName: string;
   customerPhone: string;
@@ -47,7 +68,6 @@ async function checkoutWithCoupon(input: {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       requestId: input.requestId,
-      phoneProof: input.phoneProof,
       couponCode: input.couponCode,
       customerId: GUEST_CUSTOMER_ID,
       customerName: input.customerName,
@@ -56,43 +76,15 @@ async function checkoutWithCoupon(input: {
       locale: input.locale,
       paymentMethod: input.paymentMethod,
       paymentStatus: "pending",
-      items: input.items.map((item) => ({
-        productId: item.product.id,
-        quantity: item.quantity,
-        notes: item.notes?.trim() || undefined,
-        selections: item.selections.map((selection) => ({
-          groupId: selection.groupId,
-          optionId: selection.optionId,
-          quantity: selection.quantity,
-        })),
-      })),
+      items: checkoutLinePayload(input.items),
     }),
   });
-  const payload = (await response.json().catch(() => null)) as {
-    ok?: boolean;
-    message?: string;
-    code?: string;
-    orderId?: string;
-    orderNumber?: string;
-    printQueued?: boolean;
-  } | null;
-  if (!response.ok || !payload?.ok || !payload.orderId || !payload.orderNumber || !payload.printQueued) {
-    return {
-      success: false as const,
-      error: payload?.message || "الكوبون غير صالح",
-      code: payload?.code,
-    };
-  }
-  return {
-    success: true as const,
-    data: { id: payload.orderId, orderNumber: payload.orderNumber },
-    printQueued: true as const,
-  };
+  const payload = (await response.json().catch(() => null)) as import("@/lib/orders/checkout-client-result").CheckoutApiPayload | null;
+  return interpretCheckoutApiPayload(response.ok, payload, { coupon: true });
 }
 
 async function placeVerifiedCheckout(input: {
   requestId: string;
-  phoneProof: string;
   customerName: string;
   customerPhone: string;
   notes?: string;
@@ -105,36 +97,16 @@ async function placeVerifiedCheckout(input: {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       requestId: input.requestId,
-      phoneProof: input.phoneProof,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       notes: input.notes,
       locale: input.locale,
       paymentMethod: input.paymentMethod,
-      items: input.items.map((item) => ({
-        productId: item.product.id,
-        quantity: item.quantity,
-        notes: item.notes?.trim() || undefined,
-        selections: item.selections.map((selection) => ({
-          groupId: selection.groupId,
-          optionId: selection.optionId,
-          quantity: selection.quantity,
-        })),
-      })),
+      items: checkoutLinePayload(input.items),
     }),
   });
-  const payload = (await response.json().catch(() => null)) as {
-    ok?: boolean;
-    message?: string;
-    code?: string;
-    orderId?: string;
-    orderNumber?: string;
-    printQueued?: boolean;
-  } | null;
-  if (!response.ok || !payload?.ok || !payload.orderId || !payload.orderNumber || !payload.printQueued) {
-    return { success: false as const, error: payload?.message || "يجب تأكيد رقم الهاتف قبل إرسال الطلب", code: payload?.code };
-  }
-  return { success: true as const, data: { id: payload.orderId, orderNumber: payload.orderNumber }, printQueued: true as const };
+  const payload = (await response.json().catch(() => null)) as import("@/lib/orders/checkout-client-result").CheckoutApiPayload | null;
+  return interpretCheckoutApiPayload(response.ok, payload);
 }
 
 function OrderLineItem({ item }: { item: import("@/types").CartItem }) {
@@ -171,8 +143,6 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [otpOpen, setOtpOpen] = useState(false);
-  const [phoneProof, setPhoneProof] = useState<{ proofId: string; phone: string; maskedPhone: string } | null>(null);
   const orderRequestId = useRef("");
   const [placedOrderNumber, setPlacedOrderNumber] = useState("");
 
@@ -195,17 +165,13 @@ export default function CheckoutPage() {
   }
 
   const checkoutLocale = locale === "he" || locale === "en" ? locale : "ar";
-  const phoneMatchesProof = Boolean(phoneProof && parseIsraeliMobile(phone)?.local === phoneProof.phone);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) { setError(t("validation.required")); return; }
-    if (!parseIsraeliMobile(phone)) {
-      setError(checkoutLocale === "he" ? "יש להזין מספר ישראלי בפורמט 05XXXXXXXX" : checkoutLocale === "en" ? "Enter an Israeli mobile number as 05XXXXXXXX" : "أدخل رقم هاتف إسرائيلي بصيغة 05XXXXXXXX");
-      return;
-    }
-    if (!phoneMatchesProof || !phoneProof) {
-      setOtpOpen(true);
+    const parsedPhone = parseIsraeliMobile(phone);
+    if (!parsedPhone) {
+      setError(invalidPhoneMessage(checkoutLocale));
       return;
     }
 
@@ -223,10 +189,9 @@ export default function CheckoutPage() {
       const result = coupon
         ? await checkoutWithCoupon({
             requestId: orderRequestId.current,
-            phoneProof: phoneProof.proofId,
             couponCode: coupon.code,
             customerName: name,
-            customerPhone: phoneProof.phone,
+            customerPhone: parsedPhone.local,
             notes: orderNotes || undefined,
             locale: checkoutLocale,
             paymentMethod: payment,
@@ -234,9 +199,8 @@ export default function CheckoutPage() {
           })
         : await placeVerifiedCheckout({
             requestId: orderRequestId.current,
-            phoneProof: phoneProof.proofId,
             customerName: name,
-            customerPhone: phoneProof.phone,
+            customerPhone: parsedPhone.local,
             notes: orderNotes || undefined,
             locale: checkoutLocale,
             paymentMethod: payment,
@@ -245,6 +209,16 @@ export default function CheckoutPage() {
       if (!result.success) {
         console.error("[checkout] order failed:", result.error, result.code);
         setError(result.error || t("checkout.orderSaveError"));
+        // Allow a clean retry with a new idempotency key after payment-link failures.
+        if (result.code === "HYP_PAYMENT_LINK_FAILED" || result.code === "HYP_NOT_CONFIGURED") {
+          orderRequestId.current = "";
+        }
+        return;
+      }
+
+      if ("paymentUrl" in result && result.paymentUrl) {
+        // Do not clear cart / notify kitchen email until trusted payment (later phase).
+        window.location.assign(result.paymentUrl);
         return;
       }
 
@@ -314,10 +288,7 @@ export default function CheckoutPage() {
                     <Label className="flex items-center gap-1">
                       <Phone className="h-3.5 w-3.5" strokeWidth={1.75} /> {t("checkout.phone")}
                     </Label>
-                    <Input value={phone} onChange={(e) => { setPhone(e.target.value); setPhoneProof(null); }} type="tel" inputMode="tel" placeholder="05XXXXXXXX" className="mt-1 h-12" dir="ltr" required />
-                    {phoneMatchesProof && phoneProof ? (
-                      <p className="mt-2 text-sm font-semibold text-[#2E9B55]" dir="ltr">{phoneProof.maskedPhone}</p>
-                    ) : null}
+                    <Input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" inputMode="tel" placeholder="05XXXXXXXX" className="mt-1 h-12" dir="ltr" required />
                   </div>
                   <div>
                     <Label className="flex items-center gap-1">
@@ -383,25 +354,12 @@ export default function CheckoutPage() {
                 </div>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
                 <Button type="submit" variant="turquoise" size="lg" className="mt-4 h-14 w-full rounded-2xl text-base font-bold" disabled={loading}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : phoneMatchesProof ? `${t("checkout.confirmOrder", "تأكيد الطلب")} • ${formatPrice(total)}` : t("checkout.sendOtp", "إرسال رمز التحقق")}
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${t("checkout.confirmOrder", "تأكيد الطلب")} • ${formatPrice(total)}`}
                 </Button>
               </section>
             </motion.form>
           )}
         </AnimatePresence>
-        <PhoneOtpDialog
-          open={otpOpen}
-          phone={phone}
-          locale={checkoutLocale}
-          onClose={() => setOtpOpen(false)}
-          onVerified={(proof) => {
-            const parsed = parseIsraeliMobile(phone);
-            if (!parsed) return;
-            setPhoneProof({ proofId: proof.proofId, phone: parsed.local, maskedPhone: proof.maskedPhone });
-            setOtpOpen(false);
-            setError(null);
-          }}
-        />
       </div>
     </>
   );

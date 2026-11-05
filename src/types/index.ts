@@ -91,6 +91,13 @@ export interface Order {
   total: number;
   paymentMethod?: string;
   paymentStatus?: PaymentStatus;
+  /** Server-stamped: online card must be paid before kitchen actions. */
+  requiresOnlinePayment?: boolean;
+  awaitingHypPayment?: boolean;
+  paymentFlow?: string;
+  hypOrderRef?: string | null;
+  hypTransactionId?: string;
+  paidAt?: string | null;
   customerPhone?: string;
   phoneVerified?: boolean;
   phoneVerifiedAt?: string | null;

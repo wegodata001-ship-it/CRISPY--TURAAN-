@@ -1,3 +1,8 @@
+import {
+  orderKitchenPrintBlockReason,
+  type PrintPaymentGateOptions,
+} from "@/lib/print-jobs/payment-gate";
+
 /** The only printer CRISPY may use. The internal printer is never a fallback. */
 export const EXTERNAL_PRINTER_HOST = "192.168.1.80";
 export const EXTERNAL_PRINTER_PORT = 9100;
@@ -31,14 +36,20 @@ export function kitchenClaimBlockReason(heartbeat: {
   return null;
 }
 
-/** Cash and pay-at-counter orders print while payment is still pending. */
-export function automaticPrintSkipReason(order: {
-  status?: string | null;
-  paymentStatus?: string | null;
-}): string | null {
-  if (order.status === "cancelled") return "order_cancelled";
-  if (order.paymentStatus === "failed" || order.paymentStatus === "refunded") {
-    return "payment_not_collectable";
-  }
-  return null;
+/**
+ * Skip reason before queueing / claiming a kitchen ticket.
+ * Hyp OFF: cash and card still print while payment is pending (legacy).
+ * Hyp ON: online card tickets wait until paymentStatus=paid.
+ */
+export function automaticPrintSkipReason(
+  order: {
+    status?: string | null;
+    paymentStatus?: string | null;
+    paymentMethod?: string | null;
+    requiresOnlinePayment?: boolean | null;
+    awaitingHypPayment?: boolean | null;
+  },
+  options?: PrintPaymentGateOptions
+): string | null {
+  return orderKitchenPrintBlockReason(order, options);
 }

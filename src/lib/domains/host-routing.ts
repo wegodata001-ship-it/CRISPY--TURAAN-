@@ -12,16 +12,33 @@ import {
   getOrderUrl,
 } from "@/lib/public-urls";
 
-export const PUBLIC_HOST =
-  process.env.NEXT_PUBLIC_PUBLIC_HOST?.trim().toLowerCase() || "localhost";
+function envHost(name: string, fallback: string): string {
+  return process.env[name]?.trim().toLowerCase() || fallback;
+}
 
-export const PORTAL_HOST =
-  process.env.NEXT_PUBLIC_PORTAL_HOST?.trim().toLowerCase() ||
-  "portal.crispy-turaan.vercel.app";
+/** Resolved at call-time so local staging env changes apply without stale imports. */
+export const PUBLIC_HOST_FALLBACK = "localhost";
+export const PORTAL_HOST_FALLBACK = "portal.crispy-turaan.vercel.app";
+export const MENU_HOST_FALLBACK = "menu.almostafachicken.com";
 
-export const MENU_HOST =
-  process.env.NEXT_PUBLIC_MENU_HOST?.trim().toLowerCase() ||
-  "menu.almostafachicken.com";
+export function getPublicHost(): string {
+  return envHost("NEXT_PUBLIC_PUBLIC_HOST", PUBLIC_HOST_FALLBACK);
+}
+
+export function getPortalHost(): string {
+  return envHost("NEXT_PUBLIC_PORTAL_HOST", PORTAL_HOST_FALLBACK);
+}
+
+export function getMenuHost(): string {
+  return envHost("NEXT_PUBLIC_MENU_HOST", MENU_HOST_FALLBACK);
+}
+
+/** @deprecated Prefer getPublicHost() — kept for existing imports. */
+export const PUBLIC_HOST = getPublicHost();
+/** @deprecated Prefer getPortalHost() — kept for existing imports. */
+export const PORTAL_HOST = getPortalHost();
+/** @deprecated Prefer getMenuHost() — kept for existing imports. */
+export const MENU_HOST = getMenuHost();
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
@@ -59,17 +76,22 @@ export function isLocalDevHost(host: string | null | undefined): boolean {
   return LOCAL_HOSTS.has(normalizeHostname(host));
 }
 
+/**
+ * Localhost is a unified path-based surface (/admin, /checkout, /menu-display).
+ * Never treat it as portal/menu host — even if PORTAL_HOST/MENU_HOST were
+ * mistakenly set to "localhost" for staging. Production hosts are unchanged.
+ */
 export function isPortalHost(host: string | null | undefined): boolean {
   const h = normalizeHostname(host);
-  if (!h) return false;
-  if (h === PORTAL_HOST) return true;
+  if (!h || isLocalDevHost(h)) return false;
+  if (h === getPortalHost()) return true;
   return h.startsWith("portal.");
 }
 
 export function isMenuHost(host: string | null | undefined): boolean {
   const h = normalizeHostname(host);
-  if (!h) return false;
-  if (h === MENU_HOST) return true;
+  if (!h || isLocalDevHost(h)) return false;
+  if (h === getMenuHost()) return true;
   return h.startsWith("menu.");
 }
 

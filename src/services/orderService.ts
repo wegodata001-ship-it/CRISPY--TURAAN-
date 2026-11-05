@@ -35,6 +35,13 @@ import {
 import { nowTimestamp } from "@/types/firestore";
 import { normalizeOrderStatus } from "@/lib/orders/operations";
 import {
+  canAdvanceKitchenWorkflow,
+  kitchenActionBlockMessage,
+  kitchenWorkflowBlockReason,
+  patchTouchesServerOnlyPaymentFields,
+  SERVER_ONLY_ORDER_PAYMENT_KEYS,
+} from "@/lib/orders/kitchen-action-gate";
+import {
   calculateLineTotal,
   collectKitchenNotes,
 } from "@/lib/product-builder/engine";
@@ -349,7 +356,21 @@ export async function updateOrder(
   try {
     const db = getDb();
     const ref = doc(db, COLLECTIONS.orders, id);
-    const patch = sanitizeFirestoreData(input);
+    const rawPatch = { ...input } as Record<string, unknown>;
+    for (const key of SERVER_ONLY_ORDER_PAYMENT_KEYS) {
+      delete rawPatch[key];
+    }
+    if (typeof rawPatch.status === "string") {
+      const current = await getOrderById(id);
+      if (current && !canAdvanceKitchenWorkflow(current, rawPatch.status)) {
+        const reason = kitchenWorkflowBlockReason(current, rawPatch.status) || "awaiting_online_payment";
+        return failure(new ServiceError(kitchenActionBlockMessage(reason), "KITCHEN_PAYMENT_BLOCKED"));
+      }
+    }
+    const patch = sanitizeFirestoreData(rawPatch);
+    if (patchTouchesServerOnlyPaymentFields(patch as Record<string, unknown>)) {
+      return failure(new ServiceError("Payment fields are server-only", "PAYMENT_FIELDS_LOCKED"));
+    }
     await updateDoc(ref, patch);
     const snap = await getDoc(ref);
     if (!snap.exists()) {
@@ -370,6 +391,15 @@ export async function updateOrderStatus(
   try {
     const now = nowTimestamp();
     const canonical = normalizeOrderStatus(status);
+    const current = await getOrderById(id);
+    if (!current) {
+      return failure(new ServiceError("Order not found", "NOT_FOUND"));
+    }
+    if (!canAdvanceKitchenWorkflow(current, canonical)) {
+      const reason = kitchenWorkflowBlockReason(current, canonical) || "awaiting_online_payment";
+      return failure(new ServiceError(kitchenActionBlockMessage(reason), "KITCHEN_PAYMENT_BLOCKED"));
+    }
+
     const patch: Record<string, unknown> = { status: canonical };
 
     if (canonical === "preparing") patch.preparationStartedAt = now;

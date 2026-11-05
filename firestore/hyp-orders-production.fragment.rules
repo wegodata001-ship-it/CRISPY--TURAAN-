@@ -1,0 +1,80 @@
+// FRAGMENT ONLY — merge into crispy-d0bf7 production rules after review.
+// Do NOT deploy this file alone.
+// Do NOT replace the entire production rules document with the staging branch
+// firestore.rules without comparing non-order sections to the LIVE console.
+//
+// Artifacts in this folder:
+//   crispy-d0bf7.live.snapshot.rules       — LIVE Console paste (source of truth)
+//   crispy-d0bf7.production.final.rules   — LIVE + this fragment (publish candidate)
+//   crispy-d0bf7.hyp-merge.candidate.rules — older git-based draft (superseded by final)
+//
+// Safe merge steps (manual):
+//   1. Prefer publishing crispy-d0bf7.production.final.rules after review
+//   2. LIVE currently has allow create: if true on /orders — FINAL closes that
+//      (guest checkout must use Admin SDK /api/orders/checkout)
+//   3. Publish manually when ready — not from CI / not in this prep step
+//
+// Guarantees:
+// - Guests have no client write on /orders (checkout uses Admin SDK)
+// - Staff cannot forge paymentStatus/paidAt/hyp* / phoneVerified fields
+// - Unpaid requiresOnlinePayment|awaitingHypPayment cannot move to preparing/ready/delivered/confirmed
+// - Cash / legacy orders (no online stamps) keep normal kitchen status updates
+// - Admin catalog + costing + print permissions unchanged
+
+    function orderRequiresOnlinePayment() {
+      return resource.data.get('requiresOnlinePayment', false) == true
+        || resource.data.get('awaitingHypPayment', false) == true;
+    }
+
+    function orderPaymentIsPaid() {
+      return resource.data.get('paymentStatus', 'pending') == 'paid';
+    }
+
+    function kitchenWorkflowStatus(status) {
+      return status in ['preparing', 'ready', 'delivered', 'confirmed'];
+    }
+
+    function orderPaymentFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'paymentStatus',
+        'requiresOnlinePayment',
+        'awaitingHypPayment',
+        'paymentFlow',
+        'hypOrderRef',
+        'hypTransactionId',
+        'paidAt',
+        'phoneVerified',
+        'phoneVerifiedAt'
+      ]);
+    }
+
+    function staffMayUpdateOrderStatus() {
+      let nextStatus = request.resource.data.get('status', resource.data.status);
+      return !kitchenWorkflowStatus(nextStatus)
+        || !orderRequiresOnlinePayment()
+        || orderPaymentIsPaid();
+    }
+
+    function staffCreateHasNoTrustedPaymentMarks() {
+      return request.resource.data.get('requiresOnlinePayment', false) != true
+        && request.resource.data.get('awaitingHypPayment', false) != true
+        && request.resource.data.get('paymentFlow', '') != 'hyp_online'
+        && request.resource.data.get('paymentStatus', 'pending') != 'paid'
+        && request.resource.data.get('hypTransactionId', null) == null
+        && request.resource.data.get('paidAt', null) == null;
+    }
+
+    // Replace the production match /orders/{id} block with:
+    //
+    // match /orders/{id} {
+    //   allow read: if isStaff();
+    //   allow create: if isStaff() && staffCreateHasNoTrustedPaymentMarks();
+    //   allow delete: if isStaff();
+    //   allow update: if isStaff()
+    //     && orderPaymentFieldsUnchanged()
+    //     && staffMayUpdateOrderStatus();
+    // }
+    //
+    // Also ensure hypPaymentIntents / hypPaymentAuditLogs stay client-denied:
+    // match /hypPaymentIntents/{id} { allow read, write: if false; }
+    // match /hypPaymentAuditLogs/{id} { allow read, write: if false; }

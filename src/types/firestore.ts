@@ -86,6 +86,18 @@ export interface FirestoreOrder {
   total: number;
   paymentMethod: string;
   paymentStatus?: PaymentStatus;
+  /**
+   * Server-only: order was created on the Hyp/Mock online-card path.
+   * Staff clients must not set/clear this. Kitchen waits for paymentStatus=paid.
+   */
+  requiresOnlinePayment?: boolean;
+  /** Server-only companion flag while redirect payment is outstanding. */
+  awaitingHypPayment?: boolean;
+  /** Server-only payment path marker, e.g. hyp_online. */
+  paymentFlow?: string;
+  hypOrderRef?: string | null;
+  hypTransactionId?: string;
+  paidAt?: Timestamp | null;
   customerPhone?: string;
   phoneVerified?: boolean;
   phoneVerifiedAt?: Timestamp | null;

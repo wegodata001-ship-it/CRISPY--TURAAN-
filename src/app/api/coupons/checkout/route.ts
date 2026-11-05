@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkoutWithCoupon } from "@/lib/coupons/server";
 import { COUPON_ERROR_TEXT, type CouponErrorCode } from "@/lib/coupons/engine";
-import { OTP_ERROR_TEXT, type OtpErrorCode } from "@/lib/phone-otp/engine";
+import { invalidPhoneMessage } from "@/lib/phone/israeli-mobile";
+import { hypCheckoutErrorMessage } from "@/lib/payments/hyp";
 import { priceCheckoutItems, type CheckoutLineInput } from "@/lib/orders/trusted-cart";
 
 export const runtime = "nodejs";
@@ -18,13 +19,18 @@ export async function POST(request: NextRequest) {
     locale?: "ar" | "he" | "en";
     paymentMethod?: string;
     paymentStatus?: string;
-    phoneProof?: string;
     items?: CheckoutLineInput[];
   } | null;
   const locale = body?.locale === "he" || body?.locale === "en" ? body.locale : "ar";
-  if (!body?.customerName?.trim() || !body.items?.length || !body.couponCode || !body.requestId || !body.phoneProof) {
+  if (
+    !body?.customerName?.trim() ||
+    !body.items?.length ||
+    !body.couponCode ||
+    !body.requestId ||
+    !body.customerPhone?.trim()
+  ) {
     return NextResponse.json(
-      { ok: false, code: "PHONE_NOT_VERIFIED", message: OTP_ERROR_TEXT.PHONE_NOT_VERIFIED[locale] },
+      { ok: false, code: "INVALID_PHONE", message: invalidPhoneMessage(locale) },
       { status: 400 }
     );
   }
@@ -47,7 +53,6 @@ export async function POST(request: NextRequest) {
   const result = await checkoutWithCoupon({
     requestId: body.requestId,
     couponCode: body.couponCode,
-    phoneProof: body.phoneProof,
     customerId: body.customerId || "guest-checkout",
     customerName: body.customerName,
     customerPhone: body.customerPhone,
@@ -72,9 +77,16 @@ export async function POST(request: NextRequest) {
             : locale === "en"
               ? "The order was saved, but the print queue did not confirm it. Retry without creating another order."
               : "تم حفظ الطلب، لكن قائمة الطباعة لم تؤكد الاستلام. أعد المحاولة ولن يُنشأ طلب آخر."
-          : code in OTP_ERROR_TEXT
-            ? OTP_ERROR_TEXT[code as OtpErrorCode][locale]
-            : COUPON_ERROR_TEXT[code as CouponErrorCode]?.[locale] || OTP_ERROR_TEXT.PHONE_NOT_VERIFIED[locale];
+          : code === "HYP_NOT_CONFIGURED" || code === "HYP_PAYMENT_LINK_FAILED"
+            ? hypCheckoutErrorMessage(code, locale)
+            : code === "INVALID_PHONE"
+              ? invalidPhoneMessage(locale)
+              : COUPON_ERROR_TEXT[code as CouponErrorCode]?.[locale] ||
+                (locale === "he"
+                  ? "הקופון אינו תקף"
+                  : locale === "en"
+                    ? "The coupon is not valid"
+                    : "الكوبون غير صالح");
     return NextResponse.json(
       {
         ok: false,
@@ -95,6 +107,8 @@ export async function POST(request: NextRequest) {
     discountAmount: result.discountAmount,
     subtotal: result.subtotal,
     replayed: result.replayed,
-    printQueued: true,
+    printQueued: result.printQueued === true,
+    awaitingPayment: result.awaitingPayment === true,
+    paymentUrl: "paymentUrl" in result ? result.paymentUrl : undefined,
   });
 }

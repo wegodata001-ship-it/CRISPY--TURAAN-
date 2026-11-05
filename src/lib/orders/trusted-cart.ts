@@ -73,29 +73,65 @@ export async function priceCheckoutItems(
       const groupId = String(selection.groupId || option.groupId || "");
       const groupSnap = groupId ? await db.collection(COLLECTIONS.modifierGroups).doc(groupId).get() : null;
       const group = groupSnap?.exists ? groupSnap.data() || {} : {};
-      modifiers.push({
+      const modifier: SelectedModifier = {
         groupId,
         groupName: nameFor(group, locale),
         optionId,
         optionName: nameFor(option, locale),
         priceDelta,
         quantity: optionQty,
-        kitchenNote: typeof option.kitchenNote === "string" ? option.kitchenNote : undefined,
-      });
+      };
+      if (typeof option.kitchenNote === "string" && option.kitchenNote.trim()) {
+        modifier.kitchenNote = option.kitchenNote.trim();
+      }
+      modifiers.push(modifier);
     }
     const unitPrice = roundMoney(basePrice + extras);
     const kitchenNotes = collectKitchenNotes(modifiers);
-    items.push({
+    const lineNotes = line.notes?.trim() || "";
+    // Firestore rejects `undefined` nested fields — omit optionals instead of setting undefined.
+    const pricedLine: PricedLine = {
       productId: line.productId,
       productName: nameFor(product, locale) || line.productId,
       quantity,
       price: unitPrice,
       basePrice,
-      notes: line.notes?.trim() || undefined,
-      modifiers: modifiers.length ? modifiers : undefined,
-      kitchenNotes: kitchenNotes.length ? kitchenNotes : undefined,
-    });
+    };
+    if (lineNotes) pricedLine.notes = lineNotes;
+    if (modifiers.length) pricedLine.modifiers = modifiers;
+    if (kitchenNotes.length) pricedLine.kitchenNotes = kitchenNotes;
+    items.push(pricedLine);
   }
   const subtotal = roundMoney(items.reduce((sum, item) => sum + roundMoney(item.price * item.quantity), 0));
   return { ok: true, items, subtotal };
+}
+
+/** Strip undefined nested keys so Admin SDK `set()` never rejects checkout writes. */
+export function pricedLinesForFirestore(items: PricedLine[]): Array<Record<string, unknown>> {
+  return items.map((item) => {
+    const row: Record<string, unknown> = {
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      price: item.price,
+      basePrice: item.basePrice,
+    };
+    if (item.notes) row.notes = item.notes;
+    if (item.kitchenNotes?.length) row.kitchenNotes = item.kitchenNotes;
+    if (item.modifiers?.length) {
+      row.modifiers = item.modifiers.map((modifier) => {
+        const next: Record<string, unknown> = {
+          groupId: modifier.groupId,
+          groupName: modifier.groupName,
+          optionId: modifier.optionId,
+          optionName: modifier.optionName,
+          priceDelta: modifier.priceDelta,
+          quantity: modifier.quantity,
+        };
+        if (modifier.kitchenNote) next.kitchenNote = modifier.kitchenNote;
+        return next;
+      });
+    }
+    return row;
+  });
 }

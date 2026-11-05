@@ -129,7 +129,13 @@ export async function enqueueNewOrderPrintJob(orderId: string): Promise<EnqueueR
   if (!orderSnap.exists) return { status: "skipped", reason: "order_not_found" };
 
   const order = orderSnap.data() as FirestoreOrder;
-  const skipReason = automaticPrintSkipReason(order);
+  const skipReason = automaticPrintSkipReason({
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    requiresOnlinePayment: order.requiresOnlinePayment,
+    awaitingHypPayment: order.awaitingHypPayment,
+  });
   if (skipReason) return { status: "skipped", reason: skipReason };
 
   const jobId = newOrderPrintJobId(orderId);
@@ -169,6 +175,14 @@ export async function enqueueReprintJob(
   const orderSnap = await db.collection(COLLECTIONS.orders).doc(orderId).get();
   if (!orderSnap.exists) return { status: "skipped", reason: "order_not_found" };
   const order = orderSnap.data() as FirestoreOrder;
+  const skipReason = automaticPrintSkipReason({
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    requiresOnlinePayment: order.requiresOnlinePayment,
+    awaitingHypPayment: order.awaitingHypPayment,
+  });
+  if (skipReason) return { status: "skipped", reason: skipReason };
 
   const ref = jobsCol().doc();
   await ref.set({
@@ -240,6 +254,34 @@ export async function claimPrintJob(jobId: string, agentId: string): Promise<Cla
     }
     if (!isReadyToClaim(jobId, data, now)) {
       return { status: "conflict" as const, reason: "not_claimable" };
+    }
+
+    const orderId = typeof data.orderId === "string" ? data.orderId : null;
+    if (orderId) {
+      const orderSnap = await tx.get(db.collection(COLLECTIONS.orders).doc(orderId));
+      const order = orderSnap.exists ? (orderSnap.data() as FirestoreOrder) : null;
+      const paymentBlock = automaticPrintSkipReason(
+        order
+          ? {
+              status: order.status,
+              paymentStatus: order.paymentStatus,
+              paymentMethod: order.paymentMethod,
+              requiresOnlinePayment: order.requiresOnlinePayment,
+              awaitingHypPayment: order.awaitingHypPayment,
+            }
+          : { status: "cancelled" }
+      );
+      if (paymentBlock) {
+        // Do not hand the ticket to Android / Print Agent. Retries must not bypass payment.
+        tx.update(ref, {
+          status: "FAILED",
+          lastError: paymentBlock,
+          nextRetryAt: null,
+          claimedAt: null,
+          claimedBy: null,
+        });
+        return { status: "conflict" as const, reason: paymentBlock };
+      }
     }
 
     const attempts = (typeof data.attempts === "number" ? data.attempts : 0) + 1;
@@ -352,6 +394,20 @@ export async function markPrintJobFailed(jobId: string, error: string): Promise<
   });
 }
 
+async function paymentBlockForJobOrder(orderId: string | null | undefined): Promise<string | null> {
+  if (!orderId?.trim()) return null;
+  const orderSnap = await getAdminDb().collection(COLLECTIONS.orders).doc(orderId).get();
+  if (!orderSnap.exists) return "order_not_found";
+  const order = orderSnap.data() as FirestoreOrder;
+  return automaticPrintSkipReason({
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    requiresOnlinePayment: order.requiresOnlinePayment,
+    awaitingHypPayment: order.awaitingHypPayment,
+  });
+}
+
 export async function dismissPrintJob(jobId: string): Promise<EnqueueResult> {
   const ref = jobsCol().doc(jobId);
   const snap = await ref.get();
@@ -376,6 +432,10 @@ export async function approvePrintJob(jobId: string): Promise<EnqueueResult> {
   const data = snap.data() as FirebaseFirestore.DocumentData;
   if (data.status === "PRINTED") return { status: "skipped", reason: "already_printed" };
   if (data.status === "PRINTING") return { status: "skipped", reason: "already_printing" };
+  const paymentBlock = await paymentBlockForJobOrder(
+    typeof data.orderId === "string" ? data.orderId : null
+  );
+  if (paymentBlock) return { status: "skipped", reason: paymentBlock };
   await ref.update({
     status: "PENDING",
     adminApproved: true,
@@ -396,6 +456,10 @@ export async function retryFailedPrintJob(jobId: string): Promise<EnqueueResult>
   if (data.status !== "FAILED") {
     return { status: "skipped", reason: "not_failed" };
   }
+  const paymentBlock = await paymentBlockForJobOrder(
+    typeof data.orderId === "string" ? data.orderId : null
+  );
+  if (paymentBlock) return { status: "skipped", reason: paymentBlock };
   await ref.update({
     status: "PENDING",
     attempts: 0,

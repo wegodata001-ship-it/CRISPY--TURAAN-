@@ -1,0 +1,41 @@
+# CRISPY — Hyp / MAX TEST Masof checklist for crispy-staging only
+# Copy values into .env.local manually. Never commit secrets.
+# Never use production Masof. Never point at Firebase crispy-d0bf7.
+
+# --- Firebase isolation (required) ---
+NEXT_PUBLIC_CRISPY_STAGING_MODE=true
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=crispy-staging
+FIREBASE_ADMIN_PROJECT_ID=crispy-staging
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# --- Turn OFF local mock before real TEST Masof ---
+HYP_STAGING_MOCK=false
+HYP_PAY_ALLOW_LIVE_PROJECT=false
+
+# --- Real Hyp TEST terminal (fill from Hyp test credentials only) ---
+HYP_PAYMENTS_ENABLED=true
+HYP_PAY_BASE_URL=https://pay.hyp.co.il/p/
+HYP_PAY_MASOF=
+HYP_PAY_KEY=
+HYP_PAY_PASSP=
+HYP_PAY_COIN=1
+HYP_PAY_PAGE_LANG=HEB
+
+# Hyp Portal → terminal redirect settings (must match; browser return is untrusted):
+# Success + Fail/Cancel should both hit the CRISPY return route so VERIFY can run:
+HYP_PAY_SUCCESS_URL=http://localhost:3000/api/payments/hyp/return
+HYP_PAY_FAIL_URL=http://localhost:3000/api/payments/hyp/return
+
+# --- What CRISPY already enforces ---
+# 1) Order total is priced on the server before SIGN.
+# 2) hypPaymentIntents stores amount + expectedMasof before redirect.
+# 3) /api/payments/hyp/return runs VERIFY; browser CCode alone never marks paid.
+# 4) Duplicate VERIFY / same transaction stays idempotent; different Tx is rejected.
+# 5) Kitchen prep/print stays locked until paymentStatus=paid (requiresOnlinePayment).
+
+# --- Still needed from you before first real TEST charge ---
+# [ ] Hyp TEST Masof + KEY + PassP (not production)
+# [ ] Portal success/fail URLs set to the return route above
+# [ ] HYP_STAGING_MOCK=false and next dev restarted
+# [ ] Small test amount + card that Hyp test environment accepts
+# [ ] Confirm admin shows paid once and kitchen unlocks once

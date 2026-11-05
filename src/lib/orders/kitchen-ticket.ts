@@ -1,5 +1,10 @@
 import type { Order } from "@/types";
 import { formatPrice } from "@/lib/utils";
+import {
+  browserKitchenPrintBlockReason,
+  canPrintKitchenTicketBrowser,
+  kitchenActionBlockMessage,
+} from "@/lib/orders/kitchen-action-gate";
 
 function escapeHtml(value: string): string {
   return value
@@ -309,9 +314,13 @@ export function kitchenTicketHtml(order: Order): string {
     </article>`;
 }
 
-export function printKitchenTicket(order: Order): void {
+export function printKitchenTicket(order: Order): { ok: true } | { ok: false; reason: string; message: string } {
+  if (!canPrintKitchenTicketBrowser(order)) {
+    const reason = browserKitchenPrintBlockReason(order) || "awaiting_online_payment";
+    return { ok: false, reason, message: kitchenActionBlockMessage(reason) };
+  }
   const printWindow = window.open("", "_blank", "width=440,height=780");
-  if (!printWindow) return;
+  if (!printWindow) return { ok: false, reason: "popup_blocked", message: "Could not open print window" };
   printWindow.document.write(`<!doctype html>
     <html lang="he" dir="rtl">
       <head>
@@ -324,4 +333,5 @@ export function printKitchenTicket(order: Order): void {
   printWindow.document.close();
   printWindow.focus();
   printWindow.print();
+  return { ok: true };
 }

@@ -20,6 +20,12 @@ import {
   nextOrderStatus,
   orderAgeMinutes,
 } from "@/lib/orders/operations";
+import {
+  canAdvanceKitchenWorkflow,
+  canPrintKitchenTicketBrowser,
+  kitchenActionBlockMessage,
+  orderRequiresOnlinePayment,
+} from "@/lib/orders/kitchen-action-gate";
 import { formatDate, formatPrice, cn } from "@/lib/utils";
 import type { Order, OrderStatus } from "@/types";
 
@@ -123,6 +129,14 @@ export function OrderCard({
   const age = orderAgeMinutes(order);
   const urgent = age >= 15 && order.status === "received";
   const paymentStatus = effectivePaymentStatus(order);
+  const awaitingOnlinePayment =
+    orderRequiresOnlinePayment(order) && paymentStatus !== "paid" && paymentStatus !== "failed" && paymentStatus !== "refunded";
+  const kitchenLocked = awaitingOnlinePayment || paymentStatus === "failed" || paymentStatus === "refunded";
+  const canAdvanceNext = Boolean(next && canAdvanceKitchenWorkflow(order, next));
+  const canBrowserPrint = canPrintKitchenTicketBrowser(order);
+  const lockHint = kitchenLocked ? kitchenActionBlockMessage(
+    paymentStatus === "failed" || paymentStatus === "refunded" ? "payment_not_collectable" : "awaiting_online_payment"
+  ) : undefined;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -166,6 +180,11 @@ export function OrderCard({
             >
               {t(`admin.payment.${paymentStatus}`)}
             </Badge>
+            {awaitingOnlinePayment ? (
+              <Badge variant="outline" className="border-sky-300 bg-sky-50 text-sky-800">
+                {t("admin.orders.awaitingPayment", "بانتظار الدفع")}
+              </Badge>
+            ) : null}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-coffee/55">
             <span className="font-medium text-coffee/80">{order.customerName}</span>
@@ -228,12 +247,19 @@ export function OrderCard({
         </div>
       )}
 
+      {kitchenLocked && lockHint ? (
+        <p className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+          {lockHint}
+        </p>
+      ) : null}
+
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {next && (
           <Button
             type="button"
             className="min-h-10 flex-1 rounded-xl sm:flex-none"
-            disabled={updating}
+            disabled={updating || !canAdvanceNext}
+            title={!canAdvanceNext ? lockHint : undefined}
             onClick={() => onStatusChange(next)}
           >
             {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -243,7 +269,10 @@ export function OrderCard({
 
         <Select
           value={order.status}
-          onValueChange={(value) => onStatusChange(value as OrderStatus)}
+          onValueChange={(value) => {
+            if (!canAdvanceKitchenWorkflow(order, value)) return;
+            onStatusChange(value as OrderStatus);
+          }}
           disabled={updating}
         >
           <SelectTrigger className="h-10 w-[150px]">
@@ -251,14 +280,24 @@ export function OrderCard({
           </SelectTrigger>
           <SelectContent>
             {ORDER_STATUSES.map((status) => (
-              <SelectItem key={status} value={status}>
+              <SelectItem
+                key={status}
+                value={status}
+                disabled={!canAdvanceKitchenWorkflow(order, status)}
+              >
                 {t(ORDER_STATUS_LABEL_KEY[status])}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Button type="button" variant="outline" onClick={onPrint} title={t("admin.orders.printTicket")}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onPrint}
+          disabled={!canBrowserPrint}
+          title={canBrowserPrint ? t("admin.orders.printTicket") : lockHint}
+        >
           <Printer className="h-4 w-4" />
           {t("admin.orders.printTicket")}
         </Button>
@@ -278,8 +317,11 @@ export function OrderCard({
               {onThermalReprint && (
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm hover:bg-beige/40"
+                  disabled={kitchenLocked}
+                  title={kitchenLocked ? lockHint : undefined}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm hover:bg-beige/40 disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={() => {
+                    if (kitchenLocked) return;
                     setMenuOpen(false);
                     onThermalReprint();
                   }}

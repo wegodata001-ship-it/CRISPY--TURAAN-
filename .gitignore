@@ -50,3 +50,8 @@ printer-agent-standalone/vendor/
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# local emulator / firebase debug
+firestore-debug.log
+firebase.rules-emu.json
+

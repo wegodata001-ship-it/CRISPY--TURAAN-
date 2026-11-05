@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   adminPath,
   isMenuAllowedApiPath,
@@ -15,6 +15,25 @@ import {
 import { filterMenuDisplayProducts } from "@/lib/menu/category-tree";
 import type { Category, Product } from "@/types";
 
+const HOST_ENV_KEYS = [
+  "NEXT_PUBLIC_CRISPY_STAGING_MODE",
+  "NEXT_PUBLIC_MENU_HOST",
+  "NEXT_PUBLIC_PORTAL_HOST",
+  "NEXT_PUBLIC_PUBLIC_HOST",
+  "VERCEL_ENV",
+] as const;
+
+const savedHostEnv: Record<string, string | undefined> = {};
+for (const key of HOST_ENV_KEYS) savedHostEnv[key] = process.env[key];
+
+afterEach(() => {
+  for (const key of HOST_ENV_KEYS) {
+    const value = savedHostEnv[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+});
+
 describe("host-routing", () => {
   it("detects portal host", () => {
     expect(isPortalHost("portal.example")).toBe(true);
@@ -28,6 +47,28 @@ describe("host-routing", () => {
     expect(isMenuHost("menu.almostafachicken.com")).toBe(true);
     expect(isMenuHost("shop.example")).toBe(false);
     expect(isMenuHost("portal.example")).toBe(false);
+  });
+
+  it("keeps localhost as a unified surface even when MENU/PORTAL hosts are mis-set", () => {
+    process.env.NEXT_PUBLIC_CRISPY_STAGING_MODE = "true";
+    process.env.NEXT_PUBLIC_MENU_HOST = "localhost";
+    process.env.NEXT_PUBLIC_PORTAL_HOST = "localhost";
+    process.env.NEXT_PUBLIC_PUBLIC_HOST = "localhost";
+
+    // Middleware must not rewrite /admin → menu-display on local staging.
+    expect(isMenuHost("localhost:3000")).toBe(false);
+    expect(isPortalHost("localhost:3000")).toBe(false);
+    expect(shouldBlockAdminOnHost("localhost:3000")).toBe(false);
+    expect(adminPath("login", "dev")).toBe("/admin/login");
+    expect(adminPath("products", "dev")).toBe("/admin/products");
+    expect(isOrderingPath("/checkout")).toBe(true);
+    expect(isViewOnlyMenuSurface("localhost:3000", "/menu-display")).toBe(true);
+    expect(isViewOnlyMenuSurface("localhost:3000", "/")).toBe(false);
+
+    // Production-style hosts are unchanged.
+    expect(isMenuHost("menu.almostafachicken.com")).toBe(true);
+    expect(isPortalHost("portal.almostafachicken.com")).toBe(true);
+    expect(shouldBlockAdminOnHost("almostafachicken.com")).toBe(true);
   });
 
   it("allows only media proxy API on the menu host", () => {

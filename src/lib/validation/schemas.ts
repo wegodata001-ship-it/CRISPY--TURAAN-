@@ -23,7 +23,8 @@ const trilingualDescription = {
 export const categorySchema = z.object({
   ...trilingualName,
   icon: z.string().min(1, "Icon is required"),
-  imageUrl: z.string().url("Image URL must be valid").optional(),
+  // Optional cover: allow missing/empty, or a real URL ("" must not fail as invalid URL).
+  imageUrl: z.string().url("Image URL must be valid").optional().or(z.literal("")),
   color: z.string().default("#8B6914"),
   sortOrder: z.number().int().min(0),
   active: z.boolean().default(true),

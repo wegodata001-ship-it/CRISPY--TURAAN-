@@ -1,0 +1,47 @@
+# CRISPY — Hyp / MAX PRODUCTION checklist (crispy-d0bf7)
+# Put secrets only in Vercel Production → Settings → Environment Variables
+# (encrypted / sensitive). Never commit real Masof/KEY/PassP.
+# Never paste secrets into chat or NEXT_PUBLIC_* vars.
+
+# --- Firebase production isolation ---
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=crispy-d0bf7
+FIREBASE_ADMIN_PROJECT_ID=crispy-d0bf7
+# Leave unset/false on Vercel Production:
+NEXT_PUBLIC_CRISPY_STAGING_MODE=false
+NEXT_PUBLIC_SITE_URL=https://almostafachicken.com
+
+# --- Explicit production Hyp arming (required second switch) ---
+# Keep BOTH false on first Vercel code deploy (credentials may already exist).
+# Flip to true only after Firestore Hyp order locks are published and smoke-ready.
+HYP_PAYMENTS_ENABLED=false
+HYP_PAY_PRODUCTION_ENABLED=false
+HYP_STAGING_MOCK=false
+
+# --- Server-only secrets (Vercel Production encrypted env) ---
+HYP_PAY_BASE_URL=https://pay.hyp.co.il/p/
+HYP_PAY_MASOF=
+HYP_PAY_KEY=
+HYP_PAY_PASSP=
+HYP_PAY_COIN=1
+HYP_PAY_PAGE_LANG=HEB
+
+# Document portal redirect targets (same route; CCode distinguishes success/fail):
+HYP_PAY_SUCCESS_URL=https://almostafachicken.com/api/payments/hyp/return
+HYP_PAY_FAIL_URL=https://almostafachicken.com/api/payments/hyp/return
+
+# --- Hyp / MAX portal (enter exactly) ---
+# Success URL: https://almostafachicken.com/api/payments/hyp/return
+# Fail / Cancel URL: https://almostafachicken.com/api/payments/hyp/return
+
+# --- Firestore ---
+# Merge the Hyp order payment locks from this branch's firestore.rules into
+# production rules carefully (orders update: payment fields locked + unpaid
+# online card cannot move to preparing/ready/delivered). Do NOT replace the
+# whole production rules file with staging-only rules. Publish manually after review.
+
+# --- Still required before first live charge ---
+# [ ] Vercel Production secrets set (Masof/KEY/PassP + both enable flags)
+# [ ] Portal Success/Fail URLs set to the HTTPS return route above
+# [ ] App deploy includes VERIFY return + kitchen gates
+# [ ] Production Firestore rules reviewed/published for Hyp order fields
+# [ ] One low-value smoke payment; confirm paid once + kitchen once

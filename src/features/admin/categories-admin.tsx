@@ -446,14 +446,23 @@ export function CategoriesAdmin() {
                 <div>
                   <Label htmlFor="nameHe">{t("admin.categoryNameHe")}</Label>
                   <Input id="nameHe" dir="rtl" {...form.register("nameHe")} className="mt-1" />
+                  {form.formState.errors.nameHe && (
+                    <p className="mt-1 text-xs text-red-600">{form.formState.errors.nameHe.message}</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="nameAr">{t("admin.categoryNameAr")}</Label>
                   <Input id="nameAr" dir="rtl" {...form.register("nameAr")} className="mt-1" />
+                  {form.formState.errors.nameAr && (
+                    <p className="mt-1 text-xs text-red-600">{form.formState.errors.nameAr.message}</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="nameEn">{t("admin.categoryNameEn")}</Label>
                   <Input id="nameEn" {...form.register("nameEn")} className="mt-1" />
+                  {form.formState.errors.nameEn && (
+                    <p className="mt-1 text-xs text-red-600">{form.formState.errors.nameEn.message}</p>
+                  )}
                 </div>
               </div>
             </section>
@@ -491,6 +500,9 @@ export function CategoriesAdmin() {
                       </option>
                     ))}
                   </select>
+                  {form.formState.errors.icon && (
+                    <p className="mt-1 text-xs text-red-600">{form.formState.errors.icon.message}</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="color">{t("admin.categories.color")}</Label>
@@ -504,23 +516,31 @@ export function CategoriesAdmin() {
                     {...form.register("sortOrder", { valueAsNumber: true })}
                     className="mt-1"
                   />
+                  {form.formState.errors.sortOrder && (
+                    <p className="mt-1 text-xs text-red-600">{form.formState.errors.sortOrder.message}</p>
+                  )}
                 </div>
               </div>
             </section>
 
-            <ImageUpload
-              compact
-              label={t("admin.categories.coverImage")}
-              value={form.watch("imageUrl") ?? ""}
-              onChange={(url) => form.setValue("imageUrl", url)}
-              onUpload={(file, onProgress, options) =>
-                uploadCategoryImage(file, editing?.id ?? `new-${Date.now()}`, {
-                  onProgress,
-                  signal: options?.signal,
-                })
-              }
-              onDelete={deleteImageByUrl}
-            />
+            <div>
+              <ImageUpload
+                compact
+                label={t("admin.categories.coverImage")}
+                value={form.watch("imageUrl") ?? ""}
+                onChange={(url) => form.setValue("imageUrl", url, { shouldValidate: true })}
+                onUpload={(file, onProgress, options) =>
+                  uploadCategoryImage(file, editing?.id ?? `new-${Date.now()}`, {
+                    onProgress,
+                    signal: options?.signal,
+                  })
+                }
+                onDelete={deleteImageByUrl}
+              />
+              {form.formState.errors.imageUrl && (
+                <p className="mt-1 text-xs text-red-600">{form.formState.errors.imageUrl.message}</p>
+              )}
+            </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" {...form.register("active")} className="rounded" />
               {t("admin.categories.visibleInCatalog")}

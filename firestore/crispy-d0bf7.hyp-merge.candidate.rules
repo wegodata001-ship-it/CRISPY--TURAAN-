@@ -1,0 +1,285 @@
+// =============================================================================
+// PRODUCTION MERGE CANDIDATE for Firebase project: crispy-d0bf7
+// DO NOT auto-deploy. Review, then publish manually when ready.
+//
+// Base: last committed repo firestore.rules (git HEAD) - pre-HYP production shape.
+// Patch: firestore/hyp-orders-production.fragment.rules ONLY:
+//   1) Hyp order helper functions + tighter /orders create|update
+//   2) hypPaymentIntents + hypPaymentAuditLogs client-denied
+// All other collections/permissions (admin, products, categories, cash orders
+// read path, costing, print jobs, coupons, etc.) are unchanged from baseline.
+//
+// Live remote rules were NOT fetched in this step (Firebase account for
+// crispy-d0bf7 was not switched). Before publish: open Console > Rules and
+// confirm remote matches baseline (orders create/update/delete if isStaff()).
+// If remote differs, merge the fragment into the LIVE rules, not this file blindly.
+// =============================================================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isActiveUser() {
+      return isSignedIn() && userDoc().data.active == true;
+    }
+
+    function isStaff() {
+      return isActiveUser() && userDoc().data.role in ['Admin', 'Manager', 'Employee'];
+    }
+
+    function isAdmin() {
+      return isStaff() && userDoc().data.role == 'Admin';
+    }
+
+    match /categories/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /products/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /customers/{id} {
+      allow read: if isStaff() || id == 'guest-checkout';
+      allow create: if isStaff() || id == 'guest-checkout';
+      allow update: if isStaff() || id == 'guest-checkout';
+      allow delete: if isStaff();
+    }
+
+    function orderingIsOpen() {
+      let settings = /databases/$(database)/documents/settings/app;
+      return !exists(settings) || get(settings).data.get('orderingPaused', false) != true;
+    }
+
+    function orderRequiresOnlinePayment() {
+      return resource.data.get('requiresOnlinePayment', false) == true
+        || resource.data.get('awaitingHypPayment', false) == true;
+    }
+
+    function orderPaymentIsPaid() {
+      return resource.data.get('paymentStatus', 'pending') == 'paid';
+    }
+
+    function kitchenWorkflowStatus(status) {
+      return status in ['preparing', 'ready', 'delivered', 'confirmed'];
+    }
+
+    // Payment confirmation fields are Admin SDK / Hyp return only.
+    // Use affectedKeys() so Timestamp/null comparisons never block legitimate staff updates.
+    function orderPaymentFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'paymentStatus',
+        'requiresOnlinePayment',
+        'awaitingHypPayment',
+        'paymentFlow',
+        'hypOrderRef',
+        'hypTransactionId',
+        'paidAt',
+        'phoneVerified',
+        'phoneVerifiedAt'
+      ]);
+    }
+
+    function staffMayUpdateOrderStatus() {
+      let nextStatus = request.resource.data.get('status', resource.data.status);
+      // Cancel and non-kitchen statuses stay allowed for unpaid online-card orders.
+      return !kitchenWorkflowStatus(nextStatus)
+        || !orderRequiresOnlinePayment()
+        || orderPaymentIsPaid();
+    }
+
+    function staffCreateHasNoTrustedPaymentMarks() {
+      return request.resource.data.get('requiresOnlinePayment', false) != true
+        && request.resource.data.get('awaitingHypPayment', false) != true
+        && request.resource.data.get('paymentFlow', '') != 'hyp_online'
+        && request.resource.data.get('paymentStatus', 'pending') != 'paid'
+        && request.resource.data.get('hypTransactionId', null) == null
+        && request.resource.data.get('paidAt', null) == null;
+    }
+
+    match /orders/{id} {
+      allow read: if isStaff();
+      // Guest checkout is Admin SDK only. Staff may still create cash/legacy tickets
+      // but cannot stamp trusted online-payment / paid confirmation fields.
+      allow create: if isStaff() && staffCreateHasNoTrustedPaymentMarks();
+      allow delete: if isStaff();
+      allow update: if isStaff()
+        && orderPaymentFieldsUnchanged()
+        && staffMayUpdateOrderStatus();
+    }
+
+    match /phoneOtps/{id} {
+      allow read, write: if false;
+    }
+
+    match /phoneOtpIndex/{id} {
+      allow read, write: if false;
+    }
+
+    match /phoneOtpIps/{id} {
+      allow read, write: if false;
+    }
+
+    match /phoneVerifications/{id} {
+      allow read, write: if false;
+    }
+
+    match /orderCheckoutRequests/{id} {
+      allow read, write: if false;
+    }
+
+    match /hypPaymentIntents/{id} {
+      allow read, write: if false;
+    }
+
+    match /hypPaymentAuditLogs/{id} {
+      allow read, write: if false;
+    }
+
+    match /banners/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /coupons/{id} {
+      allow read, write: if false;
+    }
+
+    match /couponRedemptions/{id} {
+      allow read, write: if false;
+    }
+
+    match /couponCheckoutRequests/{id} {
+      allow read, write: if false;
+    }
+
+    match /couponCustomerUses/{id} {
+      allow read, write: if false;
+    }
+
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /ui_translations/{locale} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /assistant/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isStaff());
+      allow write: if false;
+    }
+
+    match /connection-test/{id} {
+      allow read, write: if true;
+    }
+
+    match /modifier_groups/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /modifier_options/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /product_modifier_groups/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /category_modifier_groups/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /product_addon_exclusions/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /product_modifier_options/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /business_rules/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /suggestions/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /inventory_links/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /pdfMenuTemplates/{id} {
+      allow read, write: if isStaff();
+    }
+
+    match /pdfMenuCategorySettings/{id} {
+      allow read, write: if isStaff();
+    }
+
+    match /pdfMenuProductSettings/{id} {
+      allow read, write: if isStaff();
+    }
+
+    match /pdfMenuPages/{id} {
+      allow read, write: if isStaff();
+    }
+
+    match /printJobs/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+
+    match /printAgentHeartbeats/{id} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
+
+    match /ingredients/{id} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    match /ingredientPriceHistory/{id} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    match /productRecipes/{id} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    match /costingSettings/{id} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+  }
+}

@@ -362,7 +362,10 @@ export function OrdersAdmin() {
                 status === "cancelled" ? setCancelOrder(order) : void changeStatus(order, status)
               }
               onCancel={() => setCancelOrder(order)}
-              onPrint={() => printKitchenTicket(order)}
+              onPrint={() => {
+                const result = printKitchenTicket(order);
+                if (!result.ok) pushToast(result.message, "error");
+              }}
               onThermalReprint={() => void reprintThermal(order)}
               onExportPdf={() => exportHtmlAsPdf(order.orderNumber, kitchenTicketHtml(order))}
               onCopyNumber={() => {
@@ -404,7 +407,10 @@ export function OrdersAdmin() {
           status === "cancelled" ? setCancelOrder(order) : void changeStatus(order, status)
         }
         onCancel={setCancelOrder}
-        onPrint={printKitchenTicket}
+        onPrint={(order) => {
+          const result = printKitchenTicket(order);
+          if (!result.ok) pushToast(result.message, "error");
+        }}
         onThermalReprint={(order) => void reprintThermal(order)}
       />
       <AdminToastStack

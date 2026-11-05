@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { OTP_ERROR_TEXT, type OtpErrorCode } from "@/lib/phone-otp/engine";
+import { invalidPhoneMessage } from "@/lib/phone/israeli-mobile";
+import { hypCheckoutErrorMessage } from "@/lib/payments/hyp";
 import { placeVerifiedOrder } from "@/lib/orders/place-verified-order";
 import type { CheckoutLineInput } from "@/lib/orders/trusted-cart";
 
@@ -13,7 +14,6 @@ function localeOf(value: unknown): "ar" | "he" | "en" {
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {
     requestId?: string;
-    phoneProof?: string;
     customerName?: string;
     customerPhone?: string;
     notes?: string;
@@ -22,23 +22,40 @@ export async function POST(request: NextRequest) {
     items?: CheckoutLineInput[];
   } | null;
   const locale = localeOf(body?.locale);
-  if (!body?.requestId || !body.phoneProof || !body.customerName?.trim() || !body.items?.length) {
+  if (!body?.requestId || !body.customerName?.trim() || !body.customerPhone?.trim() || !body.items?.length) {
     return NextResponse.json(
-      { ok: false, code: "PHONE_NOT_VERIFIED", message: OTP_ERROR_TEXT.PHONE_NOT_VERIFIED[locale] },
+      { ok: false, code: "INVALID_PHONE", message: invalidPhoneMessage(locale) },
       { status: 400 }
     );
   }
-  const result = await placeVerifiedOrder({
-    requestId: body.requestId,
-    phoneProof: body.phoneProof,
-    customerId: "guest-checkout",
-    customerName: body.customerName,
-    customerPhone: body.customerPhone || "",
-    notes: body.notes,
-    locale,
-    paymentMethod: body.paymentMethod,
-    items: body.items,
-  });
+  let result: Awaited<ReturnType<typeof placeVerifiedOrder>>;
+  try {
+    result = await placeVerifiedOrder({
+      requestId: body.requestId,
+      customerId: "guest-checkout",
+      customerName: body.customerName,
+      customerPhone: body.customerPhone,
+      notes: body.notes,
+      locale,
+      paymentMethod: body.paymentMethod,
+      items: body.items,
+    });
+  } catch (error) {
+    console.error("[checkout] placeVerifiedOrder failed", error);
+    return NextResponse.json(
+      {
+        ok: false,
+        code: "CHECKOUT_FAILED",
+        message:
+          locale === "he"
+            ? "לא ניתן לשלוח את ההזמנה כרגע. נסו שוב."
+            : locale === "en"
+              ? "Could not place the order right now. Please try again."
+              : "تعذر إرسال الطلب حاليًا. حاول مرة أخرى.",
+      },
+      { status: 500 }
+    );
+  }
   if (!result.ok) {
     const code = result.code;
     const message =
@@ -60,7 +77,15 @@ export async function POST(request: NextRequest) {
               : locale === "en"
                 ? "The order prices could not be verified. Refresh the menu and try again."
                 : "تعذر التحقق من أسعار الطلب. حدّث القائمة وحاول مرة أخرى."
-            : OTP_ERROR_TEXT[code as OtpErrorCode]?.[locale] || OTP_ERROR_TEXT.PHONE_NOT_VERIFIED[locale];
+            : code === "HYP_NOT_CONFIGURED" || code === "HYP_PAYMENT_LINK_FAILED"
+              ? hypCheckoutErrorMessage(code, locale)
+              : code === "INVALID_PHONE"
+                ? invalidPhoneMessage(locale)
+                : locale === "he"
+                  ? "לא ניתן לשלוח את ההזמנה כרגע. נסו שוב."
+                  : locale === "en"
+                    ? "Could not place the order right now. Please try again."
+                    : "تعذر إرسال الطلب حاليًا. حاول مرة أخرى.";
     return NextResponse.json(
       {
         ok: false,
@@ -78,6 +103,8 @@ export async function POST(request: NextRequest) {
     orderId: result.orderId,
     orderNumber: result.orderNumber,
     total: result.total,
-    printQueued: true,
+    printQueued: result.printQueued === true,
+    awaitingPayment: result.awaitingPayment === true,
+    paymentUrl: "paymentUrl" in result ? result.paymentUrl : undefined,
   });
 }

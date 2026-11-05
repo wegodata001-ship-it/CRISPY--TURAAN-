@@ -106,6 +106,42 @@ describe("external printer lock", () => {
       "payment_not_collectable"
     );
   });
+
+  it("when Hyp is OFF, legacy card pending tickets still print", () => {
+    expect(
+      automaticPrintSkipReason(
+        { status: "received", paymentMethod: "card", paymentStatus: "pending" },
+        { hypPaymentsEnabled: false }
+      )
+    ).toBeNull();
+  });
+
+  it("when Hyp is ON, unpaid card tickets are blocked until paid", () => {
+    expect(
+      automaticPrintSkipReason(
+        { status: "received", paymentMethod: "card", paymentStatus: "pending" },
+        { hypPaymentsEnabled: true }
+      )
+    ).toBe("awaiting_card_payment");
+    expect(
+      automaticPrintSkipReason(
+        { status: "preparing", paymentMethod: "card", paymentStatus: "pending" },
+        { hypPaymentsEnabled: true }
+      )
+    ).toBe("awaiting_card_payment");
+    expect(
+      automaticPrintSkipReason(
+        { status: "received", paymentMethod: "card", paymentStatus: "paid" },
+        { hypPaymentsEnabled: true }
+      )
+    ).toBeNull();
+    expect(
+      automaticPrintSkipReason(
+        { status: "received", paymentMethod: "cash", paymentStatus: "pending" },
+        { hypPaymentsEnabled: true }
+      )
+    ).toBeNull();
+  });
 });
 
 describe("print failure disposition", () => {

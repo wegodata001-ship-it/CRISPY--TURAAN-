@@ -44,10 +44,61 @@ service cloud.firestore {
       return !exists(settings) || get(settings).data.get('orderingPaused', false) != true;
     }
 
+    function orderRequiresOnlinePayment() {
+      return resource.data.get('requiresOnlinePayment', false) == true
+        || resource.data.get('awaitingHypPayment', false) == true;
+    }
+
+    function orderPaymentIsPaid() {
+      return resource.data.get('paymentStatus', 'pending') == 'paid';
+    }
+
+    function kitchenWorkflowStatus(status) {
+      return status in ['preparing', 'ready', 'delivered', 'confirmed'];
+    }
+
+    // Payment confirmation fields are Admin SDK / Hyp return only.
+    // Use affectedKeys() so Timestamp/null comparisons never block legitimate staff updates.
+    function orderPaymentFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'paymentStatus',
+        'requiresOnlinePayment',
+        'awaitingHypPayment',
+        'paymentFlow',
+        'hypOrderRef',
+        'hypTransactionId',
+        'paidAt',
+        'phoneVerified',
+        'phoneVerifiedAt'
+      ]);
+    }
+
+    function staffMayUpdateOrderStatus() {
+      let nextStatus = request.resource.data.get('status', resource.data.status);
+      // Cancel and non-kitchen statuses stay allowed for unpaid online-card orders.
+      return !kitchenWorkflowStatus(nextStatus)
+        || !orderRequiresOnlinePayment()
+        || orderPaymentIsPaid();
+    }
+
+    function staffCreateHasNoTrustedPaymentMarks() {
+      return request.resource.data.get('requiresOnlinePayment', false) != true
+        && request.resource.data.get('awaitingHypPayment', false) != true
+        && request.resource.data.get('paymentFlow', '') != 'hyp_online'
+        && request.resource.data.get('paymentStatus', 'pending') != 'paid'
+        && request.resource.data.get('hypTransactionId', null) == null
+        && request.resource.data.get('paidAt', null) == null;
+    }
+
     match /orders/{id} {
       allow read: if isStaff();
-      // Guests cannot create orders. Verified checkout is written by the Admin SDK.
-      allow create, update, delete: if isStaff();
+      // Guest checkout is Admin SDK only. Staff may still create cash/legacy tickets
+      // but cannot stamp trusted online-payment / paid confirmation fields.
+      allow create: if isStaff() && staffCreateHasNoTrustedPaymentMarks();
+      allow delete: if isStaff();
+      allow update: if isStaff()
+        && orderPaymentFieldsUnchanged()
+        && staffMayUpdateOrderStatus();
     }
 
     match /phoneOtps/{id} {
@@ -67,6 +118,14 @@ service cloud.firestore {
     }
 
     match /orderCheckoutRequests/{id} {
+      allow read, write: if false;
+    }
+
+    match /hypPaymentIntents/{id} {
+      allow read, write: if false;
+    }
+
+    match /hypPaymentAuditLogs/{id} {
       allow read, write: if false;
     }
 

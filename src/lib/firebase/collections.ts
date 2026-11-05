@@ -37,6 +37,8 @@ export const COLLECTIONS = {
   phoneOtpIps: "phoneOtpIps",
   phoneVerifications: "phoneVerifications",
   orderCheckoutRequests: "orderCheckoutRequests",
+  hypPaymentIntents: "hypPaymentIntents",
+  hypPaymentAuditLogs: "hypPaymentAuditLogs",
 } as const;
 
 export const DEFAULT_STORE_ID = "crispy";
