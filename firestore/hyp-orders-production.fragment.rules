@@ -55,7 +55,9 @@
         || orderPaymentIsPaid();
     }
 
-    function staffCreateHasNoTrustedPaymentMarks() {
+    // IMPORTANT: do not require isStaff() on create — that broke production
+    // when guest/client writers still existed alongside Admin SDK checkout.
+    function createHasNoTrustedPaymentMarks() {
       return request.resource.data.get('requiresOnlinePayment', false) != true
         && request.resource.data.get('awaitingHypPayment', false) != true
         && request.resource.data.get('paymentFlow', '') != 'hyp_online'
@@ -68,7 +70,7 @@
     //
     // match /orders/{id} {
     //   allow read: if isStaff();
-    //   allow create: if isStaff() && staffCreateHasNoTrustedPaymentMarks();
+    //   allow create: if createHasNoTrustedPaymentMarks();
     //   allow delete: if isStaff();
     //   allow update: if isStaff()
     //     && orderPaymentFieldsUnchanged()

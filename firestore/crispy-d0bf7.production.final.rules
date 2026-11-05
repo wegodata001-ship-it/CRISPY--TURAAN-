@@ -3,14 +3,26 @@
 // Base: LIVE Console rules (see crispy-d0bf7.live.snapshot.rules)
 // Plus: Hyp / MAX payment locks + Admin-SDK-only collections used by current app.
 //
-// Intentional hardening (required for safe Hyp):
-//   LIVE had:  allow create: if true; on /orders
-//   FINAL has: staff cash tickets only + payment field locks; guest checkout
-//              continues via Admin SDK (/api/orders/checkout) which bypasses rules.
+// ROOT CAUSE of the outage when the first "staff-only create" draft was published:
+//   LIVE allowed:  allow create: if true;
+//   Draft closed create to isStaff() only. Production still had client SDK writers
+//   (legacy createOrder / cached bundles). Guests lost create -> checkout died.
+//   Reverting to LIVE restored orders. Admin SDK checkout was never the only path.
 //
-// Preserved unchanged from LIVE: categories, products, customers, banners,
-// settings, translations, assistant, users, connection-test, modifiers,
-// business_rules, suggestions, inventory_links, pdf*, print*, costing*.
+// Safe FINAL create rule (phase-2 compatible):
+//   allow create: if createHasNoTrustedPaymentMarks();
+//   - Guests/staff may create cash/legacy tickets (matches LIVE operational need)
+//   - Nobody (client) may stamp paid / hyp_online / paidAt on create
+//   - Admin SDK still bypasses rules for trusted Hyp unpaid/paid writes
+//
+// Phase plan:
+//   1) Deploy feature/hyp-payments code with LIVE rules + HYP flags false
+//   2) After orders proven live, publish THIS file, still with HYP flags false
+//   3) Only then arm HYP_PAYMENTS_ENABLED + HYP_PAY_PRODUCTION_ENABLED
+//
+// Preserved from LIVE: categories, products, customers, banners, settings,
+// translations, assistant, users, connection-test, modifiers, business_rules,
+// suggestions, inventory_links, pdf*, print*, costing*.
 // =============================================================================
 
 rules_version = '2';
@@ -90,7 +102,9 @@ service cloud.firestore {
         || orderPaymentIsPaid();
     }
 
-    function staffCreateHasNoTrustedPaymentMarks() {
+    // Shared by guest client creates and staff console creates.
+    // Do NOT require isStaff() here — that caused the production outage.
+    function createHasNoTrustedPaymentMarks() {
       return request.resource.data.get('requiresOnlinePayment', false) != true
         && request.resource.data.get('awaitingHypPayment', false) != true
         && request.resource.data.get('paymentFlow', '') != 'hyp_online'
@@ -101,9 +115,9 @@ service cloud.firestore {
 
     match /orders/{id} {
       allow read: if isStaff();
-      // Guest storefront checkout: Admin SDK only (/api/orders/checkout).
-      // Staff may create cash/legacy tickets without trusted paid stamps.
-      allow create: if isStaff() && staffCreateHasNoTrustedPaymentMarks();
+      // Compatible with LIVE guest create + blocks forged paid/Hyp stamps.
+      // Preferred storefront path remains Admin SDK (/api/orders/checkout).
+      allow create: if createHasNoTrustedPaymentMarks();
       allow delete: if isStaff();
       allow update: if isStaff()
         && orderPaymentFieldsUnchanged()

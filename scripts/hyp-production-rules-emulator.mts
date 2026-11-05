@@ -83,22 +83,22 @@ async function main() {
     const guest = env.unauthenticatedContext().firestore();
     const staff = env.authenticatedContext("staff-admin").firestore();
 
-    await check("guest cannot create order (closed open create)", async () => {
-      await assertFails(guest.collection("orders").add({ ...cashOrder }));
+    await check("guest can create cash order without trusted payment stamps", async () => {
+      await assertSucceeds(guest.collection("orders").add({ ...cashOrder }));
     });
 
     await check("staff can create cash ticket without paid stamps", async () => {
       await assertSucceeds(staff.collection("orders").add({ ...cashOrder }));
     });
 
-    await check("staff cannot create order stamped paid", async () => {
+    await check("guest cannot create order stamped paid", async () => {
       await assertFails(
-        staff.collection("orders").add({ ...cashOrder, paymentStatus: "paid", paidAt: new Date() })
+        guest.collection("orders").add({ ...cashOrder, paymentStatus: "paid", paidAt: new Date() })
       );
     });
 
-    await check("staff cannot create hyp_online awaiting ticket", async () => {
-      await assertFails(staff.collection("orders").add({ ...unpaidHypOrder }));
+    await check("guest cannot create hyp_online awaiting ticket", async () => {
+      await assertFails(guest.collection("orders").add({ ...unpaidHypOrder }));
     });
 
     await check("staff can advance cash to preparing", async () => {

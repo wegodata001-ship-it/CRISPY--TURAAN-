@@ -41,9 +41,10 @@ function ordersBlock(source: string): string {
 const liveOrders = ordersBlock(live);
 const finalOrders = ordersBlock(finalRules);
 const liveHadOpenOrderCreate = /allow create:\s*if true;/.test(liveOrders);
-const finalClosesOpenOrderCreate =
-  !/allow create:\s*if true;/.test(finalOrders) &&
-  /staffCreateHasNoTrustedPaymentMarks/.test(finalOrders);
+const finalGuestCompatibleCreate =
+  /allow create:\s*if createHasNoTrustedPaymentMarks\(\);/.test(finalOrders) &&
+  !/allow create:\s*if isStaff\(\)/.test(finalOrders);
+const finalBlocksTrustedCreateHelper = finalRules.includes("function createHasNoTrustedPaymentMarks");
 
 const report = {
   ok:
@@ -52,13 +53,17 @@ const report = {
     finalRules.includes("staffMayUpdateOrderStatus") &&
     finalRules.includes("hypPaymentIntents") &&
     liveHadOpenOrderCreate &&
-    finalClosesOpenOrderCreate &&
+    finalGuestCompatibleCreate &&
+    finalBlocksTrustedCreateHelper &&
     preservedLiveBlocks.every((b) => finalRules.includes(b)),
   liveHadOpenOrderCreate,
-  finalClosesOpenOrderCreate,
+  finalGuestCompatibleCreate,
+  finalBlocksTrustedCreateHelper,
   addedCollections: added,
   removedCollections: removed,
   hypLocksPresent: finalRules.includes("affectedKeys()"),
+  outageLesson:
+    "Never publish isStaff()-only order create while guest/client writers still exist. Use createHasNoTrustedPaymentMarks().",
   note: "Do not publish from this script.",
 };
 

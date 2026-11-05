@@ -81,7 +81,8 @@ service cloud.firestore {
         || orderPaymentIsPaid();
     }
 
-    function staffCreateHasNoTrustedPaymentMarks() {
+    // Do NOT require isStaff() on create — production still has guest/client writers.
+    function createHasNoTrustedPaymentMarks() {
       return request.resource.data.get('requiresOnlinePayment', false) != true
         && request.resource.data.get('awaitingHypPayment', false) != true
         && request.resource.data.get('paymentFlow', '') != 'hyp_online'
@@ -92,9 +93,9 @@ service cloud.firestore {
 
     match /orders/{id} {
       allow read: if isStaff();
-      // Guest checkout is Admin SDK only. Staff may still create cash/legacy tickets
-      // but cannot stamp trusted online-payment / paid confirmation fields.
-      allow create: if isStaff() && staffCreateHasNoTrustedPaymentMarks();
+      // Guest/client cash create allowed; forged paid/Hyp stamps blocked.
+      // Storefront preferred path: Admin SDK (/api/orders/checkout).
+      allow create: if createHasNoTrustedPaymentMarks();
       allow delete: if isStaff();
       allow update: if isStaff()
         && orderPaymentFieldsUnchanged()

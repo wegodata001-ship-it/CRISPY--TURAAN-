@@ -33,15 +33,17 @@ HYP_PAY_FAIL_URL=https://almostafachicken.com/api/payments/hyp/return
 # Success URL: https://almostafachicken.com/api/payments/hyp/return
 # Fail / Cancel URL: https://almostafachicken.com/api/payments/hyp/return
 
-# --- Firestore ---
-# Merge the Hyp order payment locks from this branch's firestore.rules into
-# production rules carefully (orders update: payment fields locked + unpaid
-# online card cannot move to preparing/ready/delivered). Do NOT replace the
-# whole production rules file with staging-only rules. Publish manually after review.
+# --- Firestore (two-phase; never skip phase 1) ---
+# Phase 1: Deploy feature/hyp-payments app code WHILE LIVE old rules stay published
+#          and both HYP_* enable flags stay false. Prove cash/card orders work.
+# Phase 2: Publish firestore/crispy-d0bf7.production.final.rules
+#          (guest create allowed IF no trusted paid/Hyp stamps; kitchen locks on).
+#          Keep HYP flags false and re-prove orders.
+# Phase 3: Arm HYP_PAYMENTS_ENABLED + HYP_PAY_PRODUCTION_ENABLED only after phase 2.
+# Do NOT publish isStaff()-only order create — that caused the outage.
 
 # --- Still required before first live charge ---
-# [ ] Vercel Production secrets set (Masof/KEY/PassP + both enable flags)
+# [ ] Phase 1 code live on Vercel Production (flags false)
+# [ ] Phase 2 FINAL rules published; orders still succeed
 # [ ] Portal Success/Fail URLs set to the HTTPS return route above
-# [ ] App deploy includes VERIFY return + kitchen gates
-# [ ] Production Firestore rules reviewed/published for Hyp order fields
-# [ ] One low-value smoke payment; confirm paid once + kitchen once
+# [ ] Flip both enable flags; one low-value smoke payment

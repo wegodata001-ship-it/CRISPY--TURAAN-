@@ -267,7 +267,18 @@ export async function createOrder(input: OrderInput): Promise<ServiceResult<Orde
       console.warn("[createOrder] undefined fields before sanitize:", undefinedPaths, rawOrder);
     }
 
-    const orderData = sanitizeFirestoreData(rawOrder);
+    // Client SDK path (legacy / offline tooling). Never stamp Hyp/paid confirmation
+    // fields here — Firestore rules reject those marks on non-Admin creates.
+    const orderData = sanitizeFirestoreData({
+      ...rawOrder,
+      paymentStatus: rawOrder.paymentStatus === "paid" ? "pending" : (rawOrder.paymentStatus ?? "pending"),
+      requiresOnlinePayment: false,
+      awaitingHypPayment: false,
+    });
+    delete (orderData as { paymentFlow?: unknown }).paymentFlow;
+    delete (orderData as { hypOrderRef?: unknown }).hypOrderRef;
+    delete (orderData as { hypTransactionId?: unknown }).hypTransactionId;
+    delete (orderData as { paidAt?: unknown }).paidAt;
 
     const ref = await addDoc(collection(db, COLLECTIONS.orders), orderData);
     await requestNewOrderPrintJob(ref.id);
