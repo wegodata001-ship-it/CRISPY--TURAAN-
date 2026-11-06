@@ -95,6 +95,12 @@ export {
   redactSecretsFromUrl,
 } from "./query";
 export { createHostedPaymentPage } from "./sign";
+export {
+  buildHypSignSafeDiagnostic,
+  classifyHypSignResponseBody,
+  type HypSignBodyKind,
+  type HypSignSafeDiagnostic,
+} from "./sign-diagnostic";
 export { verifyHypPaymentRedirect } from "./verify";
 export type {
   HypClientConfig,

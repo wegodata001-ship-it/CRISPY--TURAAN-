@@ -4,6 +4,7 @@ import {
   applyPaymentVerified,
   buildHypOrderRef,
   buildHypRecoveryPlan,
+  classifyHypSignResponseBody,
   createHostedPaymentPage,
   createHypClient,
   createPaymentIntentDraft,
@@ -300,6 +301,33 @@ describe("query helpers and secret redaction", () => {
   });
 });
 
+describe("SIGN response classification (safe diagnostic)", () => {
+  it("classifies query / html / json / empty without reading secret fields", () => {
+    expect(classifyHypSignResponseBody("action=pay&signature=x", { action: "pay", signature: "x" })).toMatchObject({
+      bodyKind: "query",
+      hasActionPay: true,
+      hasSignature: true,
+      cCode: null,
+    });
+    expect(classifyHypSignResponseBody("<html>err</html>", {})).toMatchObject({
+      bodyKind: "html",
+      hasActionPay: false,
+      hasSignature: false,
+    });
+    expect(classifyHypSignResponseBody('{"error":true}', {})).toMatchObject({ bodyKind: "json" });
+    expect(classifyHypSignResponseBody("", {})).toMatchObject({ bodyKind: "empty" });
+    expect(classifyHypSignResponseBody("CCode=902", { CCode: "902" })).toMatchObject({
+      bodyKind: "query",
+      cCode: "902",
+      hasSignature: false,
+    });
+    // Sign=True is request echo, not a crypto signature
+    expect(
+      classifyHypSignResponseBody("Sign=True&action=pay", { Sign: "True", action: "pay" }).hasSignature
+    ).toBe(false);
+  });
+});
+
 describe("hosted page SIGN (mock HTTP)", () => {
   it("does not call the network when disabled", async () => {
     const httpGet = vi.fn(async () => ({ ok: true, text: "action=pay", status: 200 }));
@@ -341,6 +369,95 @@ describe("hosted page SIGN (mock HTTP)", () => {
     if (result.ok) {
       expect(result.paymentUrl).toBe(`https://pay.hyp.co.il/p/?${signed}`);
       expect(result.paymentUrl).toContain("action=pay");
+    }
+  });
+
+  it("accepts SIGN success that includes CCode=0 with action=pay and signature", async () => {
+    const signed = "CCode=0&action=pay&signature=sigok&Order=CRISPY-req1&Amount=20.00";
+    const result = await createHostedPaymentPage(
+      enabledConfig(async () => ({ ok: true, text: signed, status: 200 })),
+      { amount: 20, orderRef: "CRISPY-req1" }
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.paymentUrl).toContain(signed);
+  });
+
+  it("fails SIGN with diagnostic when Hyp returns CCode error", async () => {
+    const result = await createHostedPaymentPage(
+      enabledConfig(async () => ({ ok: true, text: "CCode=902&Message=Denied", status: 200 })),
+      { amount: 20, orderRef: "CRISPY-req1" }
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("SIGN_FAILED");
+      expect(result.diagnostic).toEqual({
+        httpStatus: 200,
+        cCode: "902",
+        bodyKind: "query",
+        hasActionPay: false,
+        hasSignature: false,
+      });
+      expect(JSON.stringify(result.diagnostic)).not.toMatch(/test-key|test-passp|signature=/i);
+    }
+  });
+
+  it("fails SIGN with diagnostic on HTML body", async () => {
+    const result = await createHostedPaymentPage(
+      enabledConfig(async () => ({
+        ok: false,
+        text: "<html><body>Gateway error</body></html>",
+        status: 502,
+      })),
+      { amount: 20, orderRef: "CRISPY-req1" }
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("SIGN_FAILED");
+      expect(result.diagnostic?.bodyKind).toBe("html");
+      expect(result.diagnostic?.httpStatus).toBe(502);
+      expect(result.diagnostic?.hasActionPay).toBe(false);
+    }
+  });
+
+  it("rejects Sign=True echo without lowercase signature", async () => {
+    const result = await createHostedPaymentPage(
+      enabledConfig(async () => ({
+        ok: true,
+        text: "Amount=20.00&Sign=True&action=pay",
+        status: 200,
+      })),
+      { amount: 20, orderRef: "CRISPY-req1" }
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("SIGN_FAILED");
+      expect(result.diagnostic?.hasActionPay).toBe(true);
+      expect(result.diagnostic?.hasSignature).toBe(false);
+    }
+  });
+
+  it("rejects action=pay alone without signature", async () => {
+    const result = await createHostedPaymentPage(
+      enabledConfig(async () => ({ ok: true, text: "action=pay", status: 200 })),
+      { amount: 20, orderRef: "CRISPY-req1" }
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.diagnostic?.hasActionPay).toBe(true);
+      expect(result.diagnostic?.hasSignature).toBe(false);
+    }
+  });
+
+  it("maps transport failure to NETWORK with diagnostic", async () => {
+    const result = await createHostedPaymentPage(
+      enabledConfig(async () => ({ ok: false, text: "CCode=NETWORK", status: 0 })),
+      { amount: 20, orderRef: "CRISPY-req1" }
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe("NETWORK");
+      expect(result.diagnostic?.httpStatus).toBe(0);
+      expect(result.diagnostic?.cCode).toBe("NETWORK");
     }
   });
 });

@@ -15,6 +15,7 @@ export type HypCheckoutPaymentFailure = {
   ok: false;
   code: "HYP_PAYMENT_LINK_FAILED" | "DISABLED" | "NOT_CONFIGURED" | "INVALID_AMOUNT" | "INVALID_ORDER_REF";
   message: string;
+  diagnostic?: import("./sign-diagnostic").HypSignSafeDiagnostic;
 };
 
 /**
@@ -83,6 +84,7 @@ export async function createOrReuseHypCheckoutPayment(input: {
           ? signed.code
           : "HYP_PAYMENT_LINK_FAILED",
       message: signed.message,
+      diagnostic: signed.diagnostic,
     };
   }
 

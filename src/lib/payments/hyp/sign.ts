@@ -1,6 +1,12 @@
 import { hypAmountParam } from "./amount";
 import type { HypClient } from "./client";
 import { buildQueryString, parseHypQueryString } from "./query";
+import {
+  buildHypSignSafeDiagnostic,
+  hypSignResponseHasActionPay,
+  hypSignResponseHasSignature,
+  logHypSignFailureDiagnostic,
+} from "./sign-diagnostic";
 import type { HypSignFailure, HypSignRequest, HypSignResult } from "./types";
 
 function isValidOrderRef(orderRef: string): boolean {
@@ -8,27 +14,42 @@ function isValidOrderRef(orderRef: string): boolean {
   return trimmed.length > 0 && trimmed.length <= 64 && !/[\s&?=]/.test(trimmed);
 }
 
+function failSign(
+  code: HypSignFailure["code"],
+  message: string,
+  diagnostic?: HypSignFailure["diagnostic"]
+): HypSignFailure {
+  if (diagnostic) {
+    logHypSignFailureDiagnostic(diagnostic, code);
+  }
+  return diagnostic ? { ok: false, code, message, diagnostic } : { ok: false, code, message };
+}
+
 /**
  * Build APISign What=SIGN request and turn the response into a hosted payment URL.
  * Credentials stay on the server; only the signed payment URL is returned to callers.
+ *
+ * Success requires Hyp query body with action=pay and lowercase `signature`.
+ * Request echo `Sign=True` is not treated as a payment signature.
+ * Response query is appended to the base URL as-is (order preserved).
  */
 export async function createHostedPaymentPage(
   client: HypClient,
   request: HypSignRequest
 ): Promise<HypSignResult | HypSignFailure> {
   if (!client.config.enabled) {
-    return { ok: false, code: "DISABLED", message: "Hyp Pay integration is disabled" };
+    return failSign("DISABLED", "Hyp Pay integration is disabled");
   }
   if (!client.config.masof || !client.config.key || !client.config.passp) {
-    return { ok: false, code: "NOT_CONFIGURED", message: "Hyp Pay credentials are incomplete" };
+    return failSign("NOT_CONFIGURED", "Hyp Pay credentials are incomplete");
   }
 
   const amount = hypAmountParam(request.amount);
   if (!amount) {
-    return { ok: false, code: "INVALID_AMOUNT", message: "Amount must be a positive ILS value" };
+    return failSign("INVALID_AMOUNT", "Amount must be a positive ILS value");
   }
   if (!isValidOrderRef(request.orderRef)) {
-    return { ok: false, code: "INVALID_ORDER_REF", message: "Order reference is invalid" };
+    return failSign("INVALID_ORDER_REF", "Order reference is invalid");
   }
 
   const coin = String(request.coin ?? client.config.coin);
@@ -63,30 +84,44 @@ export async function createHostedPaymentPage(
   const response = await client.get(query);
   const body = response.text.trim();
   const parsed = parseHypQueryString(body);
+  const diagnostic = buildHypSignSafeDiagnostic(response.status, body, parsed.params);
 
-  if (parsed.params.CCode && parsed.params.CCode !== "0") {
-    return {
-      ok: false,
-      code: "SIGN_FAILED",
-      message: `Hyp Sign rejected with CCode=${parsed.params.CCode}`,
-    };
+  if (diagnostic.cCode === "NETWORK" || response.status === 0) {
+    return failSign("NETWORK", "Hyp Sign transport failed", diagnostic);
   }
 
-  if (!parsed.params.signature && !parsed.params.Sign) {
-    // Successful SIGN returns action=pay + signature (lowercase in docs).
-    if (!body || body.startsWith("<") || /CCode=\d+/.test(body)) {
-      return { ok: false, code: "SIGN_FAILED", message: "Hyp Sign returned an unexpected body" };
-    }
+  if (diagnostic.cCode && diagnostic.cCode !== "0") {
+    return failSign(
+      "SIGN_FAILED",
+      `Hyp Sign rejected with CCode=${diagnostic.cCode}`,
+      diagnostic
+    );
+  }
+
+  if (diagnostic.bodyKind === "html" || diagnostic.bodyKind === "json" || diagnostic.bodyKind === "empty") {
+    return failSign("SIGN_FAILED", "Hyp Sign returned an unexpected body", diagnostic);
+  }
+
+  // Proven fix: do not treat request-echo Sign=True as a crypto signature.
+  // Require lowercase `signature` + action=pay for a usable hosted pay URL.
+  if (!hypSignResponseHasActionPay(body, parsed.params) || !hypSignResponseHasSignature(parsed.params)) {
+    return failSign(
+      "SIGN_FAILED",
+      !hypSignResponseHasActionPay(body, parsed.params)
+        ? "Hyp Sign response missing action=pay"
+        : "Hyp Sign response missing signature",
+      diagnostic
+    );
   }
 
   if (parsed.params.action && parsed.params.action !== "pay") {
-    return { ok: false, code: "SIGN_FAILED", message: "Hyp Sign did not return action=pay" };
+    return failSign("SIGN_FAILED", "Hyp Sign did not return action=pay", diagnostic);
   }
 
   // Hyp docs: append the response query as-is to the payment base URL.
   const signedQuery = body.startsWith("?") ? body.slice(1) : body;
-  if (!signedQuery.includes("action=pay") && parsed.params.action !== "pay") {
-    return { ok: false, code: "SIGN_FAILED", message: "Hyp Sign response missing action=pay" };
+  if (!signedQuery.includes("action=pay")) {
+    return failSign("SIGN_FAILED", "Hyp Sign response missing action=pay", diagnostic);
   }
 
   const base = client.config.baseUrl.replace(/\/$/, "");

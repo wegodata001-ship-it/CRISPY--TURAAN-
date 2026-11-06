@@ -26,10 +26,14 @@ export type HypSignResult = {
   signedQuery: string;
 };
 
+export type { HypSignSafeDiagnostic } from "./sign-diagnostic";
+
 export type HypSignFailure = {
   ok: false;
   code: "DISABLED" | "NOT_CONFIGURED" | "INVALID_AMOUNT" | "INVALID_ORDER_REF" | "SIGN_FAILED" | "NETWORK";
   message: string;
+  /** Present after a Hyp HTTP attempt — never contains secrets or signed URLs. */
+  diagnostic?: import("./sign-diagnostic").HypSignSafeDiagnostic;
 };
 
 export type HypRedirectParams = Record<string, string>;

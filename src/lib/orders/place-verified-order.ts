@@ -220,6 +220,18 @@ export async function placeVerifiedOrder(input: {
       cell: phone.local,
     });
     if (!issued.ok) {
+      if ("diagnostic" in issued && issued.diagnostic) {
+        console.error("[checkout] Hyp payment link failed", {
+          code: issued.code,
+          httpStatus: issued.diagnostic.httpStatus,
+          cCode: issued.diagnostic.cCode,
+          bodyKind: issued.diagnostic.bodyKind,
+          hasActionPay: issued.diagnostic.hasActionPay,
+          hasSignature: issued.diagnostic.hasSignature,
+        });
+      } else {
+        console.error("[checkout] Hyp payment link failed", { code: issued.code });
+      }
       await db.collection(COLLECTIONS.orders).doc(result.orderId).set(
         {
           status: "cancelled",
