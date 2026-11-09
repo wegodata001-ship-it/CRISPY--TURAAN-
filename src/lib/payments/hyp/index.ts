@@ -64,6 +64,7 @@ export {
   createPaymentIntentDraft,
   decideKitchenRelease,
   markIntentFailed,
+  shouldFinalizeBrowserHypFailureAndRestoreCoupon,
   shouldRestoreCouponAfterPaymentOutcome,
 } from "./engine";
 export {

@@ -125,6 +125,20 @@ export function shouldRestoreCouponAfterPaymentOutcome(input: {
   return false;
 }
 
+/**
+ * Browser Hyp return outcomes:
+ * - failed / cancelled (definitive CCode decline or user cancel) → restore held coupon + cancel unpaid order.
+ * - pending (network / left page / inconclusive VERIFY) → keep hold; never mark paid.
+ */
+export function shouldFinalizeBrowserHypFailureAndRestoreCoupon(input: {
+  browserStatus: "failed" | "cancelled" | "pending";
+  paymentStatus?: string | null;
+  intentStatus?: HypPaymentIntentStatus | string | null;
+}): boolean {
+  if (input.paymentStatus === "paid" || input.intentStatus === "paid") return false;
+  return input.browserStatus === "failed" || input.browserStatus === "cancelled";
+}
+
 export function createPaymentIntentDraft(input: {
   id: string;
   requestId: string;

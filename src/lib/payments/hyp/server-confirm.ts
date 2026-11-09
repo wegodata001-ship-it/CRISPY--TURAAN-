@@ -3,7 +3,11 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { confirmKitchenPrint } from "@/lib/orders/place-verified-order";
-import { restoreCouponForCancelledOrder } from "@/lib/coupons/server";
+import {
+  restoreCouponForCancelledOrder,
+  restoreCouponReservationForOrder,
+} from "@/lib/coupons/server";
+import { shouldFinalizeBrowserHypFailureAndRestoreCoupon } from "@/lib/payments/hyp/engine";
 import { amountsMatch, parseHypAmount } from "./amount";
 import { createHypClient } from "./client";
 import { loadHypPayConfig } from "./config";
@@ -382,7 +386,11 @@ export async function confirmHypReturnAndReleaseKitchen(rawQuery: string) {
   };
 }
 
-/** Record non-paid UI outcome without cancelling coupons; never overwrite paid. */
+/**
+ * Record non-paid browser outcome.
+ * - pending / inconclusive: never mark paid, never restore coupon (payment may still succeed).
+ * - failed / cancelled (definitive): cancel unpaid order, restore held coupon once, never touch paid.
+ */
 export async function recordHypBrowserOutcome(input: {
   orderRef?: string | null;
   status: Exclude<HypUiPaymentStatus, "paid">;
@@ -397,8 +405,13 @@ export async function recordHypBrowserOutcome(input: {
 
   const db = getAdminDb();
   const intentRef = db.collection(COLLECTIONS.hypPaymentIntents).doc(intent.requestId);
+  const orderDocRef = db.collection(COLLECTIONS.orders).doc(intent.orderId);
   const resultToken = createHypResultToken();
   const resultTokenHash = hashHypResultToken(resultToken);
+  const finalizeFailure = shouldFinalizeBrowserHypFailureAndRestoreCoupon({
+    browserStatus: input.status,
+    intentStatus: intent.status,
+  });
 
   const saved = await db.runTransaction(async (tx) => {
     const snap = await tx.get(intentRef);
@@ -407,24 +420,84 @@ export async function recordHypBrowserOutcome(input: {
     if (String(current.status || "") === "paid") {
       return { ok: false as const, alreadyPaid: true as const };
     }
+    const orderSnap = await tx.get(orderDocRef);
+    if (orderSnap.exists && String(orderSnap.data()?.paymentStatus || "") === "paid") {
+      return { ok: false as const, alreadyPaid: true as const };
+    }
+
     const nextStatus =
-      input.status === "cancelled" ? "cancelled" : input.status === "failed" ? "failed" : String(current.status || "redirected");
-    tx.set(
-      intentRef,
-      {
-        ...(input.status === "pending" ? {} : { status: nextStatus }),
-        resultTokenHash,
-        resultStatus: input.status,
-        lastBrowserOutcomeCode: input.code || null,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    return { ok: true as const };
+      input.status === "cancelled"
+        ? "cancelled"
+        : input.status === "failed"
+          ? "failed"
+          : String(current.status || "redirected");
+
+    const intentPatch: Record<string, unknown> = {
+      ...(input.status === "pending" ? {} : { status: nextStatus }),
+      resultTokenHash,
+      resultStatus: input.status,
+      lastBrowserOutcomeCode: input.code || null,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    if (finalizeFailure) {
+      if (String(current.couponStatus || "") === "held") {
+        intentPatch.couponStatus = "restored";
+      }
+      intentPatch.kitchenPrintReleased = false;
+      if (orderSnap.exists && String(orderSnap.data()?.status || "") !== "cancelled") {
+        tx.set(
+          orderDocRef,
+          {
+            status: "cancelled",
+            paymentStatus: "failed",
+            awaitingHypPayment: false,
+            cancelReason:
+              input.status === "cancelled" ? "hyp_payment_cancelled" : "hyp_payment_declined",
+            cancelledAt: Timestamp.now(),
+            cancelledBy: "system:hyp_browser_outcome",
+          },
+          { merge: true }
+        );
+      } else if (orderSnap.exists) {
+        tx.set(
+          orderDocRef,
+          {
+            paymentStatus: "failed",
+            awaitingHypPayment: false,
+          },
+          { merge: true }
+        );
+      }
+    }
+
+    tx.set(intentRef, intentPatch, { merge: true });
+    return {
+      ok: true as const,
+      orderId: String(current.orderId || intent.orderId || ""),
+      shouldRestoreCoupon: finalizeFailure && String(current.couponStatus || "") === "held",
+    };
   });
 
-  if (!saved.ok) return { ok: false as const, resultToken: "", alreadyPaid: "alreadyPaid" in saved };
-  return { ok: true as const, resultToken, requestId: intent.requestId };
+  if (!saved.ok) {
+    return { ok: false as const, resultToken: "", alreadyPaid: "alreadyPaid" in saved };
+  }
+
+  let couponRestored = false;
+  if ("shouldRestoreCoupon" in saved && saved.shouldRestoreCoupon && saved.orderId) {
+    const restore = await restoreCouponReservationForOrder(saved.orderId, {
+      requireCancelledOrder: false,
+      allowRedeemed: false,
+    });
+    couponRestored = restore.restored === true || restore.alreadyRestored === true;
+  }
+
+  return {
+    ok: true as const,
+    resultToken,
+    requestId: intent.requestId,
+    couponRestored,
+  };
 }
 
 /**

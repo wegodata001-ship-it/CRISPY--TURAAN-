@@ -515,31 +515,60 @@ export async function checkoutWithCoupon(input: {
   return { ...result, printQueued: true as const, awaitingPayment: false as const };
 }
 
-export async function restoreCouponForCancelledOrder(orderId: string) {
+/**
+ * Release a Hyp card coupon reservation (held) or a cancelled legacy redemption.
+ * Idempotent: already-restored redemptions are no-ops.
+ * Never touches paid orders or redemptions finalized as redeemed after VERIFY.
+ */
+export async function restoreCouponReservationForOrder(
+  orderId: string,
+  options?: { requireCancelledOrder?: boolean; allowRedeemed?: boolean }
+): Promise<{ restored: boolean; reason?: string; alreadyRestored?: boolean }> {
+  const requireCancelled = options?.requireCancelledOrder !== false;
+  const allowRedeemed = options?.allowRedeemed === true;
   const db = getAdminDb();
   const orderRef = db.collection(COLLECTIONS.orders).doc(orderId);
   const orderSnap = await orderRef.get();
   if (!orderSnap.exists) return { restored: false, reason: "missing_order" };
   const order = orderSnap.data() || {};
-  if (order.status !== "cancelled") return { restored: false, reason: "not_cancelled" };
+  if (String(order.paymentStatus || "") === "paid") {
+    return { restored: false, reason: "order_paid" };
+  }
+  if (requireCancelled && order.status !== "cancelled") {
+    return { restored: false, reason: "not_cancelled" };
+  }
   const code = normalizeCouponCode(String(order.couponCode || ""));
   if (!code) return { restored: false, reason: "no_coupon" };
   const redemptionRef = db.collection(COLLECTIONS.couponRedemptions).doc(`${code}_${orderId}`);
-  const restored = await db.runTransaction(async (tx) => {
+  return db.runTransaction(async (tx) => {
     const redemption = await tx.get(redemptionRef);
     const couponRef = coupons().doc(code);
     const coupon = await tx.get(couponRef);
+    const orderFresh = await tx.get(orderRef);
+    if (orderFresh.exists && String(orderFresh.data()?.paymentStatus || "") === "paid") {
+      return { restored: false, reason: "order_paid" };
+    }
     const redemptionStatus = String(redemption.data()?.status || "");
-    // held = reserved for unpaid Hyp card checkout; redeemed = legacy / paid path
-    if (!redemption.exists || (redemptionStatus !== "redeemed" && redemptionStatus !== "held")) {
-      return false;
+    if (!redemption.exists) return { restored: false, reason: "missing_redemption" };
+    if (redemptionStatus === "restored") {
+      return { restored: false, reason: "already_restored", alreadyRestored: true };
+    }
+    // held = unpaid Hyp reservation. redeemed only when allowRedeemed (admin cancel of legacy/cash).
+    const mayRestoreHeld = redemptionStatus === "held";
+    const mayRestoreRedeemed = allowRedeemed && redemptionStatus === "redeemed";
+    if (!mayRestoreHeld && !mayRestoreRedeemed) {
+      return { restored: false, reason: `status_${redemptionStatus || "unknown"}` };
     }
     const customerKey = customerCouponKey(
       typeof order.customerPhone === "string" ? order.customerPhone : undefined,
       typeof order.customerId === "string" ? order.customerId : undefined
     );
     const useRef = db.collection(COLLECTIONS.couponCustomerUses).doc(`${code}_${customerKey}`);
-    tx.update(redemptionRef, { status: "restored", orderStatus: "cancelled" });
+    tx.update(redemptionRef, {
+      status: "restored",
+      orderStatus: "cancelled",
+      restoredAt: FieldValue.serverTimestamp(),
+    });
     if (coupon.exists && Number(coupon.data()?.usedCount) > 0) {
       tx.update(couponRef, {
         usedCount: FieldValue.increment(-1),
@@ -547,9 +576,16 @@ export async function restoreCouponForCancelledOrder(orderId: string) {
       });
     }
     tx.delete(useRef);
-    return true;
+    return { restored: true };
   });
-  return { restored };
+}
+
+/** @deprecated Prefer restoreCouponReservationForOrder — kept for admin cancel path. */
+export async function restoreCouponForCancelledOrder(orderId: string) {
+  return restoreCouponReservationForOrder(orderId, {
+    requireCancelledOrder: true,
+    allowRedeemed: true,
+  });
 }
 
 export function isCouponError(code: string): code is CouponErrorCode {

@@ -6,6 +6,7 @@ import {
   decideKitchenRelease,
   MemoryHypPaymentIntentStore,
   resolveCheckoutSettlementMode,
+  shouldFinalizeBrowserHypFailureAndRestoreCoupon,
   shouldRestoreCouponAfterPaymentOutcome,
   type HypHttpGet,
 } from "@/lib/payments/hyp";
@@ -79,6 +80,19 @@ describe("coupon hold policy for unpaid Hyp card", () => {
         intentStatus: "failed",
       })
     ).toBe(true);
+    expect(
+      shouldFinalizeBrowserHypFailureAndRestoreCoupon({
+        browserStatus: "failed",
+        paymentStatus: "pending",
+        intentStatus: "redirected",
+      })
+    ).toBe(true);
+    expect(
+      shouldFinalizeBrowserHypFailureAndRestoreCoupon({
+        browserStatus: "pending",
+        intentStatus: "redirected",
+      })
+    ).toBe(false);
   });
 });
 

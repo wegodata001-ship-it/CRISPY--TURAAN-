@@ -246,14 +246,23 @@ export class MemoryHypPaymentIntentStore {
     const resultToken = createHypResultToken();
     const nextStatus =
       status === "cancelled" ? ("cancelled" as const) : status === "failed" ? ("failed" as const) : intent.status;
-    this.saveDurable({
+    const finalize = status === "failed" || status === "cancelled";
+    let next: DurableHypIntent = {
       ...intent,
       status: status === "pending" ? intent.status : nextStatus,
       resultTokenHash: hashHypResultToken(resultToken),
       resultStatus: status,
-    });
+      kitchenPrintReleased: finalize ? false : intent.kitchenPrintReleased,
+    };
+    this.saveDurable(next);
+    let couponRestored = false;
+    if (finalize && next.couponStatus === "held") {
+      const restored = this.restoreCouponIfUnpaid(next.requestId);
+      couponRestored = restored.restored;
+      if (restored.intent) next = restored.intent;
+    }
     void code;
-    return { ok: true as const, resultToken };
+    return { ok: true as const, resultToken, couponRestored };
   }
 
   trustedResultView(token: string): { status: HypUiPaymentStatus; orderLabel?: string } | null {

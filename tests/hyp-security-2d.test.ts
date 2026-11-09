@@ -258,18 +258,19 @@ describe("Hyp 2D security — forged payment-result + coupons", () => {
     expect(store.restoreCouponIfUnpaid("req-2d-1").restored).toBe(false);
   });
 
-  it("keeps held coupon on browser cancel and restores once on abandon", async () => {
+  it("restores held coupon on definitive browser cancel; abandon stays idempotent", async () => {
     const store = new MemoryHypPaymentIntentStore();
     seed(store);
     const cancelled = store.recordBrowserOutcome("CRISPY-req-2d-1", "cancelled", "PAYMENT_DECLINED");
     expect(cancelled.ok).toBe(true);
-    expect(store.getByRequestId("req-2d-1")?.couponStatus).toBe("held");
+    expect(cancelled.couponRestored).toBe(true);
+    expect(store.getByRequestId("req-2d-1")?.couponStatus).toBe("restored");
     const view = store.trustedResultView(cancelled.resultToken);
     expect(view?.status).toBe("cancelled");
 
     const abandon = await store.abandonAfterReview("req-2d-1");
     expect(abandon.ok).toBe(true);
-    if (abandon.ok) expect(abandon.couponRestored).toBe(true);
+    if (abandon.ok) expect(abandon.couponRestored).toBe(false);
     expect(store.restoreCouponIfUnpaid("req-2d-1").restored).toBe(false);
   });
 });
