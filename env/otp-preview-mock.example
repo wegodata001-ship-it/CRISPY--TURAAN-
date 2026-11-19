@@ -1,0 +1,13 @@
+# Safe Preview-only OTP flags (Vercel Preview env — NOT Production).
+# Real Meser10 SMS stays OFF until sender CRISPY is approved.
+#
+# PHONE_OTP_REQUIRED=true
+# PHONE_OTP_REAL_SMS=false
+# PHONE_OTP_STAGING_MOCK=true
+# MESER10_SENDER=CRISPY
+# OTP_SECRET=<16+ random chars, Preview-only>
+# MESER10_API_KEY=<optional until real SMS>
+#
+# Production must keep:
+# PHONE_OTP_REQUIRED=false
+# PHONE_OTP_REAL_SMS=false

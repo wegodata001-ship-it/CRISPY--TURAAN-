@@ -4,6 +4,11 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { confirmKitchenPrint } from "@/lib/orders/place-verified-order";
 import { parseIsraeliMobile } from "@/lib/phone/israeli-mobile";
 import {
+  claimPhoneProofForNewOrder,
+  missingPhoneProofError,
+} from "@/lib/phone-otp/checkout-gate";
+import { phoneVerificationRef, proofStateFrom } from "@/lib/phone-otp/server";
+import {
   buildHypOrderRef,
   couponRedemptionStatusForCheckout,
   issueHypPaymentUrlForOrder,
@@ -203,6 +208,7 @@ type CheckoutItem = {
 
 export async function checkoutWithCoupon(input: {
   requestId: string;
+  phoneProof?: string;
   couponCode: string;
   customerId: string;
   customerName: string;
@@ -274,7 +280,7 @@ export async function checkoutWithCoupon(input: {
     }
     if (data.awaitingPayment !== true) {
       const print = await confirmKitchenPrint(orderId);
-      if (!print.queued) {
+      if (!print.accepted) {
         return {
           ok: false as const,
           code: "PRINT_NOT_QUEUED" as const,
@@ -283,9 +289,23 @@ export async function checkoutWithCoupon(input: {
           orderNumber,
         };
       }
-      return { ...replay, printQueued: true as const, awaitingPayment: false as const };
+      return {
+        ...replay,
+        printQueued: print.queued,
+        printSkipped: print.intentionallySkipped,
+        awaitingPayment: false as const,
+      };
     }
   }
+
+  const proofGate = missingPhoneProofError({
+    phoneProof: input.phoneProof,
+    checkoutRequestExists: existingRequest.exists,
+  });
+  if (!proofGate.ok) {
+    return { ok: false as const, code: "PHONE_NOT_VERIFIED" as const };
+  }
+  const proofId = proofGate.proofId;
 
   const hypConfig = loadHypPayConfig();
   const stagingMock = isHypStagingMockEnabled();
@@ -293,6 +313,7 @@ export async function checkoutWithCoupon(input: {
   const expectedMasof = stagingMock ? STAGING_HYP_MOCK_MASOF : hypConfig.masof;
 
   // Persist order + held coupon + durable intent BEFORE issuing a payment URL.
+  // phoneProof is claimed with requestId so Hyp SIGN retries reuse the same proof.
   const result = await db.runTransaction(async (tx) => {
     const couponRef = coupons().doc(code);
     const customerKey = customerCouponKey(phone.local, input.customerId);
@@ -312,6 +333,25 @@ export async function checkoutWithCoupon(input: {
         paymentUrl: typeof data.paymentUrl === "string" ? data.paymentUrl : undefined,
       };
     }
+
+    let phoneVerified = false;
+    if (proofId) {
+      const proofRef = phoneVerificationRef(proofId);
+      const proofSnap = await tx.get(proofRef);
+      const claimed = claimPhoneProofForNewOrder({
+        proof: proofStateFrom(proofSnap.data()),
+        phone: phone.local,
+        requestId,
+      });
+      if (!claimed.ok) return claimed;
+      phoneVerified = true;
+      tx.update(proofRef, {
+        used: true,
+        usedByRequestId: requestId,
+        usedAt: FieldValue.serverTimestamp(),
+      });
+    }
+
     const couponSnap = await tx.get(couponRef);
     const useSnap = await tx.get(useRef);
     const coupon = couponSnap.exists ? asCoupon(couponSnap.id, couponSnap.data() || {}) : null;
@@ -332,7 +372,7 @@ export async function checkoutWithCoupon(input: {
       customerId: input.customerId,
       customerName: input.customerName.trim(),
       customerPhone: phone.local,
-      phoneVerified: false,
+      phoneVerified,
       items: input.items,
       status: "received",
       subtotal: quote.subtotal,
@@ -358,6 +398,9 @@ export async function checkoutWithCoupon(input: {
         : {}),
     };
     tx.set(orderDoc, order);
+    if (proofId) {
+      tx.update(phoneVerificationRef(proofId), { orderId: orderDoc.id });
+    }
     tx.set(redemptionRef, {
       couponId: code,
       couponCode: code,
@@ -388,6 +431,7 @@ export async function checkoutWithCoupon(input: {
       subtotal: quote.subtotal,
       couponCode: code,
       awaitingPayment: awaitingHypPayment,
+      ...(proofId ? { phoneProofId: proofId } : {}),
     });
     if (awaitingHypPayment) {
       if (!hypOrderRefValue) return { ok: false as const, code: "HYP_PAYMENT_LINK_FAILED" as const };
@@ -503,7 +547,7 @@ export async function checkoutWithCoupon(input: {
   }
 
   const print = await confirmKitchenPrint(result.orderId);
-  if (!print.queued) {
+  if (!print.accepted) {
     return {
       ok: false as const,
       code: "PRINT_NOT_QUEUED" as const,
@@ -512,7 +556,12 @@ export async function checkoutWithCoupon(input: {
       orderNumber: result.orderNumber,
     };
   }
-  return { ...result, printQueued: true as const, awaitingPayment: false as const };
+  return {
+    ...result,
+    printQueued: print.queued,
+    printSkipped: print.intentionallySkipped,
+    awaitingPayment: false as const,
+  };
 }
 
 /**

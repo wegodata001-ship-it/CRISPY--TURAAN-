@@ -10,6 +10,11 @@ import {
 } from "@/lib/orders/trusted-cart";
 import { parseIsraeliMobile } from "@/lib/phone/israeli-mobile";
 import {
+  claimPhoneProofForNewOrder,
+  missingPhoneProofError,
+} from "@/lib/phone-otp/checkout-gate";
+import { phoneVerificationRef, proofStateFrom } from "@/lib/phone-otp/server";
+import {
   buildHypOrderRef,
   issueHypPaymentUrlForOrder,
   loadHypPayConfig,
@@ -24,22 +29,35 @@ export async function confirmKitchenPrint(orderId: string) {
   try {
     const result = await maybeEnqueueNewOrderPrint(orderId);
     const queued = result.status === "created" || result.status === "already_exists";
+    const reason = result.status === "skipped" ? result.reason : undefined;
+    // Staging/local with PRINT_AUTO_NEW_ORDERS=false: order is fine; do not surface PRINT_NOT_QUEUED.
+    // Real enqueue failures still fail checkout so production kitchen misses stay visible.
+    const intentionallySkipped = result.status === "skipped" && reason === "auto_print_disabled";
     return {
       queued,
+      intentionallySkipped,
+      accepted: queued || intentionallySkipped,
       status: result.status,
-      reason: result.status === "skipped" ? result.reason : undefined,
+      reason,
     };
   } catch (error) {
     console.error("[PrintJob] enqueue failed", {
       orderId,
       error: error instanceof Error ? error.message : "enqueue_failed",
     });
-    return { queued: false, status: "failed" as const, reason: "enqueue_failed" };
+    return {
+      queued: false,
+      intentionallySkipped: false,
+      accepted: false,
+      status: "failed" as const,
+      reason: "enqueue_failed",
+    };
   }
 }
 
 export async function placeVerifiedOrder(input: {
   requestId: string;
+  phoneProof?: string;
   customerId: string;
   customerName: string;
   customerPhone: string;
@@ -70,7 +88,7 @@ export async function placeVerifiedOrder(input: {
   const total = Math.max(priced.subtotal, 0.01);
   const requestRef = db.collection(COLLECTIONS.orderCheckoutRequests).doc(requestId);
 
-  // Idempotent replay before any Hyp network call.
+  // Idempotent replay before any Hyp network call (and before requiring a new phoneProof).
   const existingRequest = await requestRef.get();
   if (existingRequest.exists) {
     const data = existingRequest.data() || {};
@@ -91,7 +109,7 @@ export async function placeVerifiedOrder(input: {
     }
     if (data.awaitingPayment !== true) {
       const print = await confirmKitchenPrint(orderId);
-      if (!print.queued) {
+      if (!print.accepted) {
         return {
           ok: false as const,
           code: "PRINT_NOT_QUEUED" as const,
@@ -106,11 +124,21 @@ export async function placeVerifiedOrder(input: {
         orderId,
         orderNumber,
         total: replayTotal,
-        printQueued: true as const,
+        printQueued: print.queued,
+        printSkipped: print.intentionallySkipped,
         awaitingPayment: false as const,
       };
     }
   }
+
+  const proofGate = missingPhoneProofError({
+    phoneProof: input.phoneProof,
+    checkoutRequestExists: existingRequest.exists,
+  });
+  if (!proofGate.ok) {
+    return { ok: false as const, code: "PHONE_NOT_VERIFIED" as const };
+  }
+  const proofId = proofGate.proofId;
 
   const hypConfig = loadHypPayConfig();
   const stagingMock = isHypStagingMockEnabled();
@@ -118,6 +146,8 @@ export async function placeVerifiedOrder(input: {
   const expectedMasof = stagingMock ? STAGING_HYP_MOCK_MASOF : hypConfig.masof;
 
   // Persist unpaid order + durable intent BEFORE issuing any Hyp payment URL.
+  // Claim phoneProof in the same transaction as order+requestId so Hyp SIGN failure
+  // can retry the same requestId without consuming a second proof.
   const result = await db.runTransaction(async (tx) => {
     const requestSnap = await tx.get(requestRef);
     if (requestSnap.exists) {
@@ -132,6 +162,25 @@ export async function placeVerifiedOrder(input: {
         paymentUrl: typeof data.paymentUrl === "string" ? data.paymentUrl : undefined,
       };
     }
+
+    let phoneVerified = false;
+    if (proofId) {
+      const proofRef = phoneVerificationRef(proofId);
+      const proofSnap = await tx.get(proofRef);
+      const claimed = claimPhoneProofForNewOrder({
+        proof: proofStateFrom(proofSnap.data()),
+        phone: phone.local,
+        requestId,
+      });
+      if (!claimed.ok) return claimed;
+      phoneVerified = true;
+      tx.update(proofRef, {
+        used: true,
+        usedByRequestId: requestId,
+        usedAt: FieldValue.serverTimestamp(),
+      });
+    }
+
     const orderDoc = db.collection(COLLECTIONS.orders).doc();
     const orderNumber = generateOrderNumber();
     tx.set(orderDoc, {
@@ -139,7 +188,7 @@ export async function placeVerifiedOrder(input: {
       customerId: input.customerId,
       customerName: input.customerName.trim(),
       customerPhone: phone.local,
-      phoneVerified: false,
+      phoneVerified,
       items: pricedLinesForFirestore(priced.items),
       status: "received",
       subtotal: priced.subtotal,
@@ -161,11 +210,15 @@ export async function placeVerifiedOrder(input: {
           }
         : {}),
     });
+    if (proofId) {
+      tx.update(phoneVerificationRef(proofId), { orderId: orderDoc.id });
+    }
     tx.set(requestRef, {
       orderId: orderDoc.id,
       orderNumber,
       total,
       awaitingPayment: awaitingHypPayment,
+      ...(proofId ? { phoneProofId: proofId } : {}),
     });
     if (awaitingHypPayment) {
       if (!hypOrderRefValue) return { ok: false as const, code: "HYP_PAYMENT_LINK_FAILED" as const };
@@ -283,7 +336,7 @@ export async function placeVerifiedOrder(input: {
   }
 
   const print = await confirmKitchenPrint(result.orderId);
-  if (!print.queued) {
+  if (!print.accepted) {
     return {
       ok: false as const,
       code: "PRINT_NOT_QUEUED" as const,
@@ -292,5 +345,10 @@ export async function placeVerifiedOrder(input: {
       orderNumber: result.orderNumber,
     };
   }
-  return { ...result, printQueued: true as const, awaitingPayment: false as const };
+  return {
+    ...result,
+    printQueued: print.queued,
+    printSkipped: print.intentionallySkipped,
+    awaitingPayment: false as const,
+  };
 }

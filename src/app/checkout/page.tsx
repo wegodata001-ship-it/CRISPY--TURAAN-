@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -24,9 +24,24 @@ import { useT, useLocale } from "@/components/providers/locale-provider";
 import { useLocalizedProduct } from "@/hooks/useLocalizedContent";
 import { useCart } from "@/features/cart/cart-context";
 import { CouponEntry } from "@/features/cart/coupon-entry";
+import { PhoneOtpDialog } from "@/features/checkout/phone-otp-dialog";
 import { getOrCreateGuestCustomer, GUEST_CUSTOMER_ID } from "@/services";
 import { invalidPhoneMessage, parseIsraeliMobile } from "@/lib/phone/israeli-mobile";
 import { interpretCheckoutApiPayload } from "@/lib/orders/checkout-client-result";
+import { guardCardCheckoutResult } from "@/lib/orders/checkout-payment-guard";
+import {
+  checkoutPrintOutcomeFromResult,
+  checkoutSuccessPrintHint,
+  type CheckoutPrintOutcome,
+} from "@/lib/orders/checkout-success-hint";
+import {
+  checkoutRequiresPhoneOtp,
+  decideCheckoutOtpGate,
+  proofMatchesCheckoutPhone,
+  shouldRotateCheckoutRequestId,
+  type PhoneOtpClientStatus,
+  type VerifiedPhoneProof,
+} from "@/lib/phone-otp/checkout-client";
 import { requestNewOrderEmailNotification, requestCriticalCheckoutFailureNotification } from "@/lib/email/client-notify";
 import { formatPrice } from "@/lib/utils";
 import { calculateLineTotal } from "@/lib/product-builder/engine";
@@ -55,6 +70,7 @@ function checkoutLinePayload(items: import("@/types").CartItem[]) {
 
 async function checkoutWithCoupon(input: {
   requestId: string;
+  phoneProof?: string;
   couponCode: string;
   customerName: string;
   customerPhone: string;
@@ -68,6 +84,7 @@ async function checkoutWithCoupon(input: {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       requestId: input.requestId,
+      phoneProof: input.phoneProof,
       couponCode: input.couponCode,
       customerId: GUEST_CUSTOMER_ID,
       customerName: input.customerName,
@@ -85,6 +102,7 @@ async function checkoutWithCoupon(input: {
 
 async function placeVerifiedCheckout(input: {
   requestId: string;
+  phoneProof?: string;
   customerName: string;
   customerPhone: string;
   notes?: string;
@@ -97,6 +115,7 @@ async function placeVerifiedCheckout(input: {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       requestId: input.requestId,
+      phoneProof: input.phoneProof,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       notes: input.notes,
@@ -107,6 +126,12 @@ async function placeVerifiedCheckout(input: {
   });
   const payload = (await response.json().catch(() => null)) as import("@/lib/orders/checkout-client-result").CheckoutApiPayload | null;
   return interpretCheckoutApiPayload(response.ok, payload);
+}
+
+function ensureCheckoutRequestId(current: string): string {
+  if (current) return current;
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return `order-${Date.now()}`;
 }
 
 function OrderLineItem({ item }: { item: import("@/types").CartItem }) {
@@ -143,8 +168,44 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [printOutcome, setPrintOutcome] = useState<CheckoutPrintOutcome>({ kind: "unknown" });
   const orderRequestId = useRef("");
+  const placingRef = useRef(false);
+  /** Snapshot at confirm/OTP open so card selection cannot fall back to cash after verify. */
+  const paymentMethodRef = useRef<"cash" | "card">("cash");
   const [placedOrderNumber, setPlacedOrderNumber] = useState("");
+  const [otpStatus, setOtpStatus] = useState<PhoneOtpClientStatus | null>(null);
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [phoneProof, setPhoneProof] = useState<VerifiedPhoneProof | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/phone-otp/status", { cache: "no-store" });
+        const payload = (await response.json().catch(() => null)) as {
+          required?: boolean;
+          mock?: boolean;
+        } | null;
+        if (cancelled) return;
+        setOtpStatus({
+          required: payload?.required === true,
+          mock: payload?.mock !== false,
+        });
+      } catch {
+        if (!cancelled) setOtpStatus({ required: false, mock: true });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (phoneProof && !proofMatchesCheckoutPhone(phoneProof, phone)) {
+      setPhoneProof(null);
+    }
+  }, [phone, phoneProof]);
 
   if (items.length === 0 && !success) {
     return (
@@ -165,52 +226,65 @@ export default function CheckoutPage() {
   }
 
   const checkoutLocale = locale === "he" || locale === "en" ? locale : "ar";
+  const otpRequired = checkoutRequiresPhoneOtp(otpStatus);
+  const parsedPhonePreview = parseIsraeliMobile(phone);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !phone.trim()) { setError(t("validation.required")); return; }
+  const completeCheckout = async (proof: VerifiedPhoneProof | null) => {
+    if (placingRef.current) return;
     const parsedPhone = parseIsraeliMobile(phone);
     if (!parsedPhone) {
       setError(invalidPhoneMessage(checkoutLocale));
       return;
     }
 
+    const paymentMethod = paymentMethodRef.current;
+    placingRef.current = true;
     setLoading(true);
     setError(null);
     try {
       void getOrCreateGuestCustomer();
-      if (!orderRequestId.current) {
-        orderRequestId.current = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `order-${Date.now()}`;
-      }
+      orderRequestId.current = ensureCheckoutRequestId(orderRequestId.current);
       const orderNotes = [
         notes.trim(),
         t("checkout.pickupFromStore", "איסוף עצמי מהעסק"),
       ].filter(Boolean).join("\n");
-      const result = coupon
+      const phoneProofId = otpRequired ? proof?.proofId : undefined;
+      if (otpRequired && !phoneProofId) {
+        setError(t("checkout.orderSaveError"));
+        return;
+      }
+      const rawResult = coupon
         ? await checkoutWithCoupon({
             requestId: orderRequestId.current,
+            phoneProof: phoneProofId,
             couponCode: coupon.code,
             customerName: name,
             customerPhone: parsedPhone.local,
             notes: orderNotes || undefined,
             locale: checkoutLocale,
-            paymentMethod: payment,
+            paymentMethod,
             items,
           })
         : await placeVerifiedCheckout({
             requestId: orderRequestId.current,
+            phoneProof: phoneProofId,
             customerName: name,
             customerPhone: parsedPhone.local,
             notes: orderNotes || undefined,
             locale: checkoutLocale,
-            paymentMethod: payment,
+            paymentMethod,
             items,
           });
+      const result = guardCardCheckoutResult({
+        paymentMethod,
+        result: rawResult,
+        locale: checkoutLocale,
+      });
       if (!result.success) {
         console.error("[checkout] order failed:", result.error, result.code);
         setError(result.error || t("checkout.orderSaveError"));
-        // Allow a clean retry with a new idempotency key after payment-link failures.
-        if (result.code === "HYP_PAYMENT_LINK_FAILED" || result.code === "HYP_NOT_CONFIGURED") {
+        // Keep requestId + phoneProof on Hyp SIGN/link failure for idempotent retry.
+        if (shouldRotateCheckoutRequestId(result.code)) {
           orderRequestId.current = "";
         }
         return;
@@ -222,8 +296,10 @@ export default function CheckoutPage() {
         return;
       }
 
+      // Cash (or print-skip) success only — card is blocked above without paymentUrl.
       requestNewOrderEmailNotification(result.data.id);
       setPlacedOrderNumber(result.data.orderNumber);
+      setPrintOutcome(checkoutPrintOutcomeFromResult(result));
       setSuccess(true);
       clearCart();
       setTimeout(() => router.push("/orders"), 2800);
@@ -235,8 +311,35 @@ export default function CheckoutPage() {
       });
       setError(t("checkout.orderSaveError"));
     } finally {
+      placingRef.current = false;
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading || placingRef.current || otpOpen) return;
+    if (!name.trim() || !phone.trim()) { setError(t("validation.required")); return; }
+
+    paymentMethodRef.current = payment;
+    const gate = decideCheckoutOtpGate({
+      otpRequired,
+      proof: phoneProof,
+      phone,
+    });
+    if (gate.action === "error") {
+      setError(invalidPhoneMessage(checkoutLocale));
+      return;
+    }
+    if (gate.action === "open_otp") {
+      // Validate details first, mint requestId once, then auto-send OTP via dialog.
+      orderRequestId.current = ensureCheckoutRequestId(orderRequestId.current);
+      setError(null);
+      setOtpOpen(true);
+      return;
+    }
+
+    await completeCheckout(phoneProof);
   };
 
   return (
@@ -263,7 +366,9 @@ export default function CheckoutPage() {
                   {t("orders.orderNumber", "מספר הזמנה")}: #{placedOrderNumber}
                 </p>
               )}
-              <p className="mt-2 text-sm text-coffee-light">{t("checkout.queueHint", "تم حفظ الطلب وإرساله إلى طابور الطباعة.")}</p>
+              <p className="mt-2 text-sm text-coffee-light">
+                {checkoutSuccessPrintHint(printOutcome, checkoutLocale)}
+              </p>
             </motion.div>
           ) : (
             <motion.form
@@ -288,7 +393,16 @@ export default function CheckoutPage() {
                     <Label className="flex items-center gap-1">
                       <Phone className="h-3.5 w-3.5" strokeWidth={1.75} /> {t("checkout.phone")}
                     </Label>
-                    <Input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" inputMode="tel" placeholder="05XXXXXXXX" className="mt-1 h-12" dir="ltr" required />
+                    <Input
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      type="tel"
+                      inputMode="tel"
+                      placeholder="05XXXXXXXX"
+                      className="mt-1 h-12"
+                      dir="ltr"
+                      required
+                    />
                   </div>
                   <div>
                     <Label className="flex items-center gap-1">
@@ -314,7 +428,11 @@ export default function CheckoutPage() {
                     <button
                       key={method}
                       type="button"
-                      onClick={() => setPayment(method)}
+                      aria-pressed={payment === method}
+                      onClick={() => {
+                        setPayment(method);
+                        paymentMethodRef.current = method;
+                      }}
                       className={`flex min-h-12 items-center justify-center gap-2 rounded-xl border-2 p-3 font-medium ${
                         payment === method ? "border-turquoise bg-turquoise/5" : "border-beige-dark"
                       }`}
@@ -324,6 +442,19 @@ export default function CheckoutPage() {
                     </button>
                   ))}
                 </div>
+                <p className="mt-2 text-xs text-coffee-light" data-testid="checkout-payment-selected">
+                  {payment === "card"
+                    ? checkoutLocale === "he"
+                      ? "נבחר: אשראי — אחרי OTP תועברו לדף התשלום"
+                      : checkoutLocale === "en"
+                        ? "Selected: card — after OTP you will go to the payment page"
+                        : "المحدد: بطاقة — بعد OTP ستنتقل إلى صفحة الدفع"
+                    : checkoutLocale === "he"
+                      ? "נבחר: מזומן בעת האיסוף"
+                      : checkoutLocale === "en"
+                        ? "Selected: cash on pickup"
+                        : "المحدد: نقد عند الاستلام"}
+                </p>
               </section>
 
               <section className="rounded-[18px] border border-beige-dark bg-warm-white p-4 shadow-soft">
@@ -353,7 +484,13 @@ export default function CheckoutPage() {
                   </div>
                 </div>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-                <Button type="submit" variant="turquoise" size="lg" className="mt-4 h-14 w-full rounded-2xl text-base font-bold" disabled={loading}>
+                <Button
+                  type="submit"
+                  variant="turquoise"
+                  size="lg"
+                  className="mt-4 h-14 w-full rounded-2xl text-base font-bold"
+                  disabled={loading || otpOpen}
+                >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${t("checkout.confirmOrder", "تأكيد الطلب")} • ${formatPrice(total)}`}
                 </Button>
               </section>
@@ -361,6 +498,24 @@ export default function CheckoutPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {otpRequired && parsedPhonePreview ? (
+        <PhoneOtpDialog
+          open={otpOpen}
+          phone={parsedPhonePreview.local}
+          locale={checkoutLocale}
+          onClose={() => {
+            // Keep name/phone/notes/cart; never place an order on dismiss.
+            setOtpOpen(false);
+          }}
+          onVerified={(proof) => {
+            setPhoneProof(proof);
+            setOtpOpen(false);
+            setError(null);
+            void completeCheckout(proof);
+          }}
+        />
+      ) : null}
     </>
   );
 }
