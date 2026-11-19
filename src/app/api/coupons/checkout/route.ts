@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkoutWithCoupon } from "@/lib/coupons/server";
 import { COUPON_ERROR_TEXT, type CouponErrorCode } from "@/lib/coupons/engine";
 import { invalidPhoneMessage } from "@/lib/phone/israeli-mobile";
+import { OTP_ERROR_TEXT, type OtpErrorCode } from "@/lib/phone-otp/engine";
 import { hypCheckoutErrorMessage } from "@/lib/payments/hyp";
 import { priceCheckoutItems, type CheckoutLineInput } from "@/lib/orders/trusted-cart";
 
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {
     requestId?: string;
+    phoneProof?: string;
     couponCode?: string;
     customerId?: string;
     customerName?: string;
@@ -52,6 +54,7 @@ export async function POST(request: NextRequest) {
   }
   const result = await checkoutWithCoupon({
     requestId: body.requestId,
+    phoneProof: body.phoneProof,
     couponCode: body.couponCode,
     customerId: body.customerId || "guest-checkout",
     customerName: body.customerName,
@@ -81,12 +84,16 @@ export async function POST(request: NextRequest) {
             ? hypCheckoutErrorMessage(code, locale)
             : code === "INVALID_PHONE"
               ? invalidPhoneMessage(locale)
-              : COUPON_ERROR_TEXT[code as CouponErrorCode]?.[locale] ||
-                (locale === "he"
-                  ? "הקופון אינו תקף"
-                  : locale === "en"
-                    ? "The coupon is not valid"
-                    : "الكوبون غير صالح");
+              : code === "PHONE_NOT_VERIFIED" ||
+                  code === "PHONE_MISMATCH" ||
+                  code === "EXPIRED"
+                ? OTP_ERROR_TEXT[code as OtpErrorCode][locale]
+                : COUPON_ERROR_TEXT[code as CouponErrorCode]?.[locale] ||
+                  (locale === "he"
+                    ? "הקופון אינו תקף"
+                    : locale === "en"
+                      ? "The coupon is not valid"
+                      : "الكوبون غير صالح");
     return NextResponse.json(
       {
         ok: false,
@@ -108,6 +115,7 @@ export async function POST(request: NextRequest) {
     subtotal: result.subtotal,
     replayed: result.replayed,
     printQueued: result.printQueued === true,
+    printSkipped: "printSkipped" in result ? result.printSkipped === true : false,
     awaitingPayment: result.awaitingPayment === true,
     paymentUrl: "paymentUrl" in result ? result.paymentUrl : undefined,
   });

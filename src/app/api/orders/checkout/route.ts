@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { invalidPhoneMessage } from "@/lib/phone/israeli-mobile";
+import { OTP_ERROR_TEXT, type OtpErrorCode } from "@/lib/phone-otp/engine";
 import { hypCheckoutErrorMessage } from "@/lib/payments/hyp";
 import { placeVerifiedOrder } from "@/lib/orders/place-verified-order";
 import type { CheckoutLineInput } from "@/lib/orders/trusted-cart";
@@ -14,6 +15,7 @@ function localeOf(value: unknown): "ar" | "he" | "en" {
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {
     requestId?: string;
+    phoneProof?: string;
     customerName?: string;
     customerPhone?: string;
     notes?: string;
@@ -32,6 +34,7 @@ export async function POST(request: NextRequest) {
   try {
     result = await placeVerifiedOrder({
       requestId: body.requestId,
+      phoneProof: body.phoneProof,
       customerId: "guest-checkout",
       customerName: body.customerName,
       customerPhone: body.customerPhone,
@@ -81,11 +84,15 @@ export async function POST(request: NextRequest) {
               ? hypCheckoutErrorMessage(code, locale)
               : code === "INVALID_PHONE"
                 ? invalidPhoneMessage(locale)
-                : locale === "he"
-                  ? "לא ניתן לשלוח את ההזמנה כרגע. נסו שוב."
-                  : locale === "en"
-                    ? "Could not place the order right now. Please try again."
-                    : "تعذر إرسال الطلب حاليًا. حاول مرة أخرى.";
+                : code === "PHONE_NOT_VERIFIED" ||
+                    code === "PHONE_MISMATCH" ||
+                    code === "EXPIRED"
+                  ? OTP_ERROR_TEXT[code as OtpErrorCode][locale]
+                  : locale === "he"
+                    ? "לא ניתן לשלוח את ההזמנה כרגע. נסו שוב."
+                    : locale === "en"
+                      ? "Could not place the order right now. Please try again."
+                      : "تعذر إرسال الطلب حاليًا. حاول مرة أخرى.";
     return NextResponse.json(
       {
         ok: false,
@@ -104,6 +111,7 @@ export async function POST(request: NextRequest) {
     orderNumber: result.orderNumber,
     total: result.total,
     printQueued: result.printQueued === true,
+    printSkipped: "printSkipped" in result ? result.printSkipped === true : false,
     awaitingPayment: result.awaitingPayment === true,
     paymentUrl: "paymentUrl" in result ? result.paymentUrl : undefined,
   });

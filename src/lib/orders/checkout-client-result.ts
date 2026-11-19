@@ -10,6 +10,8 @@ export type CheckoutApiPayload = {
   orderId?: string;
   orderNumber?: string;
   printQueued?: boolean;
+  /** True when kitchen print was intentionally skipped (e.g. PRINT_AUTO_NEW_ORDERS=false). */
+  printSkipped?: boolean;
   paymentUrl?: string;
   awaitingPayment?: boolean;
 };
@@ -26,6 +28,12 @@ export type CheckoutClientResult =
       success: true;
       data: { id: string; orderNumber: string };
       printQueued: true;
+    }
+  | {
+      success: true;
+      data: { id: string; orderNumber: string };
+      printQueued: false;
+      printSkipped: true;
     }
   | {
       success: false;
@@ -72,17 +80,27 @@ export function interpretCheckoutApiPayload(
     };
   }
 
-  if (!payload.printQueued) {
+  if (payload.printQueued) {
     return {
-      success: false,
-      error: payload.message || generic,
-      code: payload.code,
+      success: true,
+      data: { id: payload.orderId, orderNumber: payload.orderNumber },
+      printQueued: true,
+    };
+  }
+
+  // Staging/local: auto-print intentionally off — order succeeded; do not show PRINT_NOT_QUEUED.
+  if (payload.printSkipped) {
+    return {
+      success: true,
+      data: { id: payload.orderId, orderNumber: payload.orderNumber },
+      printQueued: false,
+      printSkipped: true,
     };
   }
 
   return {
-    success: true,
-    data: { id: payload.orderId, orderNumber: payload.orderNumber },
-    printQueued: true,
+    success: false,
+    error: payload.message || generic,
+    code: payload.code,
   };
 }
